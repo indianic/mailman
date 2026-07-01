@@ -4,8 +4,16 @@ The tools this server exposes to a Claude session. Each tool is a plain,
 stateless MCP call — the intelligence of interpreting "those docs" or
 composing a subject/body lives in the calling Claude session, not here.
 
+**Every response is JSON in a text block, host-agnostic.** No tool ever
+returns host-specific formatted output — the `Output` shapes below are
+JSON-serialized into the MCP `content` array's `text` field, the same
+convention this monorepo's other MCP server uses (see docs/PLAN.md's Output
+format section). Any MCP host — Claude Code, Cursor, Windsurf, etc. — parses
+the same JSON and renders it however that host wants.
+
 **Errors are structured, not just prose.** Any tool below that can fail
-returns `{ code, message }` — see the error-code table in
+returns `{ code, message }` (JSON-in-text + `isError: true`) — see the
+error-code table in
 [docs/PLAN.md](PLAN.md#concurrency-resilience--idempotency) — so Claude can
 branch on `code` (e.g. re-ask the user on `AMBIGUOUS_ACCOUNT`, back off and
 retry on `RATE_LIMITED`) instead of pattern-matching the message text.

@@ -14,6 +14,7 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `src/status.ts` — `collectStatus()` skeleton returning empty/placeholder sections (accounts, security, activity) — filled in as later phases add real data
 - [ ] `mcp-mailman status` CLI command — renders `collectStatus()` via `@clack/prompts` tree output
 - [ ] `src/mail/provider.ts` — define the `MailProvider` interface (`send`/`list`/`search`/`read`/`listContacts`) that `GmailApiProvider`/`ImapSmtpProvider` implement later
+- [ ] `src/response.ts` — `toolResponse()`/`toolError(code, message)` helpers (JSON-in-text-block, `isError` flag), mirroring `mcp-server/src/types.ts`'s `textResponse()`/`errorResponse()` convention from this monorepo's other MCP server, extended with a `code` field on errors
 - [ ] GitHub Actions CI skeleton — lint + typecheck on every PR (tests wired in as each phase adds them)
 
 ## Phase 1 — Core send path (App Password only) + draft/confirm flow

@@ -52,6 +52,52 @@ mailman/
 └── README.md
 ```
 
+## Output format — JSON text responses, host-agnostic
+
+Mailman is meant to work from any MCP host (Claude Code, Cursor, Windsurf,
+whatever else speaks MCP) — so no tool response ever bakes in formatting
+meant for one specific host's UI. Every tool result is a JSON payload
+serialized into the MCP `content` array's `text` block, matching the
+convention already used by this monorepo's other MCP server
+(`mcp-server/src/types.ts`'s `textResponse()`/`errorResponse()`):
+
+```ts
+// src/response.ts
+function toolResponse(value: unknown): ToolResponse {
+  return { content: [{ type: 'text', text: JSON.stringify(value) }] };
+}
+function toolError(code: string, message: string): ToolResponse {
+  return { content: [{ type: 'text', text: JSON.stringify({ code, message }) }], isError: true };
+}
+```
+
+- **Success**: the `Output` shape documented per-tool in docs/TOOLS.md,
+  JSON-stringified.
+- **Failure**: `{ code, message }` (see the error-code table under
+  Concurrency, resilience & idempotency below) — a structured upgrade over
+  the sibling project's plain-string `errorResponse`, since mailman's
+  control flow (ambiguous account, rate limiting, expired drafts) needs a
+  code to branch on, not just prose to pattern-match.
+- **Why JSON-in-text over the newer MCP `structuredContent`/`outputSchema`
+  fields**: not every MCP host has adopted `structuredContent` yet, but
+  every host can render a text block — and since that text is valid JSON,
+  any host that *wants* to parse it programmatically still can. This is the
+  same choice the sibling `mcp-server` already made; mailman follows it for
+  consistency across this developer's MCP projects, not just as an isolated
+  decision.
+- The one exception is `mcp-mailman status`, the **CLI** command (not an
+  MCP tool) — that's the only place a host-specific pretty tree render is
+  appropriate, because it's a human looking at a terminal directly, not an
+  AI host parsing a tool result. `get_status` (the MCP tool) returns the
+  same underlying data as plain JSON, per the CLI status output section
+  below.
+- Adopting the sibling project's `next_steps` pattern too: select tools
+  (`draft_email`, `suggest_recipients` on an ambiguous match) can include a
+  `next_steps: string[]` hint array in their JSON payload — a
+  belt-and-suspenders nudge ("show this preview and get explicit
+  confirmation before calling confirm_send") reinforcing what the tool
+  description already says, in case a host's model skims past it.
+
 ## Provider abstraction — one interface, two backends today
 
 Every account-scoped operation (send, list, search, read, list-contacts)
