@@ -15,9 +15,12 @@ set up per-repo.
 
 ## Status
 
-**Planning complete. No implementation yet.** Everything in `src/` described
-in the docs is still to be written — Phase 1 (App Password send path +
-draft/confirm flow) is the next concrete step. See
+**Phase 0 (project setup) complete.** Dependencies installed; MCP server
+skeleton (`src/index.ts`), CLI dispatcher (`bin/mcp-mailman.js` +
+`src/cli/main.ts`), `status`/`doctor` commands, `src/config/paths.ts`,
+`src/mail/provider.ts`, `src/response.ts`, `src/status.ts`, and CI
+(lint+typecheck+build) are all in place and passing. Phase 1 (App Password
+send path + draft/confirm flow) is the next concrete step. See
 [docs/CHECKLIST.md](docs/CHECKLIST.md) for the full 10-phase (0–9) build
 order.
 

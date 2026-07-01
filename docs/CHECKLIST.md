@@ -8,16 +8,16 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 - [x] Create project directory + git repo
 - [x] `package.json`, `tsconfig.json`, `.gitignore`
-- [ ] Install dependencies (`@modelcontextprotocol/sdk`, `nodemailer`, `zod`, `googleapis`, `imapflow`, `keytar`, `open`, `@clack/prompts`)
-- [ ] `src/config/paths.ts` — resolve global config dir per OS (macOS/Linux/Windows), honoring `MCP_MAILMAN_CONFIG_DIR` override
-- [ ] `src/index.ts` — minimal MCP server skeleton over stdio transport, registers zero tools yet, confirms `claude mcp add` wiring works end-to-end
-- [ ] `src/status.ts` — `collectStatus()` skeleton returning empty/placeholder sections (accounts, security, activity) — filled in as later phases add real data
-- [ ] `mcp-mailman status` CLI command — renders `collectStatus()` via `@clack/prompts` tree output
-- [ ] `src/mail/provider.ts` — define the `MailProvider` interface (`send`/`list`/`search`/`read`/`listContacts`) that `GmailApiProvider`/`ImapSmtpProvider` implement later
-- [ ] `src/response.ts` — `toolResponse()`/`toolError(code, message)` helpers (JSON-in-text-block, `isError` flag), mirroring `mcp-server/src/types.ts`'s `textResponse()`/`errorResponse()` convention from this monorepo's other MCP server, extended with a `code` field on errors
-- [ ] GitHub Actions CI skeleton — lint + typecheck on every PR (tests wired in as each phase adds them)
-- [ ] CLI arg parsing skeleton (`mcp-mailman <command>`), `--version`/`--help`
-- [ ] `mcp-mailman doctor` skeleton — keyring backend reachability, Node version check (network/SMTP/IMAP reachability checks added once those modules exist)
+- [x] Install dependencies (`@modelcontextprotocol/sdk`, `nodemailer`, `zod`, `googleapis`, `imapflow`, `keytar`, `open`, `@clack/prompts`)
+- [x] `src/config/paths.ts` — resolve global config dir per OS (macOS/Linux/Windows), honoring `MCP_MAILMAN_CONFIG_DIR` override
+- [x] `src/index.ts` — minimal MCP server skeleton over stdio transport, registers zero tools yet, confirms `claude mcp add` wiring works end-to-end
+- [x] `src/status.ts` — `collectStatus()` skeleton returning empty/placeholder sections (accounts, security, activity) — filled in as later phases add real data
+- [x] `mcp-mailman status` CLI command — renders `collectStatus()` via `@clack/prompts` tree output
+- [x] `src/mail/provider.ts` — define the `MailProvider` interface (`send`/`list`/`search`/`read`/`listContacts`) that `GmailApiProvider`/`ImapSmtpProvider` implement later
+- [x] `src/response.ts` — `toolResponse()`/`toolError(code, message)` helpers (JSON-in-text-block, `isError` flag), mirroring `mcp-server/src/types.ts`'s `textResponse()`/`errorResponse()` convention from this monorepo's other MCP server, extended with a `code` field on errors
+- [x] GitHub Actions CI skeleton — lint + typecheck on every PR (tests wired in as each phase adds them)
+- [x] CLI arg parsing skeleton (`mcp-mailman <command>`), `--version`/`--help`
+- [x] `mcp-mailman doctor` skeleton — keyring backend reachability, Node version check (network/SMTP/IMAP reachability checks added once those modules exist)
 
 ## Phase 1 — Core send path (App Password only) + draft/confirm flow
 

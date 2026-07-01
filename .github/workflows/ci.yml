@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # keytar's native module needs libsecret's headers to build from
+      # source on Linux if no matching prebuilt binary is available.
+      - name: Install libsecret (for keytar)
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # Unit/integration tests are wired in here as each phase in
+      # docs/CHECKLIST.md adds them (none exist yet).

@@ -37,8 +37,9 @@ Claude: [address book, merged with Google Contacts for OAuth2 accounts]
 
 ## Status
 
-Planning complete — see [docs/PLAN.md](docs/PLAN.md). Implementation not
-started yet; see [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order.
+Phase 0 (project setup) complete — see [docs/PLAN.md](docs/PLAN.md) for the
+architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order.
+Phase 1 (core send path) is next.
 
 ## Docs
 
