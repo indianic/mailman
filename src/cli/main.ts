@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
+import { runInit, runAccountAdd } from './account.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -15,8 +16,9 @@ interface CommandEntry {
 // `--help` output and "unknown command" errors stay accurate as each
 // phase fills one in.
 const COMMANDS: Record<string, CommandEntry> = {
-  init: { handler: null, summary: 'First-run wizard: add your first account' },
-  account: { handler: null, summary: 'add / list / remove / set-default' },
+  init: { handler: runInit, summary: 'First-run wizard: add your first account' },
+  account: { handler: null, summary: 'list / remove / set-default (see `account add`)' },
+  'account add': { handler: runAccountAdd, summary: 'Add another account' },
   'auth login': { handler: null, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: null, summary: 'Rotate the master encryption key' },
   contacts: { handler: null, summary: 'list / add / remove local contacts' },

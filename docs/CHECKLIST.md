@@ -21,18 +21,18 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 1 — Core send path (App Password only) + draft/confirm flow
 
-- [ ] `src/config/schema.ts` — zod schemas for `accounts.json`, `settings.json`, each with a `schemaVersion` field from day one
-- [ ] `src/config/store.ts` — single in-process write queue per file; atomic write via temp-file + `fs.rename()`; `.bak` copy before every write; fall back to `.bak` + warn on a JSON parse failure at load
-- [ ] `src/auth/app-password.ts` — `nodemailer` Gmail SMTP transport, implements `MailProvider.send`
-- [ ] In-memory draft store: `Map<draftId, Draft>` keyed by `crypto.randomUUID()`, state machine `pending → sent | expired | cancelled`, TTL default 10 min from `settings.draftTtlMinutes`
-- [ ] Structured error codes (`ACCOUNT_NOT_FOUND`, `AMBIGUOUS_ACCOUNT`, `DRAFT_EXPIRED`, `ATTACHMENT_TOO_LARGE`, `ATTACHMENT_NOT_FOUND`, `NO_MASTER_KEY`, ...) — every failable tool returns `{ code, message }`, not just a message string
-- [ ] `draft_email` tool — builds preview, stores draft, returns `draftId`
-- [ ] `confirm_send` tool — idempotent: replaying the same `draftId` after a successful send returns the original result instead of resending; only `pending → sent` dispatches via nodemailer
-- [ ] `cancel_draft` tool
-- [ ] `SIGTERM`/`SIGINT` handler — flush pending `activity.log` write, close any open IMAP session, exit cleanly (no attempt to finish an in-flight send)
-- [ ] Unit tests: draft TTL expiry + state machine, atomic-write + `.bak` recovery
-- [ ] `mcp-mailman init` / `mcp-mailman account add` CLI commands (App Password path: masked password prompt) — thin wrapper over the same account-creation function `configure_account` calls, not duplicated logic
-- [ ] Manual end-to-end test: configure one App Password account, draft, confirm, verify real delivery
+- [x] `src/config/schema.ts` — zod schemas for `accounts.json`, `settings.json`, each with a `schemaVersion` field from day one
+- [x] `src/config/store.ts` — single in-process write queue per file; atomic write via temp-file + `fs.rename()`; `.bak` copy before every write; fall back to `.bak` + warn on a JSON parse failure at load
+- [x] `src/auth/app-password.ts` — `nodemailer` Gmail SMTP transport, implements `MailProvider.send`
+- [x] In-memory draft store: `Map<draftId, Draft>` keyed by `crypto.randomUUID()`, state machine `pending → sent | expired | cancelled`, TTL default 10 min from `settings.draftTtlMinutes`
+- [x] Structured error codes (`ACCOUNT_NOT_FOUND`, `AMBIGUOUS_ACCOUNT`, `DRAFT_EXPIRED`, `ATTACHMENT_TOO_LARGE`, `ATTACHMENT_NOT_FOUND`, `NO_MASTER_KEY`, ...) — every failable tool returns `{ code, message }`, not just a message string
+- [x] `draft_email` tool — builds preview, stores draft, returns `draftId`
+- [x] `confirm_send` tool — idempotent: replaying the same `draftId` after a successful send returns the original result instead of resending; only `pending → sent` dispatches via nodemailer
+- [x] `cancel_draft` tool
+- [x] `SIGTERM`/`SIGINT` handler — flush pending `activity.log` write, close any open IMAP session, exit cleanly (no attempt to finish an in-flight send)
+- [x] Unit tests: draft TTL expiry + state machine, atomic-write + `.bak` recovery
+- [x] `mcp-mailman init` / `mcp-mailman account add` CLI commands (App Password path: masked password prompt) — thin wrapper over the same account-creation function `configure_account` calls, not duplicated logic
+- [ ] Manual end-to-end test: configure one App Password account, draft, confirm, verify real delivery — **pending user action** (needs a real Gmail App Password; automated smoke test already confirmed the full pipeline reaches Gmail's real SMTP server and gets a clean auth response)
 
 ## Phase 2 — Attachment resolution
 

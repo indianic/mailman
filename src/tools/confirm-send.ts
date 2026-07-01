@@ -1,0 +1,80 @@
+import { z } from 'zod';
+import { toolResponse, toolError } from '../response.js';
+import { ErrorCodes } from '../errors.js';
+import { resolveAccount, AccountResolutionError } from '../accounts.js';
+import { getDraft, markSent } from '../drafts.js';
+import { sendViaAppPassword } from '../auth/app-password.js';
+import type { Tool } from './types.js';
+
+const InputSchema = z.object({ draftId: z.string() });
+
+async function handler(rawArgs: Record<string, unknown>) {
+  const parsed = InputSchema.safeParse(rawArgs);
+  if (!parsed.success) {
+    return toolError('INVALID_INPUT', parsed.error.message);
+  }
+  const { draftId } = parsed.data;
+
+  const draft = getDraft(draftId);
+  if (!draft) {
+    return toolError(ErrorCodes.DRAFT_NOT_FOUND, `No such draft: ${draftId}`);
+  }
+
+  // Idempotent replay: a retried confirm_send after an ambiguous prior
+  // response (timeout, dropped connection) returns the original result
+  // instead of attempting to resend.
+  if (draft.state === 'sent' && draft.result) {
+    return toolResponse({ sent: true, messageId: draft.result.messageId, sentAt: draft.result.sentAt });
+  }
+  if (draft.state === 'expired') {
+    return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft has expired — call draft_email again.');
+  }
+  if (draft.state === 'cancelled') {
+    return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft was cancelled — call draft_email again.');
+  }
+
+  let account;
+  try {
+    account = await resolveAccount(draft.account);
+  } catch (err) {
+    if (err instanceof AccountResolutionError) {
+      return toolError(err.code, err.message);
+    }
+    throw err;
+  }
+
+  if (account.method !== 'app-password') {
+    return toolError(ErrorCodes.AUTH_EXPIRED, 'OAuth2 sending is not implemented yet.');
+  }
+
+  const { messageId } = await sendViaAppPassword(account.credentials, {
+    to: draft.to,
+    cc: draft.cc.length > 0 ? draft.cc : undefined,
+    bcc: draft.bcc.length > 0 ? draft.bcc : undefined,
+    subject: draft.subject,
+    body: draft.body,
+    bodyType: draft.bodyType,
+    attachments: draft.attachments.map((a) => ({ path: a.path, name: a.name, mimeType: a.mimeType })),
+  });
+
+  const sentAt = new Date().toISOString();
+  markSent(draftId, { messageId, sentAt });
+
+  return toolResponse({ sent: true, messageId, sentAt });
+}
+
+export const confirmSendTool: Tool = {
+  definition: {
+    name: 'confirm_send',
+    description:
+      'Dispatch the exact draft produced by draft_email. This is the only tool that actually causes mail to leave the machine — never call it without the user having seen and confirmed the draft_email preview first. Idempotent: calling it again with the same draftId after a successful send returns the original result.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        draftId: { type: 'string' },
+      },
+      required: ['draftId'],
+    },
+  },
+  handler,
+};

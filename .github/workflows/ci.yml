@@ -33,5 +33,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Unit/integration tests are wired in here as each phase in
-      # docs/CHECKLIST.md adds them (none exist yet).
+      - name: Test
+        run: npm test
