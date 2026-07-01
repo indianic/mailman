@@ -1,0 +1,48 @@
+{
+  "name": "mcp-mailman",
+  "version": "0.1.0",
+  "description": "MCP server for sending and reading email (Gmail via SMTP/IMAP App Password or OAuth2 Gmail API) with attachments, draft/confirm review, multi-account settings, recipient suggestions, and inbox search — usable from any Claude CLI session on macOS, Linux, or Windows.",
+  "type": "module",
+  "bin": {
+    "mcp-mailman": "./bin/mcp-mailman.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "auth:login": "tsx src/cli/auth-login.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "email",
+    "smtp",
+    "gmail",
+    "claude"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "nodemailer": "^6.9.0",
+    "googleapis": "^140.0.0",
+    "imapflow": "^1.0.0",
+    "keytar": "^7.9.0",
+    "zod": "^3.23.0",
+    "open": "^10.1.0",
+    "@clack/prompts": "^0.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.16.0",
+    "@types/node": "^20.14.0",
+    "@types/nodemailer": "^6.4.0"
+  }
+}
