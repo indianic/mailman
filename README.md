@@ -46,15 +46,21 @@ Claude: Scheduled. It'll go out even if this Claude session is closed by then.
 
 All 10 phases (0–9) implemented — see [docs/PLAN.md](docs/PLAN.md) for the
 architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the phase-by-
-phase build order and what's been manually verified vs. still pending a
-real account/real-machine check. Two things are deliberately left for you
-rather than done automatically:
+phase build order and what's been manually verified vs. still pending.
 
-- **Real-delivery verification** (App Password send, OAuth2 send,
-  list/search/read against a real mailbox) — every code path has been
-  exercised against real Google endpoints with fake credentials and fails
-  cleanly, but only your own real account can confirm an actual send/read
-  succeeds.
+**Verified for real**, registered globally via `claude mcp add` on this
+machine, with a real Gmail App Password account: send, `list_recent_emails`,
+`read_email`, and `search_emails` all confirmed against a live inbox. This
+real test caught and fixed a bug fake-credential smoke tests couldn't
+have (IMAP wasn't decoding quoted-printable body content).
+
+Still deliberately left for you rather than done automatically:
+
+- **OAuth2 real-delivery verification** — smoke-tested against Google's
+  real endpoints with fake credentials (clean `AUTH_EXPIRED`), but needs
+  your own Google Cloud OAuth client to confirm an actual send/read.
+- **Cross-OS smoke test** (Linux/Windows) — only macOS was available.
+- **`npm publish`** — a real, public, hard-to-reverse action.
 - **The scheduled-send OS ticker** (`launchd`/`crontab`/Task Scheduler) —
   registering it mutates real system state outside this repo and persists
   across reboots, so it's not installed automatically; `schedule_send`

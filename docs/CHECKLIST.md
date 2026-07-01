@@ -32,7 +32,7 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `SIGTERM`/`SIGINT` handler — flush pending `activity.log` write, close any open IMAP session, exit cleanly (no attempt to finish an in-flight send)
 - [x] Unit tests: draft TTL expiry + state machine, atomic-write + `.bak` recovery
 - [x] `mcp-mailman init` / `mcp-mailman account add` CLI commands (App Password path: masked password prompt) — thin wrapper over the same account-creation function `configure_account` calls, not duplicated logic
-- [ ] Manual end-to-end test: configure one App Password account, draft, confirm, verify real delivery — **pending user action** (needs a real Gmail App Password; automated smoke test already confirmed the full pipeline reaches Gmail's real SMTP server and gets a clean auth response)
+- [x] Manual end-to-end test: configure one App Password account, draft, confirm, verify real delivery — **done**: registered mailman globally, configured a real App Password account, sent a real self-email, confirmed delivery via a real read-back (found and fixed a real IMAP quoted-printable decoding bug in the process — see commit 5bb70a4)
 
 ## Phase 2 — Attachment resolution
 
@@ -105,7 +105,7 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `search_emails` tool (`folder: "inbox" | "sent" | "all"`) — same `limit`/`nextPageToken` behavior
 - [x] `read_email` tool — headers + body + attachment metadata only (no attachment download); `bodyText`/`bodyHtml` capped at ~20,000 chars with a `truncated` flag
 - [x] `list_accounts` output includes `canRead: true/false` per account so it's visible which accounts have read access granted (already true since Phase 5, hardcoded `true` per the "expected to always be true today" note)
-- [x] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account — smoke-tested against real Google/IMAP endpoints with fake credentials; both fail cleanly (`AUTH_EXPIRED` / clear IMAP auth message) rather than mishandling the request. Full success-path validation (real message parsing/pagination) is **pending user action** — needs real credentials, same pattern as prior phases' real-delivery tests
+- [x] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account — **App Password: done for real** (real account, real send, `list_recent_emails`/`read_email`/`search_emails` all verified against the live inbox — this is what surfaced and got fixed the quoted-printable decoding bug). **OAuth2: still pending user action** — smoke-tested against Google's real endpoints with fake credentials (clean `AUTH_EXPIRED`), but success-path validation needs a real Google Cloud OAuth client
 
 ## Phase 8 — Scheduled sends
 
