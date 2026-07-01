@@ -8,21 +8,34 @@ understanding what mailman is and why it's built the way it is.
 ## What it is
 
 `mcp-mailman` is a standalone MCP server (its own npm package, its own repo
-— not part of any other project) that lets any Claude CLI session send and
-read email through Gmail. Registered globally, so it works the same way
+— not part of any other project) that lets any Claude CLI session send,
+read, search, and schedule email through Gmail, with recipient suggestions
+and multi-account support. Registered globally, so it works the same way
 from any project directory on macOS, Linux, or Windows — not something you
 set up per-repo.
 
 ## Status
 
-**Phase 0 (project setup) complete.** Dependencies installed; MCP server
-skeleton (`src/index.ts`), CLI dispatcher (`bin/mcp-mailman.js` +
-`src/cli/main.ts`), `status`/`doctor` commands, `src/config/paths.ts`,
-`src/mail/provider.ts`, `src/response.ts`, `src/status.ts`, and CI
-(lint+typecheck+build) are all in place and passing. Phase 1 (App Password
-send path + draft/confirm flow) is the next concrete step. See
-[docs/CHECKLIST.md](docs/CHECKLIST.md) for the full 10-phase (0–9) build
-order.
+**All 10 phases (0–9) complete and committed**, plus one post-launch
+addition. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the full
+phase-by-phase build order and exactly what's been verified vs. what's
+still pending.
+
+- **Verified for real**: registered globally via `claude mcp add`, a real
+  Gmail App Password account configured, an actual send + read confirmed
+  against a live inbox. That real test caught and fixed a bug
+  fake-credential smoke tests couldn't (IMAP wasn't decoding
+  quoted-printable body content — fixed in commit `5bb70a4`).
+- **Post-launch addition**: `get_mailbox_overview` — a single-call
+  sent+inbox snapshot with attachment metadata resolved, added after
+  repeatedly composing several tool calls by hand in conversation.
+- **Still pending, deliberately not done automatically**: OAuth2
+  real-delivery verification (needs a real Google Cloud OAuth client),
+  cross-OS smoke testing (no Linux/Windows machine was available),
+  `npm publish` (a real, public, hard-to-reverse action), and actually
+  registering the scheduled-send OS ticker on a real machine (mutates
+  real system state outside this repo — `schedule_send` installs it the
+  first time it's actually used).
 
 ## Repo facts
 
@@ -54,6 +67,10 @@ order.
   in the OS keychain (via `keytar`), never in the config directory itself —
   copying `accounts.json` to another machine gets an attacker useless
   ciphertext.
+- **`settings.json`'s `defaultAccount` is the single source of truth** for
+  which account is default — accounts never carry their own `isDefault`
+  flag. An earlier version drifted from this (a redundant per-account flag)
+  before it was caught and fixed.
 - **Every MCP response is JSON in a text block**, matching the convention
   already used by this developer's other MCP server
   (`sshmanager/mcp-server/src/types.ts`) — host-agnostic, works the same
@@ -61,11 +78,13 @@ order.
 - **Both Gmail auth methods are supported per-account** (App Password or
   OAuth2), behind one `MailProvider` interface so tools never branch on
   which method an account uses.
-- **`auth login` has a headless fallback.** Local-browser loopback redirect
-  by default; falls back to the OAuth Device Authorization Grant (print a
-  URL + code, poll in the background) when no local browser is reachable —
-  SSH sessions, containers, headless boxes. No manual code paste-back
-  either way (Google removed that flow in 2022).
+- **`auth login` is loopback-redirect only — there is no device-flow
+  fallback.** Google's Device Authorization Grant doesn't support
+  Gmail/Contacts scopes on any client type, so it was checked against
+  Google's live docs and ruled out before being built. When no local
+  browser is reachable (SSH, headless, container), `auth login` prints the
+  consent URL plus an `ssh -L` port-forward command instead — same
+  loopback listener, just opened from wherever the real browser lives.
 - **Scheduled sends don't rely on the MCP process staying alive.** The MCP
   server is an ephemeral stdio process, not a daemon, so "send this
   tomorrow" is persisted to disk (`scheduled.json`, encrypted like
