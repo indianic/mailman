@@ -37,12 +37,14 @@ Claude: [address book, merged with Google Contacts for OAuth2 accounts]
 
 ## Status
 
-Phases 0–7 complete (project setup, core send + draft/confirm, attachment
+Phases 0–8 complete (project setup, core send + draft/confirm, attachment
 resolution, security hardening, OAuth2 auth, multi-account + settings,
-recipient suggestions, reading/listing/searching mail) — see
-[docs/PLAN.md](docs/PLAN.md) for the architecture and
-[docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order. Phase 8
-(scheduled sends) is next.
+recipient suggestions, reading/listing/searching mail, scheduled sends) —
+see [docs/PLAN.md](docs/PLAN.md) for the architecture and
+[docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order. Phase 9
+(polish & publish) is next. Scheduled-send code is fully implemented and
+unit-tested; the real OS-ticker install (launchd/cron/Task Scheduler) is
+pending a manual confirmation before it's registered on any real machine.
 
 ## Docs
 

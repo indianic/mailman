@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export type DraftState = 'pending' | 'sent' | 'expired' | 'cancelled';
+export type DraftState = 'pending' | 'sent' | 'expired' | 'cancelled' | 'scheduled';
 
 export interface DraftAttachment {
   path: string;
@@ -19,6 +19,12 @@ export interface Draft {
   body: string;
   bodyType: 'text' | 'html';
   attachments: DraftAttachment[];
+  // The original, un-resolved attachment input (paths/globs/dirs) —
+  // kept alongside the already-resolved `attachments` above so
+  // schedule_send can re-resolve fresh at fire time rather than reusing
+  // a stale snapshot (see docs/PLAN.md's "Scheduled sends" section).
+  rawAttachments: string[];
+  recursive?: boolean;
   state: DraftState;
   createdAt: string;
   expiresAt: string;
@@ -34,6 +40,8 @@ export interface CreateDraftInput {
   body: string;
   bodyType?: 'text' | 'html';
   attachments?: DraftAttachment[];
+  rawAttachments?: string[];
+  recursive?: boolean;
   ttlMinutes: number;
 }
 
@@ -57,6 +65,8 @@ export function createDraft(input: CreateDraftInput): Draft {
     body: input.body,
     bodyType: input.bodyType ?? 'text',
     attachments: input.attachments ?? [],
+    rawAttachments: input.rawAttachments ?? [],
+    recursive: input.recursive,
     state: 'pending',
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + input.ttlMinutes * 60_000).toISOString(),
@@ -97,6 +107,15 @@ export function markSent(draftId: string, result: { messageId: string; sentAt: s
   if (draft && draft.state === 'pending') {
     draft.state = 'sent';
     draft.result = result;
+  }
+  return draft;
+}
+
+/** pending -> scheduled. The draft's job is done once schedule_send has persisted its own record in scheduled.json. */
+export function markScheduled(draftId: string): Draft | undefined {
+  const draft = getDraft(draftId);
+  if (draft && draft.state === 'pending') {
+    draft.state = 'scheduled';
   }
   return draft;
 }

@@ -64,6 +64,8 @@ async function handler(rawArgs: Record<string, unknown>) {
     body: input.body,
     bodyType: input.bodyType,
     attachments: resolved.files,
+    rawAttachments: input.attachments,
+    recursive: input.recursive,
     ttlMinutes: settings.draftTtlMinutes,
   });
 

@@ -7,6 +7,8 @@ import { runRotateKey } from './rotate-key.js';
 import { runAuthLogin } from './auth-login.js';
 import { runSettingsGet, runSettingsSet } from './settings.js';
 import { runContactsList, runContactsAdd, runContactsRemove } from './contacts.js';
+import { runSendScheduled } from './send-scheduled.js';
+import { runScheduledList } from './scheduled.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -37,8 +39,9 @@ const COMMANDS: Record<string, CommandEntry> = {
   'settings set': { handler: runSettingsSet, summary: 'Update one setting' },
   register: { handler: null, summary: 'Print the `claude mcp add` command' },
   doctor: { handler: runDoctor, summary: 'Environment pre-flight checks' },
-  scheduled: { handler: null, summary: 'list pending/sent/failed scheduled sends' },
-  'send-scheduled': { handler: null, summary: "Scheduler ticker's dispatch target" },
+  scheduled: { handler: null, summary: 'see `scheduled list`' },
+  'scheduled list': { handler: runScheduledList, summary: 'List pending/sent/failed scheduled sends' },
+  'send-scheduled': { handler: runSendScheduled, summary: "Scheduler ticker's dispatch target (--due)" },
   status: { handler: runStatus, summary: 'Show configured state as a tree' },
   reset: { handler: null, summary: 'Wipe the global config directory' },
 };

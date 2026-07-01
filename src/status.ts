@@ -1,3 +1,5 @@
+import { listScheduled } from './scheduler/store.js';
+
 export interface StatusAccount {
   alias: string;
   method: 'app-password' | 'oauth2';
@@ -25,11 +27,14 @@ export interface StatusData {
 
 /**
  * Shared data source for the `status` CLI command and the `get_status`
- * MCP tool — one function, two presentations. Placeholder/empty sections
- * here; each later phase fills in its own slice (accounts in Phase 5,
- * security in Phase 3, activity in Phase 3/9, pendingScheduled in Phase 8).
+ * MCP tool — one function, two presentations. accounts/security/activity
+ * are still Phase 0 placeholders (Phase 9 fills those in); pendingScheduled
+ * is real as of Phase 8, since that's the phase that introduced it.
  */
 export async function collectStatus(): Promise<StatusData> {
+  const scheduled = await listScheduled();
+  const pendingScheduled = scheduled.filter((e) => e.status === 'pending').length;
+
   return {
     accounts: [],
     security: {
@@ -45,6 +50,6 @@ export async function collectStatus(): Promise<StatusData> {
       searched: 0,
       sinceHours: 24,
     },
-    pendingScheduled: 0,
+    pendingScheduled,
   };
 }

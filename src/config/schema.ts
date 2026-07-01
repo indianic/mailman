@@ -78,3 +78,44 @@ export type Contact = z.infer<typeof ContactSchema>;
 export type ContactsFile = z.infer<typeof ContactsFileSchema>;
 
 export const DEFAULT_CONTACTS_FILE: ContactsFile = { schemaVersion: 1, contacts: [] };
+
+// A scheduled email's recipient/subject/body sitting in plaintext on disk
+// until it fires is a real exposure — `content` gets the same encrypted-
+// blob treatment as account credentials. `scheduledId`/`account`/`sendAt`/
+// `status`/`attempts` stay plaintext so the ticker's due-scan doesn't need
+// to decrypt every entry just to check what's due. See docs/PLAN.md's
+// "Scheduled sends" section.
+export const ScheduledMessageContentSchema = z.object({
+  to: z.array(z.string().email()),
+  cc: z.array(z.string().email()),
+  bcc: z.array(z.string().email()),
+  subject: z.string(),
+  body: z.string(),
+  bodyType: z.enum(['text', 'html']),
+  // Raw paths/globs/dirs — re-resolved fresh at fire time, never
+  // snapshotted (see docs/PLAN.md's "Scheduled sends" section).
+  attachments: z.array(z.string()),
+  recursive: z.boolean().optional(),
+});
+
+export const ScheduledEntrySchema = z.object({
+  scheduledId: z.string(),
+  account: z.string(),
+  sendAt: z.string(),
+  status: z.enum(['pending', 'sent', 'failed']),
+  attempts: z.number().int().nonnegative(),
+  content: EncryptedBlobSchema,
+  result: z.object({ messageId: z.string(), sentAt: z.string() }).optional(),
+  lastError: z.string().optional(),
+});
+
+export const ScheduledFileSchema = z.object({
+  schemaVersion: z.literal(1),
+  entries: z.array(ScheduledEntrySchema),
+});
+
+export type ScheduledMessageContent = z.infer<typeof ScheduledMessageContentSchema>;
+export type ScheduledEntry = z.infer<typeof ScheduledEntrySchema>;
+export type ScheduledFile = z.infer<typeof ScheduledFileSchema>;
+
+export const DEFAULT_SCHEDULED_FILE: ScheduledFile = { schemaVersion: 1, entries: [] };

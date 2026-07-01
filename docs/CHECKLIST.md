@@ -109,18 +109,18 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 8 — Scheduled sends
 
-- [ ] `src/config/schema.ts` — zod schema for `scheduled.json`, `schemaVersion` from day one
-- [ ] `src/scheduler/store.ts` — read/write `scheduled.json` through the same atomic-write + `.bak` + write-queue machinery as `config/store.ts`; encrypted at rest with the keytar-backed master key
-- [ ] `src/scheduler/ticker-install.ts` — idempotent per-OS registration: `launchd` agent (macOS), `crontab` entry (Linux), Task Scheduler task (Windows); polls every 1–5 min
-- [ ] `src/scheduler/dispatch.ts` — resolves attachments fresh (not snapshotted), sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed`
-- [ ] `schedule_send` tool — persists to `scheduled.json`, installs the ticker if not already present, returns `scheduledId`
-- [ ] `list_scheduled` / `cancel_scheduled` tools; `SCHEDULE_NOT_FOUND` error code
-- [ ] `mcp-mailman send-scheduled --due` CLI command (ticker's dispatch target — CLI-only, never an MCP tool)
-- [ ] `mcp-mailman scheduled list` CLI command (read-only mirror of `list_scheduled`)
-- [ ] `doctor` — report ticker install/last-run health
-- [ ] `status`/`get_status` — add pending-scheduled count
-- [ ] Unit tests: due-detection logic, retry/fail-after-cap bookkeeping, attachment re-resolution at fire time
-- [ ] Manual test: schedule a send a few minutes out, close the Claude Code session entirely, confirm it still fires via the OS ticker with mailman's MCP process not running
+- [x] `src/config/schema.ts` — zod schema for `scheduled.json`, `schemaVersion` from day one
+- [x] `src/scheduler/store.ts` — read/write `scheduled.json` through the same atomic-write + `.bak` + write-queue machinery as `config/store.ts`; encrypted at rest with the keytar-backed master key (only the message `content`; `scheduledId`/`account`/`sendAt`/`status`/`attempts` stay plaintext so the ticker's due-scan doesn't decrypt every entry)
+- [x] `src/scheduler/ticker-install.ts` — idempotent per-OS registration: `launchd` agent (macOS), `crontab` entry (Linux), Task Scheduler task (Windows); polls every 1–5 min
+- [x] `src/scheduler/dispatch.ts` — resolves attachments fresh (not snapshotted), sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed` (also enforces the size cap pre-send, matching `draft_email` — caught mid-implementation while writing this phase's tests)
+- [x] `schedule_send` tool — persists to `scheduled.json`, installs the ticker if not already present, returns `scheduledId`
+- [x] `list_scheduled` / `cancel_scheduled` tools; `SCHEDULE_NOT_FOUND` error code
+- [x] `mcp-mailman send-scheduled --due` CLI command (ticker's dispatch target — CLI-only, never an MCP tool)
+- [x] `mcp-mailman scheduled list` CLI command (read-only mirror of `list_scheduled`)
+- [x] `doctor` — report ticker install/last-run health (read-only status check, never installs anything itself)
+- [x] `status`/`get_status` — add pending-scheduled count
+- [x] Unit tests: due-detection logic, retry/fail-after-cap bookkeeping, attachment re-resolution at fire time (12 new tests, all fast/no-network — a missing-then-oversized attachment proves fresh resolution without ever reaching a real send)
+- [ ] Manual test: schedule a send a few minutes out, close the Claude Code session entirely, confirm it still fires via the OS ticker with mailman's MCP process not running — **pending user confirmation**: this requires registering a real `launchd`/`crontab`/Task Scheduler entry on the actual machine, which persists across reboots until removed — asking before doing it rather than installing unilaterally
 
 ## Phase 9 — Polish & publish
 

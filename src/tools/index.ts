@@ -14,6 +14,9 @@ import { suggestRecipientsTool } from './suggest-recipients.js';
 import { listRecentEmailsTool } from './list-recent-emails.js';
 import { searchEmailsTool } from './search-emails.js';
 import { readEmailTool } from './read-email.js';
+import { scheduleSendTool } from './schedule-send.js';
+import { listScheduledTool } from './list-scheduled.js';
+import { cancelScheduledTool } from './cancel-scheduled.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
@@ -33,4 +36,7 @@ export const allTools: Tool[] = [
   listRecentEmailsTool,
   searchEmailsTool,
   readEmailTool,
+  scheduleSendTool,
+  listScheduledTool,
+  cancelScheduledTool,
 ];

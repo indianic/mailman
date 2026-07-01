@@ -1,4 +1,5 @@
 import { intro, outro, log } from '@clack/prompts';
+import { getTickerStatus } from '../scheduler/ticker-install.js';
 
 interface CheckResult {
   name: string;
@@ -38,12 +39,23 @@ async function checkKeyringBackend(): Promise<CheckResult> {
   }
 }
 
+async function checkTicker(): Promise<CheckResult> {
+  const status = await getTickerStatus();
+  // Not installed isn't a failure on its own — it just means no
+  // schedule_send call has happened yet on this machine.
+  return {
+    name: 'Scheduled-send ticker',
+    ok: true,
+    detail: status.installed ? `installed (${status.mechanism})` : `not installed yet (would use ${status.mechanism})`,
+  };
+}
+
 // Network/SMTP/IMAP reachability checks are added in later phases once
 // those modules exist (see docs/CHECKLIST.md Phase 9).
 export async function runDoctor(_args: string[]): Promise<void> {
   intro('mailman — doctor');
 
-  const results = [checkNodeVersion(), await checkKeyringBackend()];
+  const results = [checkNodeVersion(), await checkKeyringBackend(), await checkTicker()];
 
   for (const result of results) {
     if (result.ok) {
