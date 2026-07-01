@@ -21,7 +21,10 @@ export function enqueue<T>(filePath: string, task: () => Promise<T>): Promise<T>
   return run;
 }
 
-async function readRaw<T>(filePath: string, schema: z.ZodType<T>, defaultValue: T): Promise<T> {
+// Input is `any`, not `T` — schemas using `.default()` (e.g. defaultBodyType)
+// have an input type where that field is optional, which doesn't structurally
+// match z.ZodType<T> (that shorthand pins input === output === T).
+async function readRaw<T>(filePath: string, schema: z.ZodType<T, z.ZodTypeDef, any>, defaultValue: T): Promise<T> {
   let raw: string;
   try {
     raw = await fs.readFile(filePath, 'utf8');
@@ -59,7 +62,7 @@ async function readRaw<T>(filePath: string, schema: z.ZodType<T>, defaultValue: 
 const PRIVATE_FILE_MODE = 0o600;
 const PRIVATE_DIR_MODE = 0o700;
 
-async function writeRaw<T>(filePath: string, schema: z.ZodType<T>, value: T): Promise<void> {
+async function writeRaw<T>(filePath: string, schema: z.ZodType<T, z.ZodTypeDef, any>, value: T): Promise<void> {
   const validated = schema.parse(value);
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true, mode: PRIVATE_DIR_MODE });
@@ -83,18 +86,18 @@ async function writeRaw<T>(filePath: string, schema: z.ZodType<T>, value: T): Pr
   await fs.rename(tmpPath, filePath);
 }
 
-export function readJsonFile<T>(filePath: string, schema: z.ZodType<T>, defaultValue: T): Promise<T> {
+export function readJsonFile<T>(filePath: string, schema: z.ZodType<T, z.ZodTypeDef, any>, defaultValue: T): Promise<T> {
   return enqueue(filePath, () => readRaw(filePath, schema, defaultValue));
 }
 
-export function writeJsonFile<T>(filePath: string, schema: z.ZodType<T>, value: T): Promise<void> {
+export function writeJsonFile<T>(filePath: string, schema: z.ZodType<T, z.ZodTypeDef, any>, value: T): Promise<void> {
   return enqueue(filePath, () => writeRaw(filePath, schema, value));
 }
 
 /** Read-modify-write, atomic with respect to other callers of this file. */
 export function updateJsonFile<T>(
   filePath: string,
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, z.ZodTypeDef, any>,
   defaultValue: T,
   mutator: (current: T) => T,
 ): Promise<T> {
