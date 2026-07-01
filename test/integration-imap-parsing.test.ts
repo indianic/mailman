@@ -9,6 +9,7 @@ import {
   findFirstPartByType,
   collectAttachments,
   extractSnippetFromTextSection,
+  decodePartContent,
 } from '../src/mail/imap-client.js';
 
 // Integration test against realistic imapflow-shaped fixtures — no
@@ -66,9 +67,9 @@ test('structureHasAttachments detects a nested attachment part', () => {
   assert.equal(structureHasAttachments({ type: 'text/plain', size: 10 }), false);
 });
 
-test('findFirstPartByType locates the right sub-part id for text/plain and text/html', () => {
-  assert.equal(findFirstPartByType(REALISTIC_STRUCTURE, 'text/plain'), '1.1');
-  assert.equal(findFirstPartByType(REALISTIC_STRUCTURE, 'text/html'), '1.2');
+test('findFirstPartByType locates the right sub-part id (plus encoding) for text/plain and text/html', () => {
+  assert.deepEqual(findFirstPartByType(REALISTIC_STRUCTURE, 'text/plain'), { part: '1.1', encoding: undefined });
+  assert.deepEqual(findFirstPartByType(REALISTIC_STRUCTURE, 'text/html'), { part: '1.2', encoding: undefined });
   assert.equal(findFirstPartByType(REALISTIC_STRUCTURE, 'image/png'), undefined);
 });
 
@@ -94,4 +95,38 @@ test('extractSnippetFromTextSection strips MIME boundary/header noise from the r
 
 test('extractSnippetFromTextSection returns an empty string when no TEXT section was fetched', () => {
   assert.equal(extractSnippetFromTextSection(undefined), '');
+});
+
+// Regression test: real-account verification against a live Gmail App
+// Password account surfaced literal "=\r\n" soft-line-break artifacts in
+// read_email's bodyText — nodemailer/Gmail sends text/plain bodies
+// quoted-printable-encoded, and IMAP hands back the raw encoded bytes
+// unlike the Gmail API (which decodes for you). Fake-credential smoke
+// tests never exercised this because they never got real body content back.
+test('decodePartContent decodes quoted-printable soft line breaks and =XX escapes', () => {
+  const raw = Buffer.from(
+    'This is a real automated test send from mcp-mailman during Phase 9 =\r\nverification. If you got this, App Password sending works end to end.\r\n',
+  );
+  const decoded = decodePartContent(raw, 'quoted-printable');
+  assert.equal(
+    decoded,
+    'This is a real automated test send from mcp-mailman during Phase 9 verification. If you got this, App Password sending works end to end.\r\n',
+  );
+});
+
+test('decodePartContent decodes a quoted-printable =XX hex escape to the right byte', () => {
+  // "50%" quoted-printable-encoded: the '%' becomes =25.
+  const raw = Buffer.from('50=25 off');
+  assert.equal(decodePartContent(raw, 'quoted-printable'), '50% off');
+});
+
+test('decodePartContent decodes base64 content', () => {
+  const raw = Buffer.from(Buffer.from('Hello, base64 world!').toString('base64'));
+  assert.equal(decodePartContent(raw, 'base64'), 'Hello, base64 world!');
+});
+
+test('decodePartContent passes 7bit/8bit/undefined encodings through unchanged', () => {
+  const raw = Buffer.from('Plain ASCII body, no decoding needed.');
+  assert.equal(decodePartContent(raw, '7bit'), 'Plain ASCII body, no decoding needed.');
+  assert.equal(decodePartContent(raw, undefined), 'Plain ASCII body, no decoding needed.');
 });

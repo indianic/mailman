@@ -61,14 +61,51 @@ export function structureHasAttachments(node: MessageStructureObject | undefined
   return (node.childNodes ?? []).some(structureHasAttachments);
 }
 
-export function findFirstPartByType(node: MessageStructureObject | undefined, mimeType: string): string | undefined {
+export interface FoundPart {
+  part: string;
+  encoding?: string;
+}
+
+export function findFirstPartByType(node: MessageStructureObject | undefined, mimeType: string): FoundPart | undefined {
   if (!node) return undefined;
-  if (node.type === mimeType) return node.part ?? '1';
+  if (node.type === mimeType) return { part: node.part ?? '1', encoding: node.encoding };
   for (const child of node.childNodes ?? []) {
     const found = findFirstPartByType(child, mimeType);
     if (found) return found;
   }
   return undefined;
+}
+
+/**
+ * IMAP hands back each part's raw transfer-encoded bytes — unlike Gmail's
+ * REST API, which already decodes for you. quoted-printable and base64
+ * are the two transfer encodings Gmail actually uses for text parts; 7bit/
+ * 8bit/binary need no decoding.
+ */
+export function decodePartContent(buf: Buffer, encoding: string | undefined): string {
+  const enc = (encoding ?? '7bit').toLowerCase();
+  if (enc === 'quoted-printable') {
+    return decodeQuotedPrintable(buf.toString('binary'));
+  }
+  if (enc === 'base64') {
+    return Buffer.from(buf.toString('ascii').replace(/[^A-Za-z0-9+/=]/g, ''), 'base64').toString('utf8');
+  }
+  return buf.toString('utf8');
+}
+
+function decodeQuotedPrintable(input: string): string {
+  const withoutSoftBreaks = input.replace(/=\r?\n/g, '');
+  const bytes: number[] = [];
+  for (let i = 0; i < withoutSoftBreaks.length; i++) {
+    const hexPair = withoutSoftBreaks.slice(i + 1, i + 3);
+    if (withoutSoftBreaks[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(hexPair)) {
+      bytes.push(parseInt(hexPair, 16));
+      i += 2;
+    } else {
+      bytes.push(withoutSoftBreaks.charCodeAt(i) & 0xff);
+    }
+  }
+  return Buffer.from(bytes).toString('utf8');
 }
 
 export function collectAttachments(
@@ -90,6 +127,11 @@ export function extractSnippetFromTextSection(buf: Buffer | undefined): string {
   if (!buf) return '';
   const cleaned = buf
     .toString('utf8')
+    // The raw TEXT section may span multiple parts with different transfer
+    // encodings, so a full decode isn't possible here — but stripping
+    // quoted-printable soft line breaks (before splitting on \n) removes
+    // the most visible noise.
+    .replace(/=\r?\n/g, '')
     .split('\n')
     .filter((line) => !line.startsWith('--') && !/^(Content-Type|Content-Transfer-Encoding|Content-Disposition):/i.test(line))
     .join(' ')
@@ -229,17 +271,23 @@ export class ImapSmtpProvider implements MailProvider {
           throw new Error(`Message not found: ${id}`);
         }
 
-        const textPartId = findFirstPartByType(structureMsg.bodyStructure, 'text/plain');
-        const htmlPartId = findFirstPartByType(structureMsg.bodyStructure, 'text/html');
+        const textPart = findFirstPartByType(structureMsg.bodyStructure, 'text/plain');
+        const htmlPart = findFirstPartByType(structureMsg.bodyStructure, 'text/html');
         const attachments = collectAttachments(structureMsg.bodyStructure);
 
-        const partsToFetch = [textPartId, htmlPartId].filter((p): p is string => Boolean(p));
+        const partsToFetch = [textPart?.part, htmlPart?.part].filter((p): p is string => Boolean(p));
         let bodyText = '';
         let bodyHtml: string | undefined;
         if (partsToFetch.length > 0) {
           const contentMsg = await fetchOne(client, uid, { uid: true, bodyParts: partsToFetch });
-          if (textPartId) bodyText = contentMsg?.bodyParts?.get(textPartId)?.toString('utf8') ?? '';
-          if (htmlPartId) bodyHtml = contentMsg?.bodyParts?.get(htmlPartId)?.toString('utf8');
+          if (textPart) {
+            const raw = contentMsg?.bodyParts?.get(textPart.part);
+            bodyText = raw ? decodePartContent(raw, textPart.encoding) : '';
+          }
+          if (htmlPart) {
+            const raw = contentMsg?.bodyParts?.get(htmlPart.part);
+            bodyHtml = raw ? decodePartContent(raw, htmlPart.encoding) : undefined;
+          }
         }
 
         const bodyTextResult = truncateBody(bodyText);
