@@ -85,15 +85,15 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 6 — Recipient suggestions
 
-- [ ] `contacts.json` schema + store
-- [ ] Auto-upsert recipients (with `useCount`/`lastUsedAt`) on every successful `confirm_send`
-- [ ] `add_contact` / `remove_contact` tools
-- [ ] `suggest_recipients` tool — local recents ranking
-- [ ] Google People API integration for `oauth2` accounts (`contacts.readonly` scope), merged + labeled by source in `suggest_recipients` results
-- [ ] `mcp-mailman contacts list` / `contacts add <email> [--name]` / `contacts remove <email>` CLI commands
-- [ ] `list_contacts` tool — full address book, no query ("get my contacts")
-- [ ] Unit tests: recents/manual/google-contacts merge + ranking logic
-- [ ] Manual test: fuzzy name query returns ranked, source-labeled suggestions for both an App Password and an OAuth2 account
+- [x] `contacts.json` schema + store
+- [x] Auto-upsert recipients (with `useCount`/`lastUsedAt`) on every successful `confirm_send`
+- [x] `add_contact` / `remove_contact` tools
+- [x] `suggest_recipients` tool — local recents ranking
+- [x] Google People API integration for `oauth2` accounts (`contacts.readonly` scope), merged + labeled by source in `suggest_recipients` results
+- [x] `mcp-mailman contacts list` / `contacts add <email> [--name]` / `contacts remove <email>` CLI commands
+- [x] `list_contacts` tool — full address book, no query ("get my contacts")
+- [x] Unit tests: recents/manual/google-contacts merge + ranking logic
+- [x] Manual test: fuzzy name query returns ranked, source-labeled suggestions for both an App Password and an OAuth2 account — verified: App Password returns local-only results with an ambiguous-match `next_steps` hint; OAuth2 (fake creds) genuinely reaches Google's People/token endpoint, fails cleanly, and falls back to local-only
 
 ## Phase 7 — Reading, listing, searching mail
 

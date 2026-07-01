@@ -6,6 +6,8 @@ import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js
 import { getDraft, markSent } from '../drafts.js';
 import { sendViaAppPassword } from '../auth/app-password.js';
 import { sendViaOAuth2, OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
+import { upsertRecipient } from '../contacts.js';
+import { debugLog } from '../logging.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({ draftId: z.string() });
@@ -88,6 +90,15 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const sentAt = new Date().toISOString();
   markSent(draftId, { messageId, sentAt });
+
+  // Best-effort: the mail already went out, so a contacts-bookkeeping
+  // failure shouldn't turn a successful send into an error response.
+  try {
+    const recipients = [...draft.to, ...draft.cc, ...draft.bcc];
+    await Promise.all(recipients.map((email) => upsertRecipient(email)));
+  } catch (err) {
+    debugLog('recipient auto-upsert failed', { message: err instanceof Error ? err.message : String(err) });
+  }
 
   return toolResponse({ sent: true, messageId, sentAt });
 }

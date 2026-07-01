@@ -7,6 +7,10 @@ import { listAccountsTool } from './list-accounts.js';
 import { removeAccountTool } from './remove-account.js';
 import { getSettingsTool } from './get-settings.js';
 import { updateSettingsTool } from './update-settings.js';
+import { addContactTool } from './add-contact.js';
+import { removeContactTool } from './remove-contact.js';
+import { listContactsTool } from './list-contacts.js';
+import { suggestRecipientsTool } from './suggest-recipients.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
@@ -19,4 +23,8 @@ export const allTools: Tool[] = [
   removeAccountTool,
   getSettingsTool,
   updateSettingsTool,
+  addContactTool,
+  removeContactTool,
+  listContactsTool,
+  suggestRecipientsTool,
 ];

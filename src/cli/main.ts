@@ -6,6 +6,7 @@ import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSet
 import { runRotateKey } from './rotate-key.js';
 import { runAuthLogin } from './auth-login.js';
 import { runSettingsGet, runSettingsSet } from './settings.js';
+import { runContactsList, runContactsAdd, runContactsRemove } from './contacts.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -27,7 +28,10 @@ const COMMANDS: Record<string, CommandEntry> = {
   'account set-default': { handler: runAccountSetDefault, summary: 'Set the default account' },
   'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
-  contacts: { handler: null, summary: 'list / add / remove local contacts' },
+  contacts: { handler: null, summary: 'see `contacts list` / `contacts add` / `contacts remove`' },
+  'contacts list': { handler: runContactsList, summary: 'Print the local address book' },
+  'contacts add': { handler: runContactsAdd, summary: 'Add a contact manually' },
+  'contacts remove': { handler: runContactsRemove, summary: 'Remove a contact' },
   settings: { handler: null, summary: 'see `settings get` / `settings set`' },
   'settings get': { handler: runSettingsGet, summary: 'Print current global settings' },
   'settings set': { handler: runSettingsSet, summary: 'Update one setting' },

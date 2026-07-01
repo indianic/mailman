@@ -57,3 +57,24 @@ export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   draftTtlMinutes: 10,
   alwaysConfirm: true,
 };
+
+// "google-contacts" is never stored here — it's fetched live from the
+// People API per suggest_recipients/list_contacts call, never cached to
+// disk. Only what mailman itself learned locally lives in this file.
+export const ContactSchema = z.object({
+  email: z.string().email(),
+  name: z.string().optional(),
+  source: z.enum(['manual', 'recents']),
+  useCount: z.number().int().nonnegative(),
+  lastUsedAt: z.string().nullable(),
+});
+
+export const ContactsFileSchema = z.object({
+  schemaVersion: z.literal(1),
+  contacts: z.array(ContactSchema),
+});
+
+export type Contact = z.infer<typeof ContactSchema>;
+export type ContactsFile = z.infer<typeof ContactsFileSchema>;
+
+export const DEFAULT_CONTACTS_FILE: ContactsFile = { schemaVersion: 1, contacts: [] };

@@ -20,6 +20,11 @@ export class OAuth2RateLimitError extends Error {
   }
 }
 
+/** Public entry point for callers that just need a valid access token (e.g. the People API client). */
+export function getAccessToken(credentials: OAuth2Credentials): Promise<string> {
+  return refreshAccessToken(credentials);
+}
+
 async function refreshAccessToken(credentials: OAuth2Credentials): Promise<string> {
   const response = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
