@@ -8,7 +8,7 @@ import type { z } from 'zod';
 // other. See docs/PLAN.md's "Data integrity & storage" section.
 const queues = new Map<string, Promise<unknown>>();
 
-function enqueue<T>(filePath: string, task: () => Promise<T>): Promise<T> {
+export function enqueue<T>(filePath: string, task: () => Promise<T>): Promise<T> {
   const prior = queues.get(filePath) ?? Promise.resolve();
   const run = prior.then(task, task);
   queues.set(

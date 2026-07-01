@@ -1,5 +1,6 @@
 import { intro, outro, text, password, log, isCancel, cancel } from '@clack/prompts';
 import { configureAccount } from '../accounts.js';
+import { KeyringUnavailableError } from '../config/keychain.js';
 
 interface AccountDetails {
   alias: string;
@@ -40,16 +41,29 @@ async function promptAccountDetails(): Promise<AccountDetails> {
   return { alias: String(alias), email: String(email), pass: String(pass) };
 }
 
+async function addAccount(details: AccountDetails, setDefault?: boolean) {
+  try {
+    return await configureAccount({
+      alias: details.alias,
+      email: details.email,
+      method: 'app-password',
+      credentials: { user: details.email, pass: details.pass },
+      setDefault,
+    });
+  } catch (err) {
+    if (err instanceof KeyringUnavailableError) {
+      log.error(err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
 /** `mcp-mailman init` — thin wrapper over configureAccount(), same function `configure_account` calls. */
 export async function runInit(_args: string[]): Promise<void> {
   intro('mailman — first-run setup');
   const details = await promptAccountDetails();
-  const account = await configureAccount({
-    alias: details.alias,
-    email: details.email,
-    method: 'app-password',
-    credentials: { user: details.email, pass: details.pass },
-  });
+  const account = await addAccount(details);
   outro(
     `Added "${account.alias}"${account.isDefault ? ' (default)' : ''}. Next: run ` +
       '`claude mcp add mailman -- npx -y mcp-mailman` to register it, then try "mailman, send ..." from a Claude session.',
@@ -60,12 +74,6 @@ export async function runInit(_args: string[]): Promise<void> {
 export async function runAccountAdd(args: string[]): Promise<void> {
   intro('mailman — add account');
   const details = await promptAccountDetails();
-  const account = await configureAccount({
-    alias: details.alias,
-    email: details.email,
-    method: 'app-password',
-    credentials: { user: details.email, pass: details.pass },
-    setDefault: args.includes('--default'),
-  });
+  const account = await addAccount(details, args.includes('--default'));
   outro(`Added "${account.alias}"${account.isDefault ? ' (default)' : ''}.`);
 }

@@ -46,18 +46,18 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 3 — Security hardening
 
-- [ ] `src/config/keychain.ts` — generate a random 256-bit master key on first `configure_account`, store via `keytar.setPassword('mcp-mailman', 'master-key', ...)`
-- [ ] Encrypt stored secrets (app passwords, OAuth client secret + refresh token) in `accounts.json` with the keytar-backed master key (AES-256-GCM) — file on disk holds only ciphertext + IV/auth tag, never the key
-- [ ] `keytar.getPassword` failure/missing-key path → clear "no master key found for this machine, run `configure_account` again" error, never a plaintext fallback
-- [ ] Headless-Linux-no-keyring-daemon path → fail setup with clear instructions, not a silent plaintext fallback
-- [ ] Manual test: copy `accounts.json` alone to a second machine (or a fresh keychain/user), confirm decryption fails cleanly there
-- [ ] `src/audit.ts` — append-only `activity.log` (JSONL): timestamp, tool name, account alias, non-sensitive metadata only (counts, not content); size-capped/rotated
-- [ ] Wire audit logging into every tool call
-- [ ] `src/logging.ts` — redact credentials and email bodies from logs by default
-- [ ] Confirm size caps are enforced pre-send, not just at preview time
-- [ ] Confirm drafts never get written to disk (in-memory only, verified by killing the process mid-draft and checking `confirm_send` fails cleanly)
-- [ ] `mcp-mailman auth rotate-key` CLI command (CLI-only, not an MCP tool) — new master key, decrypt-with-old/re-encrypt-with-new for every account, atomic swap of `accounts.json`
-- [ ] `activity.log` rotation: cap at 5,000 lines / 5 MB, rotate current file to `activity.log.1` on overflow
+- [x] `src/config/keychain.ts` — generate a random 256-bit master key on first `configure_account`, store via `keytar.setPassword('mcp-mailman', 'master-key', ...)`
+- [x] Encrypt stored secrets (app passwords, OAuth client secret + refresh token) in `accounts.json` with the keytar-backed master key (AES-256-GCM) — file on disk holds only ciphertext + IV/auth tag, never the key
+- [x] `keytar.getPassword` failure/missing-key path → clear "no master key found for this machine, run `configure_account` again" error, never a plaintext fallback
+- [x] Headless-Linux-no-keyring-daemon path → fail setup with clear instructions, not a silent plaintext fallback
+- [x] Manual test: copy `accounts.json` alone to a second machine (or a fresh keychain/user), confirm decryption fails cleanly there — simulated by deleting the keychain entry under an isolated service name; `confirm_send` returned `NO_MASTER_KEY` cleanly
+- [x] `src/audit.ts` — append-only `activity.log` (JSONL): timestamp, tool name, account alias, non-sensitive metadata only (counts, not content); size-capped/rotated
+- [x] Wire audit logging into every tool call
+- [x] `src/logging.ts` — redact credentials and email bodies from logs by default
+- [x] Confirm size caps are enforced pre-send, not just at preview time — verified: a 27MB attachment is rejected at `draft_email` with `ATTACHMENT_TOO_LARGE` before any draft exists
+- [x] Confirm drafts never get written to disk (in-memory only, verified by killing the process mid-draft and checking `confirm_send` fails cleanly) — verified: `SIGKILL` mid-draft, fresh process, `confirm_send` returns `DRAFT_NOT_FOUND`
+- [x] `mcp-mailman auth rotate-key` CLI command (CLI-only, not an MCP tool) — new master key, decrypt-with-old/re-encrypt-with-new for every account, atomic swap of `accounts.json`
+- [x] `activity.log` rotation: cap at 5,000 lines / 5 MB, rotate current file to `activity.log.1` on overflow
 
 ## Phase 4 — OAuth2 auth path
 

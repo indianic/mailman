@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
 import { ErrorCodes } from '../errors.js';
-import { resolveAccount, AccountResolutionError } from '../accounts.js';
+import { resolveAccount, getDecryptedCredentials, AccountResolutionError } from '../accounts.js';
+import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
 import { getDraft, markSent } from '../drafts.js';
 import { sendViaAppPassword } from '../auth/app-password.js';
 import type { Tool } from './types.js';
@@ -47,7 +48,17 @@ async function handler(rawArgs: Record<string, unknown>) {
     return toolError(ErrorCodes.AUTH_EXPIRED, 'OAuth2 sending is not implemented yet.');
   }
 
-  const { messageId } = await sendViaAppPassword(account.credentials, {
+  let credentials;
+  try {
+    credentials = await getDecryptedCredentials(account);
+  } catch (err) {
+    if (err instanceof NoMasterKeyError || err instanceof KeyringUnavailableError) {
+      return toolError(ErrorCodes.NO_MASTER_KEY, err.message);
+    }
+    throw err;
+  }
+
+  const { messageId } = await sendViaAppPassword(credentials as { user: string; pass: string }, {
     to: draft.to,
     cc: draft.cc.length > 0 ? draft.cc : undefined,
     bcc: draft.bcc.length > 0 ? draft.bcc : undefined,

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
+import { ErrorCodes } from '../errors.js';
 import { configureAccount } from '../accounts.js';
+import { KeyringUnavailableError } from '../config/keychain.js';
 import type { Tool } from './types.js';
 
 // oauth2 is added in Phase 4 — for now this only accepts app-password,
@@ -22,8 +24,15 @@ async function handler(rawArgs: Record<string, unknown>) {
     return toolError('INVALID_INPUT', parsed.error.message);
   }
 
-  const account = await configureAccount(parsed.data);
-  return toolResponse({ alias: account.alias, isDefault: account.isDefault });
+  try {
+    const account = await configureAccount(parsed.data);
+    return toolResponse({ alias: account.alias, isDefault: account.isDefault });
+  } catch (err) {
+    if (err instanceof KeyringUnavailableError) {
+      return toolError(ErrorCodes.NO_MASTER_KEY, err.message);
+    }
+    throw err;
+  }
 }
 
 export const configureAccountTool: Tool = {

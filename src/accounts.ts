@@ -1,6 +1,14 @@
 import { getAccountsPath } from './config/paths.js';
 import { readJsonFile, updateJsonFile } from './config/store.js';
-import { AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, type Account } from './config/schema.js';
+import {
+  AccountsFileSchema,
+  DEFAULT_ACCOUNTS_FILE,
+  AppPasswordCredentialsSchema,
+  OAuth2CredentialsSchema,
+  type Account,
+} from './config/schema.js';
+import { encrypt, decrypt } from './config/crypto.js';
+import { getOrCreateMasterKey, getMasterKeyOrThrow } from './config/keychain.js';
 import { ErrorCodes, type ErrorCode } from './errors.js';
 
 export class AccountResolutionError extends Error {
@@ -61,9 +69,13 @@ export interface ConfigureAppPasswordAccountInput {
  * Shared by the `configure_account` MCP tool and the `init`/`account add`
  * CLI commands — one account-creation function, two entry points. First
  * account ever added becomes default automatically; later ones only if
- * `setDefault` is passed.
+ * `setDefault` is passed. Credentials are encrypted before ever touching
+ * disk — see docs/PLAN.md's Security model.
  */
 export async function configureAccount(input: ConfigureAppPasswordAccountInput): Promise<Account> {
+  const masterKey = await getOrCreateMasterKey();
+  const encryptedCredentials = encrypt(masterKey, JSON.stringify(input.credentials));
+
   const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
     const isFirstAccount = current.accounts.length === 0;
     const makeDefault = isFirstAccount || Boolean(input.setDefault);
@@ -74,7 +86,7 @@ export async function configureAccount(input: ConfigureAppPasswordAccountInput):
       email: input.email,
       method: 'app-password',
       isDefault: makeDefault,
-      credentials: input.credentials,
+      credentials: encryptedCredentials,
     };
 
     const accounts = makeDefault
@@ -85,4 +97,23 @@ export async function configureAccount(input: ConfigureAppPasswordAccountInput):
   });
 
   return file.accounts.find((a) => a.alias === input.alias)!;
+}
+
+/**
+ * Decrypts one account's credentials — called only at the moment they're
+ * actually needed (confirm_send dispatch), not whenever an Account record
+ * is read, to keep the plaintext secret's in-memory lifetime as short as
+ * possible. Throws NoMasterKeyError/KeyringUnavailableError (never a
+ * plaintext fallback) if the keychain has no matching key — e.g. this
+ * accounts.json was copied from another machine.
+ */
+export async function getDecryptedCredentials(
+  account: Account,
+): Promise<{ user: string; pass: string } | { clientId: string; clientSecret: string; refreshToken: string }> {
+  const masterKey = await getMasterKeyOrThrow();
+  const plaintext = decrypt(masterKey, account.credentials);
+  const parsed = JSON.parse(plaintext);
+  return account.method === 'app-password'
+    ? AppPasswordCredentialsSchema.parse(parsed)
+    : OAuth2CredentialsSchema.parse(parsed);
 }
