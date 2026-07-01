@@ -1,0 +1,310 @@
+<title>mailman — mailbox overview</title>
+<style>
+  :root {
+    --ink: #0f1115;
+    --surface: #171a21;
+    --surface-2: #1d212b;
+    --line: #262b37;
+    --text: #e7e9f0;
+    --muted: #8a91a6;
+    --accent: #4fd1c5;
+    --unread: #8b98ff;
+    --sent: #34d399;
+    --fail: #f87171;
+    --attach: #fbbf24;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Inter, ui-sans-serif, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 40px 24px 64px;
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ---- terminal-style header, echoing mailman's own CLI status tree ---- */
+  .termbar {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .termbar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 6px 0 2px;
+    text-wrap: balance;
+  }
+  h1 .diamond { color: var(--accent); margin-right: 8px; }
+
+  .subhead {
+    color: var(--muted);
+    margin: 0 0 28px;
+    max-width: 60ch;
+  }
+
+  /* ---- stat strip ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .stat .n {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+  .stat .l {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+  .stat.accent-unread .n { color: var(--unread); }
+  .stat.accent-sent .n { color: var(--sent); }
+  .stat.accent-attach .n { color: var(--attach); }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* ---- panels ---- */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .panels.single {
+    grid-template-columns: 1fr;
+    max-width: 640px;
+  }
+  @media (max-width: 860px) {
+    .panels { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-head h2 {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+    color: var(--text);
+  }
+  .panel-head .count {
+    font-family: var(--mono);
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 480px; }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--line);
+    transition: background-color 120ms ease;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+
+  td {
+    padding: 10px 14px;
+    vertical-align: top;
+    border-left: 3px solid transparent;
+  }
+  td.rownum {
+    font-family: var(--mono);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    width: 28px;
+  }
+  td.date {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    white-space: nowrap;
+    font-size: 12.5px;
+  }
+  td.who {
+    color: var(--text);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  td.subject { color: var(--text); }
+  .attach-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .attach-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--attach);
+    background: color-mix(in srgb, var(--attach) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--attach) 32%, transparent);
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .attach-chip .name { overflow: hidden; text-overflow: ellipsis; }
+  .attach-chip .sz { color: var(--muted); }
+
+  tr[data-state="unread"] td:first-child { border-left-color: var(--unread); }
+  tr[data-state="read"] td:first-child { border-left-color: transparent; }
+  tr[data-state="sent"] td:first-child { border-left-color: var(--sent); }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
+  .chip.unread { color: var(--unread); background: color-mix(in srgb, var(--unread) 16%, transparent); }
+  .chip.unread::before { background: var(--unread); }
+  .chip.read { color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+  .chip.read::before { background: var(--muted); }
+  .chip.sent { color: var(--sent); background: color-mix(in srgb, var(--sent) 16%, transparent); }
+  .chip.sent::before { background: var(--sent); }
+  .chip.fail { color: var(--fail); background: color-mix(in srgb, var(--fail) 16%, transparent); }
+  .chip.fail::before { background: var(--fail); }
+
+  footer {
+    margin-top: 28px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    tbody tr { transition: none; }
+  }
+</style>
+
+<div class="page">
+  <div class="termbar">
+    <span class="dot"></span>
+    kalpesh@indianic&nbsp;mailman&nbsp;%&nbsp;list --inbox --limit 10
+  </div>
+  <h1><span class="diamond">◆</span>mailman — inbox</h1>
+  <p class="subhead">Live snapshot from <strong>kalpesh.gamit@indianic.com</strong>, pulled just now via <code>list_recent_emails</code>.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="n">10</div><div class="l">Inbox shown</div></div>
+    <div class="stat accent-unread"><div class="n">3</div><div class="l">Unread</div></div>
+    <div class="stat accent-attach"><div class="n">1</div><div class="l">With attachments</div></div>
+  </div>
+
+  <div class="legend">
+    <span class="item"><span class="swatch" style="background:var(--unread)"></span>Unread</span>
+    <span class="item"><span class="swatch" style="background:var(--muted)"></span>Read</span>
+    <span class="item"><span class="swatch" style="background:var(--attach)"></span>Has attachment</span>
+  </div>
+
+  <div class="panels single">
+    <!-- INBOX -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Inbox</h2>
+        <span class="count">10 of 10 shown</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Time</th><th>From</th><th>Subject</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr data-state="read"><td class="rownum">1</td><td class="date">6:17 PM</td><td class="who">kalpesh.gamit@indianic.com</td><td class="subject">mailman — CONTEXT.md<div class="attach-list"><span class="attach-chip">📄<span class="name">CONTEXT.md</span><span class="sz">5.5 KB</span></span></div></td><td><span class="chip read">Read</span></td></tr>
+            <tr data-state="read"><td class="rownum">2</td><td class="date">5:37 PM</td><td class="who">kalpesh.gamit@indianic.com</td><td class="subject">Last 10 Sent &amp; Inbox Emails Summary</td><td><span class="chip read">Read</span></td></tr>
+            <tr data-state="read"><td class="rownum">3</td><td class="date">5:09 PM</td><td class="who">Pinterest</td><td class="subject">Mahindra Scorpio for Kalpesh</td><td><span class="chip read">Read</span></td></tr>
+            <tr data-state="read"><td class="rownum">4</td><td class="date">5:08 PM</td><td class="who">kalpesh.gamit@indianic.com</td><td class="subject">mcp-mailman real send test</td><td><span class="chip read">Read</span></td></tr>
+            <tr data-state="read"><td class="rownum">5</td><td class="date">5:00 PM</td><td class="who">Google</td><td class="subject">Security alert</td><td><span class="chip read">Read</span></td></tr>
+            <tr data-state="unread"><td class="rownum">6</td><td class="date">2:20 PM</td><td class="who">SendGrid Support</td><td class="subject">Access attempt from non-whitelisted IP</td><td><span class="chip unread">Unread</span></td></tr>
+            <tr data-state="unread"><td class="rownum">7</td><td class="date">1:31 PM</td><td class="who">AWS Notifications</td><td class="subject">AWS Notification Message</td><td><span class="chip unread">Unread</span></td></tr>
+            <tr data-state="unread"><td class="rownum">8</td><td class="date">1:03 PM</td><td class="who">do-no-reply@indianic.com</td><td class="subject">Associate Requests: wellafter50.org Blogging website development</td><td><span class="chip unread">Unread</span></td></tr>
+            <tr data-state="read"><td class="rownum">9</td><td class="date">1:01 PM</td><td class="who">Dhairya Patel</td><td class="subject">Test Form List</td><td><span class="chip read">Read</span></td></tr>
+            <tr data-state="read"><td class="rownum">10</td><td class="date">12:03 PM</td><td class="who">ContextBrain</td><td class="subject">ContextBrain — SendGrid test email</td><td><span class="chip read">Read</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <footer>◇ generated via mcp-mailman · list_recent_emails(folder="inbox", limit=10)</footer>
+</div>
