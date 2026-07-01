@@ -147,12 +147,14 @@ Each configured account picks its own method — there's no global "the app
 uses OAuth2" switch:
 
 ```jsonc
-// accounts.json entry
+// accounts.json entry — no "default" field here; settings.json's
+// defaultAccount is the single source of truth (see "Multi-account +
+// settings" below), so there's only one place that can ever disagree
+// with itself about which account is default.
 {
   "alias": "personal-gmail",
   "email": "you@gmail.com",
-  "method": "app-password" | "oauth2",
-  "default": true
+  "method": "app-password" | "oauth2"
   // app-password: smtp.gmail.com:465, user + 16-char app password
   // oauth2: clientId, clientSecret, refreshToken (from `mcp-mailman auth login`)
 }

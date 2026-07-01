@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
-import { runInit, runAccountAdd } from './account.js';
+import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault } from './account.js';
 import { runRotateKey } from './rotate-key.js';
 import { runAuthLogin } from './auth-login.js';
+import { runSettingsGet, runSettingsSet } from './settings.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -19,12 +20,17 @@ interface CommandEntry {
 // phase fills one in.
 const COMMANDS: Record<string, CommandEntry> = {
   init: { handler: runInit, summary: 'First-run wizard: add your first account' },
-  account: { handler: null, summary: 'list / remove / set-default (see `account add`)' },
+  account: { handler: null, summary: 'see `account add` / `account list` / `account remove` / `account set-default`' },
   'account add': { handler: runAccountAdd, summary: 'Add another account' },
+  'account list': { handler: runAccountList, summary: 'Table of configured accounts' },
+  'account remove': { handler: runAccountRemove, summary: 'Remove an account (--yes to skip confirm)' },
+  'account set-default': { handler: runAccountSetDefault, summary: 'Set the default account' },
   'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
   contacts: { handler: null, summary: 'list / add / remove local contacts' },
-  settings: { handler: null, summary: 'get / set global settings' },
+  settings: { handler: null, summary: 'see `settings get` / `settings set`' },
+  'settings get': { handler: runSettingsGet, summary: 'Print current global settings' },
+  'settings set': { handler: runSettingsSet, summary: 'Update one setting' },
   register: { handler: null, summary: 'Print the `claude mcp add` command' },
   doctor: { handler: runDoctor, summary: 'Environment pre-flight checks' },
   scheduled: { handler: null, summary: 'list pending/sent/failed scheduled sends' },

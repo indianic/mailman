@@ -9,6 +9,7 @@ import {
 } from './config/schema.js';
 import { encrypt, decrypt } from './config/crypto.js';
 import { getOrCreateMasterKey, getMasterKeyOrThrow } from './config/keychain.js';
+import { getSettings, updateSettings } from './settings.js';
 import { ErrorCodes, type ErrorCode } from './errors.js';
 
 export class AccountResolutionError extends Error {
@@ -25,11 +26,17 @@ export async function listAccounts(): Promise<Account[]> {
   return file.accounts;
 }
 
+export async function getDefaultAlias(): Promise<string | null> {
+  const settings = await getSettings();
+  return settings.defaultAccount;
+}
+
 /**
- * Phase 1 scope: explicit alias, or the single configured account. Phase 5
- * adds the full explicit -> single -> settings-driven-default -> ambiguous
- * chain (docs/PLAN.md's "Multi-account + settings" section) — until then,
- * multiple accounts with no explicit alias is always ambiguous.
+ * Full resolution chain from docs/PLAN.md's "Multi-account + settings"
+ * section: explicit alias -> the single configured account -> the
+ * settings-driven default -> AMBIGUOUS_ACCOUNT. settings.json's
+ * defaultAccount is the only source of truth for "default" — accounts
+ * never carry their own isDefault flag (see config/schema.ts).
  */
 export async function resolveAccount(alias?: string): Promise<Account> {
   const accounts = await listAccounts();
@@ -51,9 +58,17 @@ export async function resolveAccount(alias?: string): Promise<Account> {
   if (accounts.length === 1) {
     return accounts[0];
   }
+
+  const defaultAlias = await getDefaultAlias();
+  const defaultAccount = defaultAlias ? accounts.find((a) => a.alias === defaultAlias) : undefined;
+  if (defaultAccount) {
+    return defaultAccount;
+  }
+
   throw new AccountResolutionError(
     ErrorCodes.AMBIGUOUS_ACCOUNT,
-    `Multiple accounts configured (${accounts.map((a) => a.alias).join(', ')}) — pass an explicit account alias`,
+    `Multiple accounts configured (${accounts.map((a) => a.alias).join(', ')}) and no default set — ` +
+      'pass an explicit account alias or run `mcp-mailman account set-default <alias>`',
   );
 }
 
@@ -75,36 +90,73 @@ export type ConfigureAccountInput =
 
 /**
  * Shared by the `configure_account` MCP tool and the `init`/`account add`/
- * `auth login` CLI commands — one account-creation function, several
- * entry points. First account ever added becomes default automatically;
- * later ones only if `setDefault` is passed. Credentials are encrypted
- * before ever touching disk — see docs/PLAN.md's Security model.
+ * `auth login` CLI commands. First account ever added becomes default
+ * automatically (in settings.json, not on the account record); later ones
+ * only if `setDefault` is passed. Credentials are encrypted before ever
+ * touching disk — see docs/PLAN.md's Security model.
  */
-export async function configureAccount(input: ConfigureAccountInput): Promise<Account> {
+export async function configureAccount(input: ConfigureAccountInput): Promise<{ account: Account; isDefault: boolean }> {
   const masterKey = await getOrCreateMasterKey();
   const encryptedCredentials = encrypt(masterKey, JSON.stringify(input.credentials));
 
+  let isFirstAccount = false;
   const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
-    const isFirstAccount = current.accounts.length === 0;
-    const makeDefault = isFirstAccount || Boolean(input.setDefault);
+    isFirstAccount = current.accounts.length === 0;
     const withoutSameAlias = current.accounts.filter((a) => a.alias !== input.alias);
-
     const newAccount: Account = {
       alias: input.alias,
       email: input.email,
       method: input.method,
-      isDefault: makeDefault,
       credentials: encryptedCredentials,
     };
-
-    const accounts = makeDefault
-      ? [...withoutSameAlias.map((a) => ({ ...a, isDefault: false })), newAccount]
-      : [...withoutSameAlias, newAccount];
-
-    return { ...current, accounts };
+    return { ...current, accounts: [...withoutSameAlias, newAccount] };
   });
 
-  return file.accounts.find((a) => a.alias === input.alias)!;
+  if (isFirstAccount || input.setDefault) {
+    await updateSettings((current) => ({ ...current, defaultAccount: input.alias }));
+  }
+
+  const account = file.accounts.find((a) => a.alias === input.alias)!;
+  const isDefault = (await getDefaultAlias()) === input.alias;
+  return { account, isDefault };
+}
+
+export class AccountRemovalConfirmationError extends Error {
+  code = ErrorCodes.CONFIRMATION_REQUIRED;
+}
+
+/**
+ * Requires `confirmRemoval: true` when removing the last remaining
+ * account or the current default — one ambiguous instruction shouldn't
+ * silently leave zero configured accounts. Clears settings.defaultAccount
+ * if the removed account was the default.
+ */
+export async function removeAccount(alias: string, confirmRemoval?: boolean): Promise<void> {
+  const accounts = await listAccounts();
+  const target = accounts.find((a) => a.alias === alias);
+  if (!target) {
+    throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+  }
+
+  const defaultAlias = await getDefaultAlias();
+  const isLastAccount = accounts.length === 1;
+  const isCurrentDefault = defaultAlias === alias;
+
+  if ((isLastAccount || isCurrentDefault) && !confirmRemoval) {
+    const reason = isLastAccount ? 'the last remaining account' : 'the current default account';
+    throw new AccountRemovalConfirmationError(
+      `"${alias}" is ${reason} — pass confirmRemoval: true to remove it anyway.`,
+    );
+  }
+
+  await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => ({
+    ...current,
+    accounts: current.accounts.filter((a) => a.alias !== alias),
+  }));
+
+  if (isCurrentDefault) {
+    await updateSettings((current) => ({ ...current, defaultAccount: null }));
+  }
 }
 
 /**

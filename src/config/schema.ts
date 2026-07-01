@@ -23,11 +23,13 @@ export const EncryptedBlobSchema = z.object({
   authTag: z.string(),
 });
 
+// No isDefault field here — settings.json's defaultAccount is the single
+// source of truth (see docs/PLAN.md's "Multi-account + settings" section).
+// A redundant per-account flag would let the two disagree.
 export const AccountSchema = z.object({
   alias: z.string().min(1),
   email: z.string().email(),
   method: z.enum(['app-password', 'oauth2']),
-  isDefault: z.boolean(),
   credentials: EncryptedBlobSchema,
 });
 

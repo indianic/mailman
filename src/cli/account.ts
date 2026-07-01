@@ -1,5 +1,13 @@
-import { intro, outro, text, password, select, log, isCancel, cancel } from '@clack/prompts';
-import { configureAccount } from '../accounts.js';
+import { intro, outro, text, password, select, confirm, log, isCancel, cancel } from '@clack/prompts';
+import {
+  configureAccount,
+  listAccounts,
+  removeAccount,
+  getDefaultAlias,
+  AccountResolutionError,
+  AccountRemovalConfirmationError,
+} from '../accounts.js';
+import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 
@@ -104,9 +112,9 @@ async function addAccountInteractive(setDefault?: boolean) {
 /** `mcp-mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use. */
 export async function runInit(_args: string[]): Promise<void> {
   intro('mailman — first-run setup');
-  const account = await addAccountInteractive();
+  const { account, isDefault } = await addAccountInteractive();
   outro(
-    `Added "${account.alias}"${account.isDefault ? ' (default)' : ''}. Next: run ` +
+    `Added "${account.alias}"${isDefault ? ' (default)' : ''}. Next: run ` +
       '`claude mcp add mailman -- npx -y mcp-mailman` to register it, then try "mailman, send ..." from a Claude session.',
   );
 }
@@ -114,6 +122,74 @@ export async function runInit(_args: string[]): Promise<void> {
 /** `mcp-mailman account add [--default]` — same underlying paths as `init`, for adding additional accounts. */
 export async function runAccountAdd(args: string[]): Promise<void> {
   intro('mailman — add account');
-  const account = await addAccountInteractive(args.includes('--default'));
-  outro(`Added "${account.alias}"${account.isDefault ? ' (default)' : ''}.`);
+  const { account, isDefault } = await addAccountInteractive(args.includes('--default'));
+  outro(`Added "${account.alias}"${isDefault ? ' (default)' : ''}.`);
+}
+
+/** `mcp-mailman account list` — plain table (alias, method, default, read-access). */
+export async function runAccountList(_args: string[]): Promise<void> {
+  const [accounts, defaultAlias] = await Promise.all([listAccounts(), getDefaultAlias()]);
+  if (accounts.length === 0) {
+    process.stdout.write('No accounts configured — run `mcp-mailman init`.\n');
+    return;
+  }
+  console.table(
+    accounts.map((a) => ({
+      alias: a.alias,
+      email: a.email,
+      method: a.method,
+      default: a.alias === defaultAlias,
+      canRead: true,
+    })),
+  );
+}
+
+/** `mcp-mailman account remove <alias> [--yes]` — mirrors remove_account's confirmRemoval gate. */
+export async function runAccountRemove(args: string[]): Promise<void> {
+  const alias = args.find((a) => !a.startsWith('--'));
+  const yes = args.includes('--yes');
+
+  if (!alias) {
+    log.error('Usage: mcp-mailman account remove <alias> [--yes]');
+    process.exit(1);
+  }
+
+  try {
+    await removeAccount(alias, yes);
+    process.stdout.write(`Removed "${alias}".\n`);
+  } catch (err) {
+    if (err instanceof AccountRemovalConfirmationError) {
+      const proceed = await confirm({ message: `${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Remove anyway?` });
+      if (isCancel(proceed) || !proceed) {
+        cancel('Cancelled — no changes made.');
+        return;
+      }
+      await removeAccount(alias, true);
+      process.stdout.write(`Removed "${alias}".\n`);
+      return;
+    }
+    if (err instanceof AccountResolutionError) {
+      log.error(err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
+/** `mcp-mailman account set-default <alias>` */
+export async function runAccountSetDefault(args: string[]): Promise<void> {
+  const alias = args[0];
+  if (!alias) {
+    log.error('Usage: mcp-mailman account set-default <alias>');
+    process.exit(1);
+  }
+
+  const accounts = await listAccounts();
+  if (!accounts.some((a) => a.alias === alias)) {
+    log.error(`No configured account with alias "${alias}"`);
+    process.exit(1);
+  }
+
+  await updateSettings((current) => ({ ...current, defaultAccount: alias }));
+  process.stdout.write(`"${alias}" is now the default account.\n`);
 }

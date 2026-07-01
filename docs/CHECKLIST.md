@@ -73,15 +73,15 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 5 — Multi-account + settings
 
-- [ ] `list_accounts` tool
-- [ ] `remove_account` tool — requires `confirmRemoval: true` when removing the last remaining account or the current default; otherwise clears `defaultAccount` in settings if it was the default
-- [ ] `get_settings` / `update_settings` tools
-- [ ] Account resolution order in `draft_email`: explicit → single-account → default → `AMBIGUOUS_ACCOUNT` error
-- [ ] First-account-auto-default behavior; `configure_account({ setDefault: true })` for subsequent accounts
-- [ ] `mcp-mailman account list` / `account remove <alias>` (with `--yes` confirmation gate) / `account set-default <alias>` CLI commands
-- [ ] `mcp-mailman settings get` / `settings set <key> <value>` CLI commands
-- [ ] Unit tests: account resolution order (all four branches), `remove_account` confirmation gate
-- [ ] Manual test: configure 2 accounts, confirm ambiguous-error without a default, set default, confirm it's used
+- [x] `list_accounts` tool
+- [x] `remove_account` tool — requires `confirmRemoval: true` when removing the last remaining account or the current default; otherwise clears `defaultAccount` in settings if it was the default
+- [x] `get_settings` / `update_settings` tools
+- [x] Account resolution order in `draft_email`: explicit → single-account → default → `AMBIGUOUS_ACCOUNT` error
+- [x] First-account-auto-default behavior; `configure_account({ setDefault: true })` for subsequent accounts
+- [x] `mcp-mailman account list` / `account remove <alias>` (with `--yes` confirmation gate) / `account set-default <alias>` CLI commands
+- [x] `mcp-mailman settings get` / `settings set <key> <value>` CLI commands
+- [x] Unit tests: account resolution order (all four branches), `remove_account` confirmation gate
+- [x] Manual test: configure 2 accounts, confirm ambiguous-error without a default, set default, confirm it's used
 
 ## Phase 6 — Recipient suggestions
 

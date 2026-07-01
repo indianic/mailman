@@ -37,10 +37,11 @@ Claude: [address book, merged with Google Contacts for OAuth2 accounts]
 
 ## Status
 
-Phases 0–4 complete (project setup, core send + draft/confirm, attachment
-resolution, security hardening, OAuth2 auth) — see [docs/PLAN.md](docs/PLAN.md)
-for the architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build
-order. Phase 5 (multi-account + settings) is next.
+Phases 0–5 complete (project setup, core send + draft/confirm, attachment
+resolution, security hardening, OAuth2 auth, multi-account + settings) —
+see [docs/PLAN.md](docs/PLAN.md) for the architecture and
+[docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order. Phase 6
+(recipient suggestions) is next.
 
 ## Docs
 

@@ -36,8 +36,8 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
 
   try {
-    const account = await configureAccount(parsed.data);
-    return toolResponse({ alias: account.alias, isDefault: account.isDefault });
+    const { account, isDefault } = await configureAccount(parsed.data);
+    return toolResponse({ alias: account.alias, isDefault });
   } catch (err) {
     if (err instanceof KeyringUnavailableError) {
       return toolError(ErrorCodes.NO_MASTER_KEY, err.message);

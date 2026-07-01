@@ -34,7 +34,9 @@ export interface AuthorizeOAuth2AccountOptions {
  * browser-consent-to-stored-account function, two entry points, same
  * split as configureAccount() for App Password accounts.
  */
-export async function authorizeOAuth2Account(opts: AuthorizeOAuth2AccountOptions): Promise<Account> {
+export async function authorizeOAuth2Account(
+  opts: AuthorizeOAuth2AccountOptions,
+): Promise<{ account: Account; isDefault: boolean }> {
   const client = await promptClientCredentials();
 
   log.info('Opening the consent screen...');
@@ -80,6 +82,6 @@ export async function runAuthLogin(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const account = await authorizeOAuth2Account({ alias, email: String(email), noBrowser });
-  outro(`Authorized "${account.alias}"${account.isDefault ? ' (default)' : ''} via OAuth2.`);
+  const { account, isDefault } = await authorizeOAuth2Account({ alias, email: String(email), noBrowser });
+  outro(`Authorized "${account.alias}"${isDefault ? ' (default)' : ''} via OAuth2.`);
 }
