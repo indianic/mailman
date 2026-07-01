@@ -234,3 +234,27 @@ Reads the full content of one email.
   `search_emails` call. `bodyText`/`bodyHtml` are capped at ~20,000
   characters each; `truncated: true` marks an email that hit the cap, so
   Claude knows not to treat the returned body as complete.
+
+## `get_mailbox_overview`
+
+Added post-launch (not part of the original 10-phase build) after
+repeatedly composing `list_recent_emails` (sent) + `list_recent_emails`
+(inbox) + `read_email` per attachment by hand in conversation — this
+folds that into one call.
+
+- **Input**: `{ account?: string, limit?: number }` (`limit` applies per
+  folder, defaults to 10, capped at 50 — same convention as
+  `list_recent_emails`)
+- **Output**: `{ stats: { sentCount, inboxCount, unreadCount, attachmentCount }, sent: [...], inbox: [...] }`
+  — each list entry is an `EmailSummary` (see `list_recent_emails`), with
+  an added `attachments: [{ name, sizeBytes, mimeType }]` field whenever
+  `hasAttachments` is true.
+- **Notes**: like every other mailman tool, this returns structured JSON
+  only — no HTML, no formatting. Rendering (a plain list, a colored
+  dashboard, whatever fits the moment) is Claude's job, not the tool's,
+  matching the host-agnostic output format the rest of mailman follows.
+  Resolving attachment metadata is best-effort per message — a `read_email`
+  failure on one message falls back to its plain summary instead of
+  failing the whole call.
+- **Example trigger**: *"mailman, give me a mailbox overview"* / *"show me
+  my recent sent and inbox mail with attachments."*

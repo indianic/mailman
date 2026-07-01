@@ -18,6 +18,7 @@ import { scheduleSendTool } from './schedule-send.js';
 import { listScheduledTool } from './list-scheduled.js';
 import { cancelScheduledTool } from './cancel-scheduled.js';
 import { getStatusTool } from './get-status.js';
+import { getMailboxOverviewTool } from './get-mailbox-overview.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
@@ -41,4 +42,5 @@ export const allTools: Tool[] = [
   listScheduledTool,
   cancelScheduledTool,
   getStatusTool,
+  getMailboxOverviewTool,
 ];
