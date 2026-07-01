@@ -26,9 +26,14 @@ still pending.
   against a live inbox. That real test caught and fixed a bug
   fake-credential smoke tests couldn't (IMAP wasn't decoding
   quoted-printable body content — fixed in commit `5bb70a4`).
-- **Post-launch addition**: `get_mailbox_overview` — a single-call
+- **Post-launch additions**: `get_mailbox_overview` — a single-call
   sent+inbox snapshot with attachment metadata resolved, added after
   repeatedly composing several tool calls by hand in conversation.
+  Per-account `displayName`/`signature` (surfaced via `configure_account`,
+  `update_account_profile`, and `list_accounts`) and a global
+  `defaultBodyType` setting — `draft_email` now sends a proper
+  `"Name <email>"` From header and appends the account's signature, and
+  falls back to `defaultBodyType` when a call omits `bodyType`.
 - **Still pending, deliberately not done automatically**: OAuth2
   real-delivery verification (needs a real Google Cloud OAuth client),
   cross-OS smoke testing (no Linux/Windows machine was available),
