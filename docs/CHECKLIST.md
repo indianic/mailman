@@ -16,6 +16,8 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `src/mail/provider.ts` — define the `MailProvider` interface (`send`/`list`/`search`/`read`/`listContacts`) that `GmailApiProvider`/`ImapSmtpProvider` implement later
 - [ ] `src/response.ts` — `toolResponse()`/`toolError(code, message)` helpers (JSON-in-text-block, `isError` flag), mirroring `mcp-server/src/types.ts`'s `textResponse()`/`errorResponse()` convention from this monorepo's other MCP server, extended with a `code` field on errors
 - [ ] GitHub Actions CI skeleton — lint + typecheck on every PR (tests wired in as each phase adds them)
+- [ ] CLI arg parsing skeleton (`mcp-mailman <command>`), `--version`/`--help`
+- [ ] `mcp-mailman doctor` skeleton — keyring backend reachability, Node version check (network/SMTP/IMAP reachability checks added once those modules exist)
 
 ## Phase 1 — Core send path (App Password only) + draft/confirm flow
 
@@ -29,6 +31,7 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `cancel_draft` tool
 - [ ] `SIGTERM`/`SIGINT` handler — flush pending `activity.log` write, close any open IMAP session, exit cleanly (no attempt to finish an in-flight send)
 - [ ] Unit tests: draft TTL expiry + state machine, atomic-write + `.bak` recovery
+- [ ] `mcp-mailman init` / `mcp-mailman account add` CLI commands (App Password path: masked password prompt) — thin wrapper over the same account-creation function `configure_account` calls, not duplicated logic
 - [ ] Manual end-to-end test: configure one App Password account, draft, confirm, verify real delivery
 
 ## Phase 2 — Attachment resolution
@@ -63,6 +66,7 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `src/auth/oauth2.ts` — access-token refresh + XOAUTH2 nodemailer transport, implements `MailProvider.send`
 - [ ] Retry policy: one retry on `401` after token refresh; up to two more retries on `429`/`5xx` with exponential backoff (~500ms/1500ms), then surface `RATE_LIMITED`/`AUTH_EXPIRED`
 - [ ] `configure_account` supports `method: "oauth2"`
+- [ ] `mcp-mailman account add` — wire in the OAuth2 path (same browser flow as `auth login`)
 - [ ] Manual end-to-end test: configure one OAuth2 account, draft, confirm, verify real delivery
 
 ## Phase 5 — Multi-account + settings
@@ -72,6 +76,8 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `get_settings` / `update_settings` tools
 - [ ] Account resolution order in `draft_email`: explicit → single-account → default → `AMBIGUOUS_ACCOUNT` error
 - [ ] First-account-auto-default behavior; `configure_account({ setDefault: true })` for subsequent accounts
+- [ ] `mcp-mailman account list` / `account remove <alias>` (with `--yes` confirmation gate) / `account set-default <alias>` CLI commands
+- [ ] `mcp-mailman settings get` / `settings set <key> <value>` CLI commands
 - [ ] Unit tests: account resolution order (all four branches), `remove_account` confirmation gate
 - [ ] Manual test: configure 2 accounts, confirm ambiguous-error without a default, set default, confirm it's used
 
@@ -82,6 +88,7 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `add_contact` / `remove_contact` tools
 - [ ] `suggest_recipients` tool — local recents ranking
 - [ ] Google People API integration for `oauth2` accounts (`contacts.readonly` scope), merged + labeled by source in `suggest_recipients` results
+- [ ] `mcp-mailman contacts list` / `contacts add <email> [--name]` / `contacts remove <email>` CLI commands
 - [ ] `list_contacts` tool — full address book, no query ("get my contacts")
 - [ ] Unit tests: recents/manual/google-contacts merge + ranking logic
 - [ ] Manual test: fuzzy name query returns ranked, source-labeled suggestions for both an App Password and an OAuth2 account
@@ -103,6 +110,9 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
 - [ ] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`
 - [ ] Finalize `mcp-mailman status` tree rendering (accounts / security / mcp registration / activity sections)
+- [ ] `mcp-mailman mcp register` CLI command — prints the `claude mcp add mailman -- npx -y mcp-mailman` line (doesn't auto-run it)
+- [ ] `mcp-mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
+- [ ] `mcp-mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
 - [ ] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked/Dockerized IMAP, mocked `googleapis` — wired into the CI pipeline from Phase 0
 - [ ] Finalize README (install, both auth setups, usage examples, config paths table, read-access scope disclosure)
 - [ ] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy)

@@ -492,6 +492,11 @@ a pretty tree for a human running it directly in a terminal, structured JSON
 for Claude. Depends on `@clack/prompts` (CLI-only dependency, not loaded by
 the MCP server process itself).
 
+`status` is one of a full set of terminal-only commands — setup, account
+administration, diagnostics — that never go through the MCP protocol at
+all. See [docs/CLI.md](CLI.md) for the complete list and why each one is
+CLI-only rather than an LLM-callable tool.
+
 ## Testing & CI strategy
 
 - **Unit tests** (no network, no real accounts): attachment resolution
