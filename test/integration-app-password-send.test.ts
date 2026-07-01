@@ -36,6 +36,19 @@ test('buildMailOptions produces a message nodemailer\'s JSON transport accepts a
   assert.equal(sent.html, undefined);
 });
 
+test('buildMailOptions sets a "Name <email>" From when fromDisplayName is set', async () => {
+  const transport = nodemailer.createTransport({ jsonTransport: true });
+  const options = buildMailOptions(
+    { user: 'me@example.com', pass: 'irrelevant' },
+    { to: ['a@example.com'], subject: 'Hi', body: 'hello', fromDisplayName: 'Kalpesh Gamit' },
+  );
+
+  const info = await transport.sendMail(options);
+  const sent = JSON.parse((info as unknown as { message: string }).message);
+  assert.equal(sent.from.name, 'Kalpesh Gamit');
+  assert.equal(sent.from.address, 'me@example.com');
+});
+
 test('buildMailOptions sends HTML body under `html`, not `text`', async () => {
   const transport = nodemailer.createTransport({ jsonTransport: true });
   const options = buildMailOptions(

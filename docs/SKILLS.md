@@ -36,7 +36,12 @@ send.**
   directory (expanded non-recursively unless `recursive: true`). `next_steps`
   is a belt-and-suspenders hint (e.g. "show this preview and get explicit
   confirmation before calling confirm_send") reinforcing the tool
-  description in case a host's model skims past it.
+  description in case a host's model skims past it. `bodyType` falls back to
+  `settings.defaultBodyType` when omitted. `preview.from` reflects the
+  account's `displayName` (e.g. `"Kalpesh Gamit <you@gmail.com>"`) when one
+  is set, and `preview.bodyPreview` already includes the account's
+  `signature`, if any — the preview shown here is exactly what
+  `confirm_send` later dispatches.
 - **Example trigger**: *"mailman, send those docs to kalpesh.gamit@indianic.com"*
   → Claude resolves "those docs" to paths, composes subject/body, calls this.
 
@@ -115,7 +120,7 @@ Ranked recipient candidates for a partial name/email.
 Lists configured sender aliases (no secrets returned).
 
 - **Input**: `{}`
-- **Output**: `{ accounts: [{ alias, email, method, isDefault, canRead }] }`
+- **Output**: `{ accounts: [{ alias, email, method, isDefault, canRead, displayName?, signature? }] }`
 - **Notes**: `canRead` reflects whether read access (IMAP for app-password,
   `gmail.readonly` for oauth2) was actually granted for that account — in
   practice this is expected to always be `true` today, since scope requests
@@ -127,11 +132,25 @@ Lists configured sender aliases (no secrets returned).
 
 Adds or updates an account.
 
-- **Input**: `{ alias: string, email: string, method: "app-password" | "oauth2", credentials: {...}, setDefault?: boolean }`
+- **Input**: `{ alias: string, email: string, method: "app-password" | "oauth2", credentials: {...}, setDefault?: boolean, displayName?: string, signature?: string }`
 - **Output**: `{ alias: string, isDefault: boolean }`
 - **Notes**: the first account ever added becomes default automatically.
   Adding another account leaves the existing default alone unless
-  `setDefault: true` is passed.
+  `setDefault: true` is passed. `displayName` is the "From Name" shown to
+  recipients (e.g. `"Kalpesh Gamit"` for `"Kalpesh Gamit <you@gmail.com>"`);
+  `signature` is appended to every draft sent from this account. Both are
+  optional and plaintext (not secrets).
+
+## `update_account_profile`
+
+Updates an existing account's `displayName`/`signature` without touching
+its (encrypted) credentials — the "just change my From Name" case, as
+opposed to re-running `configure_account` with everything again.
+
+- **Input**: `{ alias: string, displayName?: string | null, signature?: string | null }`
+- **Output**: `{ alias: string, displayName?: string, signature?: string }`
+- **Notes**: `null` clears a field; omitting it leaves the current value
+  unchanged. Returns `ACCOUNT_NOT_FOUND` for an unknown alias.
 
 ## `remove_account`
 
@@ -151,14 +170,16 @@ Deletes a configured account.
 Returns current global settings.
 
 - **Input**: `{}`
-- **Output**: `{ defaultAccount: string | null, draftTtlMinutes: number, alwaysConfirm: boolean }`
+- **Output**: `{ defaultAccount: string | null, draftTtlMinutes: number, alwaysConfirm: boolean, defaultBodyType: "text" | "html" }`
 
 ## `update_settings`
 
 Updates one or more global settings.
 
-- **Input**: `{ defaultAccount?: string, draftTtlMinutes?: number, alwaysConfirm?: boolean }`
+- **Input**: `{ defaultAccount?: string, draftTtlMinutes?: number, alwaysConfirm?: boolean, defaultBodyType?: "text" | "html" }`
 - **Output**: the full updated settings object.
+- **Notes**: `defaultBodyType` is what `draft_email` falls back to when a
+  call doesn't pass `bodyType` explicitly. Defaults to `"text"`.
 
 ## `add_contact` / `remove_contact`
 

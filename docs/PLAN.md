@@ -154,9 +154,11 @@ uses OAuth2" switch:
 {
   "alias": "personal-gmail",
   "email": "you@gmail.com",
-  "method": "app-password" | "oauth2"
+  "method": "app-password" | "oauth2",
   // app-password: smtp.gmail.com:465, user + 16-char app password
   // oauth2: clientId, clientSecret, refreshToken (from `mcp-mailman auth login`)
+  "displayName": "Kalpesh Gamit", // optional — "From Name" shown to recipients
+  "signature": "-- Kalpesh"       // optional — appended to every draft from this account
 }
 ```
 
@@ -524,7 +526,7 @@ shutdown signal; better to fail the call cleanly and let Claude retry.
 config-dir/
 ├── accounts.json   [{alias, email, method, credentials(encrypted), ...}, ...]
 ├── contacts.json    {email, name?, source: "manual"|"recents", useCount, lastUsedAt}
-└── settings.json    { defaultAccount: "alias", draftTtlMinutes: 10, alwaysConfirm: true }
+└── settings.json    { defaultAccount: "alias", draftTtlMinutes: 10, alwaysConfirm: true, defaultBodyType: "text" }
 ```
 
 **Account resolution order** in `draft_email`:

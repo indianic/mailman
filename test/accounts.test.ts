@@ -7,6 +7,7 @@ import {
   configureAccount,
   resolveAccount,
   removeAccount,
+  updateAccountProfile,
   AccountResolutionError,
   AccountRemovalConfirmationError,
 } from '../src/accounts.js';
@@ -170,6 +171,55 @@ test('removeAccount: unknown alias throws ACCOUNT_NOT_FOUND', async () => {
   await withIsolatedEnv(async () => {
     await configureAccount(appPasswordInput('a'));
     await assert.rejects(() => removeAccount('nope', true), (err: unknown) => {
+      assert.ok(err instanceof AccountResolutionError);
+      assert.equal(err.code, 'ACCOUNT_NOT_FOUND');
+      return true;
+    });
+  });
+});
+
+test('configureAccount: displayName/signature are stored when provided at creation', async () => {
+  await withIsolatedEnv(async () => {
+    const { account } = await configureAccount({
+      ...appPasswordInput('a'),
+      displayName: 'Kalpesh Gamit',
+      signature: '-- Kalpesh',
+    });
+    assert.equal(account.displayName, 'Kalpesh Gamit');
+    assert.equal(account.signature, '-- Kalpesh');
+  });
+});
+
+test('updateAccountProfile: sets displayName/signature on an existing account without touching credentials', async () => {
+  await withIsolatedEnv(async () => {
+    await configureAccount(appPasswordInput('a'));
+    const updated = await updateAccountProfile('a', { displayName: 'Kalpesh Gamit', signature: '-- Kalpesh' });
+    assert.equal(updated.displayName, 'Kalpesh Gamit');
+    assert.equal(updated.signature, '-- Kalpesh');
+
+    const resolved = await resolveAccount('a');
+    assert.equal(resolved.credentials.ciphertext, updated.credentials.ciphertext);
+  });
+});
+
+test('updateAccountProfile: omitted fields are left unchanged, null clears them', async () => {
+  await withIsolatedEnv(async () => {
+    await configureAccount({ ...appPasswordInput('a'), displayName: 'Kalpesh Gamit', signature: '-- Kalpesh' });
+
+    const afterPartialUpdate = await updateAccountProfile('a', { signature: '-- New sig' });
+    assert.equal(afterPartialUpdate.displayName, 'Kalpesh Gamit');
+    assert.equal(afterPartialUpdate.signature, '-- New sig');
+
+    const afterClear = await updateAccountProfile('a', { displayName: null });
+    assert.equal(afterClear.displayName, undefined);
+    assert.equal(afterClear.signature, '-- New sig');
+  });
+});
+
+test('updateAccountProfile: unknown alias throws ACCOUNT_NOT_FOUND', async () => {
+  await withIsolatedEnv(async () => {
+    await configureAccount(appPasswordInput('a'));
+    await assert.rejects(() => updateAccountProfile('nope', { displayName: 'X' }), (err: unknown) => {
       assert.ok(err instanceof AccountResolutionError);
       assert.equal(err.code, 'ACCOUNT_NOT_FOUND');
       return true;

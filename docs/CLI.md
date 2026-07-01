@@ -15,18 +15,18 @@ servers; colliding with that isn't hypothetical.
 
 | Command | Purpose |
 |---|---|
-| `mcp-mailman init` | First-run wizard: add your first account (app-password or OAuth2), auto-set as default. The recommended starting point. |
-| `mcp-mailman account add` | Add another account. Prompts for alias, email, method. App Password: masked password prompt. OAuth2: opens the browser consent flow (same as `auth login`). `--default` forces it as default even if not the first account. |
+| `mcp-mailman init` | First-run wizard: add your first account (app-password or OAuth2), auto-set as default. Also prompts for an optional "From Name" and signature. The recommended starting point. |
+| `mcp-mailman account add` | Add another account. Prompts for alias, email, method, and an optional "From Name"/signature. App Password: masked password prompt. OAuth2: opens the browser consent flow (same as `auth login`). `--default` forces it as default even if not the first account. |
 | `mcp-mailman account list` | Plain table of configured accounts (alias, method, default, read-access). |
 | `mcp-mailman account remove <alias>` | Remove an account. Requires `--yes` (or an interactive confirm) if it's the last remaining account or the current default — mirrors the `confirmRemoval` gate on the `remove_account` MCP tool. |
 | `mcp-mailman account set-default <alias>` | Set the default account used when `draft_email` gets no explicit `account`. |
-| `mcp-mailman auth login <alias>` | OAuth2 consent for an existing or new alias; stores the refresh token. Opens your local browser automatically when one is reachable (loopback redirect, fully automatic once you click Allow). When no local browser is available (SSH/headless/container) or `--no-browser` is passed, prints the consent URL plus an `ssh -L` port-forward command — run it from your local machine, open the URL in your local browser, approve, and the same listener captures the redirect through the tunnel. There is no Device Authorization Grant fallback: Google's device flow doesn't support Gmail/Contacts scopes at all, on any client type, so it can't be used here. |
+| `mcp-mailman auth login <alias>` | OAuth2 consent for an existing or new alias; stores the refresh token, then prompts for an optional "From Name"/signature. Opens your local browser automatically when one is reachable (loopback redirect, fully automatic once you click Allow). When no local browser is available (SSH/headless/container) or `--no-browser` is passed, prints the consent URL plus an `ssh -L` port-forward command — run it from your local machine, open the URL in your local browser, approve, and the same listener captures the redirect through the tunnel. There is no Device Authorization Grant fallback: Google's device flow doesn't support Gmail/Contacts scopes at all, on any client type, so it can't be used here. |
 | `mcp-mailman auth rotate-key` | Generate a new master key, re-encrypt every account's stored secrets, store the new key via keytar. CLI-only, never an MCP tool — see docs/PLAN.md's Data integrity section for why. |
 | `mcp-mailman contacts list` | Print the local address book. |
 | `mcp-mailman contacts add <email> [--name "..."]` | Manually add a contact. |
 | `mcp-mailman contacts remove <email>` | Remove a contact. |
-| `mcp-mailman settings get` | Print current global settings (`defaultAccount`, `draftTtlMinutes`, `alwaysConfirm`). |
-| `mcp-mailman settings set <key> <value>` | Update one setting. |
+| `mcp-mailman settings get` | Print current global settings (`defaultAccount`, `draftTtlMinutes`, `alwaysConfirm`, `defaultBodyType`). |
+| `mcp-mailman settings set <key> <value>` | Update one setting. `defaultBodyType` accepts `text` or `html` — what `draft_email` falls back to when a call omits `bodyType`. |
 | `mcp-mailman register` | Prints the exact `claude mcp add mailman -- npx -y mcp-mailman` line to run — doesn't execute it for you, just gives you the copy-pasteable command. |
 | `mcp-mailman doctor` | Environment pre-flight checks, distinct from `status` (which reports *configured* state): is a keyring backend actually reachable right now (catches the headless-Linux-no-keyring case before `account add` fails confusingly), Node version ≥18, DNS/TCP reachability to `smtp.gmail.com:465` and `imap.gmail.com:993`. |
 | `mcp-mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |
