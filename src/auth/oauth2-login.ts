@@ -1,4 +1,5 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
 import open from 'open';
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -18,7 +19,17 @@ export interface OAuthLoginResult {
   refreshToken: string;
 }
 
-function startLoopbackServer(): Promise<{ port: number; waitForCode: () => Promise<string> }> {
+// PKCE (RFC 7636) — Google's Desktop app client type supports it, and it's
+// the standard mitigation for a public/native client whose "secret" isn't
+// really confidential. code_verifier stays in this process's memory only;
+// the authorization server never accepts the code without it.
+function generatePkcePair(): { verifier: string; challenge: string } {
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  return { verifier, challenge };
+}
+
+function startLoopbackServer(expectedState: string): Promise<{ port: number; waitForCode: () => Promise<string> }> {
   return new Promise((resolve, reject) => {
     let settleCode: ((code: string) => void) | undefined;
     let settleError: ((err: Error) => void) | undefined;
@@ -31,14 +42,25 @@ function startLoopbackServer(): Promise<{ port: number; waitForCode: () => Promi
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       const code = url.searchParams.get('code');
       const error = url.searchParams.get('error');
+      const state = url.searchParams.get('state');
+
+      // CSRF protection (RFC 6749 §10.12): reject anything that doesn't
+      // carry back the exact state we generated for this flow — a stray
+      // or forged request to this ephemeral port is never accepted, even
+      // if it happens to include a plausible-looking code.
+      const stateOk =
+        state !== null &&
+        state.length === expectedState.length &&
+        crypto.timingSafeEqual(Buffer.from(state), Buffer.from(expectedState));
 
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      if (code) {
+      if (code && stateOk) {
         res.end('<html><body>Signed in — you can close this tab and return to the terminal.</body></html>');
         settleCode?.(code);
       } else {
-        res.end(`<html><body>Authorization failed: ${error ?? 'unknown error'}. You can close this tab.</body></html>`);
-        settleError?.(new Error(error ?? 'No authorization code received'));
+        const reason = !stateOk ? 'state mismatch (possible CSRF)' : error ?? 'unknown error';
+        res.end(`<html><body>Authorization failed: ${reason}. You can close this tab.</body></html>`);
+        settleError?.(new Error(`OAuth callback rejected: ${reason}`));
       }
       server.close();
     });
@@ -55,7 +77,7 @@ function startLoopbackServer(): Promise<{ port: number; waitForCode: () => Promi
   });
 }
 
-function buildAuthUrl(client: OAuthClientConfig, redirectUri: string): string {
+function buildAuthUrl(client: OAuthClientConfig, redirectUri: string, state: string, codeChallenge: string): string {
   const params = new URLSearchParams({
     client_id: client.clientId,
     redirect_uri: redirectUri,
@@ -63,11 +85,19 @@ function buildAuthUrl(client: OAuthClientConfig, redirectUri: string): string {
     scope: OAUTH_SCOPES.join(' '),
     access_type: 'offline',
     prompt: 'consent',
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256',
   });
   return `${AUTH_ENDPOINT}?${params.toString()}`;
 }
 
-async function exchangeCodeForTokens(client: OAuthClientConfig, code: string, redirectUri: string): Promise<string> {
+async function exchangeCodeForTokens(
+  client: OAuthClientConfig,
+  code: string,
+  redirectUri: string,
+  codeVerifier: string,
+): Promise<string> {
   const response = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -77,6 +107,7 @@ async function exchangeCodeForTokens(client: OAuthClientConfig, code: string, re
       code,
       grant_type: 'authorization_code',
       redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
     }),
   });
   if (!response.ok) {
@@ -119,9 +150,11 @@ export async function runOAuthLogin(
   client: OAuthClientConfig,
   opts: { noBrowser?: boolean; onInstructions?: (message: string) => void } = {},
 ): Promise<OAuthLoginResult> {
-  const { port, waitForCode } = await startLoopbackServer();
+  const state = crypto.randomBytes(16).toString('base64url');
+  const { verifier, challenge } = generatePkcePair();
+  const { port, waitForCode } = await startLoopbackServer(state);
   const redirectUri = `http://127.0.0.1:${port}`;
-  const authUrl = buildAuthUrl(client, redirectUri);
+  const authUrl = buildAuthUrl(client, redirectUri, state, challenge);
 
   if (isLocalBrowserAvailable(Boolean(opts.noBrowser))) {
     await open(authUrl);
@@ -134,6 +167,6 @@ export async function runOAuthLogin(
   }
 
   const code = await waitForCode();
-  const refreshToken = await exchangeCodeForTokens(client, code, redirectUri);
+  const refreshToken = await exchangeCodeForTokens(client, code, redirectUri, verifier);
   return { refreshToken };
 }
