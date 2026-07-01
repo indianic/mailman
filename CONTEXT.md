@@ -37,7 +37,7 @@ order.
   conversationally (send, read, search, suggest contacts) is an MCP tool.
   Anything destructive, credential-sensitive, or browser-dependent (account
   setup, OAuth2 login, key rotation, reset) is a terminal-only CLI command,
-  never LLM-callable. See [docs/TOOLS.md](docs/TOOLS.md) vs
+  never LLM-callable. See [docs/SKILLS.md](docs/SKILLS.md) vs
   [docs/CLI.md](docs/CLI.md).
 - **Nothing sends without a human seeing a preview first.** Every send is
   `draft_email` (builds a preview, does not send) → `confirm_send` (the only
@@ -68,6 +68,6 @@ order.
 
 - [README.md](README.md) — pitch, install, usage examples
 - [docs/PLAN.md](docs/PLAN.md) — the full architecture (this file's source material)
-- [docs/TOOLS.md](docs/TOOLS.md) — every MCP tool, called by Claude
+- [docs/SKILLS.md](docs/SKILLS.md) — every MCP tool, called by Claude
 - [docs/CLI.md](docs/CLI.md) — every terminal command, run by you
 - [docs/CHECKLIST.md](docs/CHECKLIST.md) — the phased build order

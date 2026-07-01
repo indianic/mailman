@@ -44,7 +44,7 @@ started yet; see [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order.
 
 - [CONTEXT.md](CONTEXT.md) — start here: condensed overview, status, key decisions
 - [docs/PLAN.md](docs/PLAN.md) — full architecture: auth, storage, tools, flows
-- [docs/TOOLS.md](docs/TOOLS.md) — the MCP tools this server exposes ("skills"), called by Claude
+- [docs/SKILLS.md](docs/SKILLS.md) — the MCP tools this server exposes ("skills"), called by Claude
 - [docs/CLI.md](docs/CLI.md) — the terminal commands you run yourself (setup, accounts, diagnostics)
 - [docs/CHECKLIST.md](docs/CHECKLIST.md) — phased implementation checklist
 

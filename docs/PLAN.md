@@ -33,7 +33,7 @@ mailman/
 ├── package.json          bin: "mcp-mailman", published to npm
 ├── src/
 │   ├── index.ts            MCP server entrypoint (stdio transport)
-│   ├── tools/               one file per MCP tool — see docs/TOOLS.md
+│   ├── tools/               one file per MCP tool — see docs/SKILLS.md
 │   ├── cli/                 one file per terminal command — see docs/CLI.md
 │   │   ├── init.ts, account.ts, contacts.ts, settings.ts
 │   │   ├── auth-login.ts, rotate-key.ts
@@ -79,7 +79,7 @@ function toolError(code: string, message: string): ToolResponse {
 }
 ```
 
-- **Success**: the `Output` shape documented per-tool in docs/TOOLS.md,
+- **Success**: the `Output` shape documented per-tool in docs/SKILLS.md,
   JSON-stringified.
 - **Failure**: `{ code, message }` (see the error-code table under
   Concurrency, resilience & idempotency below) — a structured upgrade over
@@ -518,7 +518,7 @@ of plain text — useful for confirming setup worked without digging through
 
 Implementation note: the CLI command is a thin renderer over a single
 `collectStatus()` function in `src/status.ts` — the same function backs a
-`get_status` MCP tool (see docs/TOOLS.md) that returns the identical data as
+`get_status` MCP tool (see docs/SKILLS.md) that returns the identical data as
 plain JSON for Claude to read/summarize. One data source, two presentations:
 a pretty tree for a human running it directly in a terminal, structured JSON
 for Claude. Depends on `@clack/prompts` (CLI-only dependency, not loaded by

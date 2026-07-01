@@ -1,4 +1,4 @@
-# mailman — MCP Tools ("skills")
+# mailman — Skills (MCP Tools)
 
 The tools this server exposes to a Claude session. Each tool is a plain,
 stateless MCP call — the intelligence of interpreting "those docs" or

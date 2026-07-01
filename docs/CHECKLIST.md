@@ -2,7 +2,7 @@
 
 Phased build order. Each phase should be usable/testable on its own before
 moving to the next. See [docs/PLAN.md](PLAN.md) for the full rationale behind
-each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
+each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 0 — Project setup
 

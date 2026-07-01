@@ -2,7 +2,7 @@
 
 These are commands **you** type directly in a terminal — setup, account
 administration, and diagnostics. They're separate from the MCP tools in
-[docs/TOOLS.md](TOOLS.md), which Claude calls conversationally. The split is
+[docs/SKILLS.md](SKILLS.md), which Claude calls conversationally. The split is
 deliberate: anything destructive, credential-sensitive, or that requires a
 browser (OAuth2 consent) belongs here, not behind something an LLM session
 could be talked into triggering.
