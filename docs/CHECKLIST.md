@@ -124,14 +124,14 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 9 — Polish & publish
 
-- [ ] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
-- [ ] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`, pending-scheduled count
-- [ ] Finalize `mcp-mailman status` tree rendering (accounts / security / mcp registration / activity / scheduled sections)
-- [ ] `mcp-mailman register` CLI command — prints the `claude mcp add mailman -- npx -y mcp-mailman` line (doesn't auto-run it)
-- [ ] `mcp-mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
-- [ ] `mcp-mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
-- [ ] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked/Dockerized IMAP, mocked `googleapis` — wired into the CI pipeline from Phase 0
-- [ ] Finalize README (install, both auth setups, usage examples, config paths table, read-access scope disclosure)
-- [ ] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy)
-- [ ] `npm publish` as `mcp-mailman`
-- [ ] Document `claude mcp add mailman -- npx -y mcp-mailman` as the standard install step
+- [x] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
+- [x] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`, pending-scheduled count
+- [x] Finalize `mcp-mailman status` tree rendering (accounts / security / mcp registration / activity / scheduled sections) — already handled all sections generically since Phase 0; just needed real data behind it
+- [x] `mcp-mailman register` CLI command — prints the `claude mcp add mailman -- npx -y mcp-mailman` line (doesn't auto-run it)
+- [x] `mcp-mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
+- [x] `mcp-mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
+- [x] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked IMAP-shaped fixtures against the real parsing logic, mocked `fetch` standing in for the Gmail API (mailman uses raw REST via fetch, not the `googleapis` SDK, for Gmail/People calls — same "no real Gmail" testing intent, different mocking boundary) — automatically wired into CI via the existing `npm test` glob
+- [x] Finalize README (install, both auth setups, usage examples, config paths table, read-access scope disclosure)
+- [ ] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy) — **pending user action**: no Linux/Windows machine available in this session; macOS path exercised throughout via manual verification steps in Phases 1–8
+- [ ] `npm publish` as `mcp-mailman` — **pending explicit user confirmation**: a real, public, hard-to-reverse action
+- [x] Document `claude mcp add mailman -- npx -y mcp-mailman` as the standard install step

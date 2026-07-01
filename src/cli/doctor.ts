@@ -1,3 +1,4 @@
+import net from 'node:net';
 import { intro, outro, log } from '@clack/prompts';
 import { getTickerStatus } from '../scheduler/ticker-install.js';
 
@@ -50,12 +51,29 @@ async function checkTicker(): Promise<CheckResult> {
   };
 }
 
-// Network/SMTP/IMAP reachability checks are added in later phases once
-// those modules exist (see docs/CHECKLIST.md Phase 9).
+function checkTcpReachable(name: string, host: string, port: number, timeoutMs = 5000): Promise<CheckResult> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host, port, timeout: timeoutMs });
+    const finish = (ok: boolean, detail: string) => {
+      socket.destroy();
+      resolve({ name, ok, detail });
+    };
+    socket.once('connect', () => finish(true, `reachable (${host}:${port})`));
+    socket.once('timeout', () => finish(false, `timed out connecting to ${host}:${port}`));
+    socket.once('error', (err) => finish(false, `unreachable (${host}:${port}): ${err.message}`));
+  });
+}
+
 export async function runDoctor(_args: string[]): Promise<void> {
   intro('mailman — doctor');
 
-  const results = [checkNodeVersion(), await checkKeyringBackend(), await checkTicker()];
+  const results = [
+    checkNodeVersion(),
+    await checkKeyringBackend(),
+    await checkTicker(),
+    await checkTcpReachable('SMTP reachability', 'smtp.gmail.com', 465),
+    await checkTcpReachable('IMAP reachability', 'imap.gmail.com', 993),
+  ];
 
   for (const result of results) {
     if (result.ok) {

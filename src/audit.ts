@@ -55,6 +55,41 @@ export function appendActivity(entry: ActivityEntry): Promise<void> {
   });
 }
 
+export interface ActivitySummary {
+  sent: number;
+  read: number;
+  searched: number;
+  sinceHours: number;
+}
+
+/** Read-only rollup for `status`/`get_status` — never mutates the log. */
+export async function summarizeActivity(sinceHours = 24): Promise<ActivitySummary> {
+  const logPath = getActivityLogPath();
+  let content: string;
+  try {
+    content = await fs.readFile(logPath, 'utf8');
+  } catch {
+    return { sent: 0, read: 0, searched: 0, sinceHours };
+  }
+
+  const cutoff = Date.now() - sinceHours * 60 * 60 * 1000;
+  const summary = { sent: 0, read: 0, searched: 0, sinceHours };
+  for (const line of content.split('\n')) {
+    if (!line.trim()) continue;
+    let entry: ActivityEntry;
+    try {
+      entry = JSON.parse(line) as ActivityEntry;
+    } catch {
+      continue;
+    }
+    if (!entry.ok || Date.parse(entry.timestamp) < cutoff) continue;
+    if (entry.tool === 'confirm_send') summary.sent += 1;
+    else if (entry.tool === 'read_email') summary.read += 1;
+    else if (entry.tool === 'search_emails') summary.searched += 1;
+  }
+  return summary;
+}
+
 /**
  * Counts, not content — recipient/attachment *count*, never the actual
  * addresses or filenames. Applied uniformly in src/index.ts's tool

@@ -12,11 +12,11 @@ function folderToMailboxPath(folder: Folder): string {
   return '[Gmail]/All Mail';
 }
 
-function encodeId(mailboxPath: string, uid: number): string {
+export function encodeId(mailboxPath: string, uid: number): string {
   return `${ID_PREFIX}${encodeURIComponent(mailboxPath)}:${uid}`;
 }
 
-function decodeId(id: string): { mailboxPath: string; uid: number } {
+export function decodeId(id: string): { mailboxPath: string; uid: number } {
   if (!id.startsWith(ID_PREFIX)) {
     throw new Error(`Not an IMAP message id: ${id}`);
   }
@@ -24,7 +24,7 @@ function decodeId(id: string): { mailboxPath: string; uid: number } {
   return { mailboxPath: decodeURIComponent(mailboxPathEncoded), uid: Number(uidStr) };
 }
 
-function formatAddress(addr: MessageAddressObject): string {
+export function formatAddress(addr: MessageAddressObject): string {
   if (addr.name && addr.address) return `${addr.name} <${addr.address}>`;
   return addr.address ?? '';
 }
@@ -33,7 +33,7 @@ function formatAddress(addr: MessageAddressObject): string {
 // (see docs/PLAN.md's "Reading, listing, and searching mail" section) —
 // only from:/subject:/after:/before: are recognized; anything else falls
 // into a generic text search across headers+body.
-function parseSimpleQuery(query: string): SearchObject {
+export function parseSimpleQuery(query: string): SearchObject {
   const search: SearchObject = {};
   const remaining: string[] = [];
   for (const token of query.split(/\s+/).filter(Boolean)) {
@@ -54,14 +54,14 @@ function parseSimpleQuery(query: string): SearchObject {
   return search;
 }
 
-function structureHasAttachments(node: MessageStructureObject | undefined): boolean {
+export function structureHasAttachments(node: MessageStructureObject | undefined): boolean {
   if (!node) return false;
   const filename = node.dispositionParameters?.filename ?? node.parameters?.name;
   if (filename && node.disposition !== 'inline') return true;
   return (node.childNodes ?? []).some(structureHasAttachments);
 }
 
-function findFirstPartByType(node: MessageStructureObject | undefined, mimeType: string): string | undefined {
+export function findFirstPartByType(node: MessageStructureObject | undefined, mimeType: string): string | undefined {
   if (!node) return undefined;
   if (node.type === mimeType) return node.part ?? '1';
   for (const child of node.childNodes ?? []) {
@@ -71,7 +71,10 @@ function findFirstPartByType(node: MessageStructureObject | undefined, mimeType:
   return undefined;
 }
 
-function collectAttachments(node: MessageStructureObject | undefined, acc: EmailDetail['attachments'] = []): EmailDetail['attachments'] {
+export function collectAttachments(
+  node: MessageStructureObject | undefined,
+  acc: EmailDetail['attachments'] = [],
+): EmailDetail['attachments'] {
   if (!node) return acc;
   const filename = node.dispositionParameters?.filename ?? node.parameters?.name;
   if (filename && node.disposition !== 'inline') {
@@ -83,7 +86,7 @@ function collectAttachments(node: MessageStructureObject | undefined, acc: Email
   return acc;
 }
 
-function extractSnippetFromTextSection(buf: Buffer | undefined): string {
+export function extractSnippetFromTextSection(buf: Buffer | undefined): string {
   if (!buf) return '';
   const cleaned = buf
     .toString('utf8')

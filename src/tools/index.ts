@@ -17,6 +17,7 @@ import { readEmailTool } from './read-email.js';
 import { scheduleSendTool } from './schedule-send.js';
 import { listScheduledTool } from './list-scheduled.js';
 import { cancelScheduledTool } from './cancel-scheduled.js';
+import { getStatusTool } from './get-status.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
@@ -39,4 +40,5 @@ export const allTools: Tool[] = [
   scheduleSendTool,
   listScheduledTool,
   cancelScheduledTool,
+  getStatusTool,
 ];

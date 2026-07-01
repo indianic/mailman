@@ -35,16 +35,30 @@ You: get my contacts
 Claude: [address book, merged with Google Contacts for OAuth2 accounts]
 ```
 
+```
+You: mailman, send this tomorrow at 9am instead of now
+Claude: [drafts as usual] Ready to send to ... at 2026-07-02 09:00 — confirm?
+You: yes
+Claude: Scheduled. It'll go out even if this Claude session is closed by then.
+```
+
 ## Status
 
-Phases 0–8 complete (project setup, core send + draft/confirm, attachment
-resolution, security hardening, OAuth2 auth, multi-account + settings,
-recipient suggestions, reading/listing/searching mail, scheduled sends) —
-see [docs/PLAN.md](docs/PLAN.md) for the architecture and
-[docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order. Phase 9
-(polish & publish) is next. Scheduled-send code is fully implemented and
-unit-tested; the real OS-ticker install (launchd/cron/Task Scheduler) is
-pending a manual confirmation before it's registered on any real machine.
+All 10 phases (0–9) implemented — see [docs/PLAN.md](docs/PLAN.md) for the
+architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the phase-by-
+phase build order and what's been manually verified vs. still pending a
+real account/real-machine check. Two things are deliberately left for you
+rather than done automatically:
+
+- **Real-delivery verification** (App Password send, OAuth2 send,
+  list/search/read against a real mailbox) — every code path has been
+  exercised against real Google endpoints with fake credentials and fails
+  cleanly, but only your own real account can confirm an actual send/read
+  succeeds.
+- **The scheduled-send OS ticker** (`launchd`/`crontab`/Task Scheduler) —
+  registering it mutates real system state outside this repo and persists
+  across reboots, so it's not installed automatically; `schedule_send`
+  installs it the first time you actually use it.
 
 ## Docs
 
@@ -54,7 +68,7 @@ pending a manual confirmation before it's registered on any real machine.
 - [docs/CLI.md](docs/CLI.md) — the terminal commands you run yourself (setup, accounts, diagnostics)
 - [docs/CHECKLIST.md](docs/CHECKLIST.md) — phased implementation checklist
 
-## Install (once implemented)
+## Install
 
 ```bash
 # one-time setup — add your first account (App Password or OAuth2)
@@ -63,6 +77,12 @@ npx mcp-mailman init
 # register with Claude CLI (global, not project-scoped)
 claude mcp add mailman -- npx -y mcp-mailman
 ```
+
+`mcp-mailman register` prints that second line again any time you need
+it. `mcp-mailman doctor` checks Node version, OS keyring reachability,
+SMTP/IMAP network reachability, and scheduled-send ticker status — run it
+first if something's not working. See [docs/CLI.md](docs/CLI.md) for
+every terminal command (accounts, contacts, settings, scheduled sends).
 
 ## OAuth2 setup (optional — App Password is faster)
 

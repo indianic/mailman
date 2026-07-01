@@ -18,12 +18,9 @@ export function createAppPasswordTransport(credentials: AppPasswordCredentials) 
   });
 }
 
-export async function sendViaAppPassword(
-  credentials: AppPasswordCredentials,
-  message: OutboundMessage,
-): Promise<{ messageId: string }> {
-  const transport = createAppPasswordTransport(credentials);
-  const info = await transport.sendMail({
+/** Pure — the exact options object handed to nodemailer, independently testable against a fake transport. */
+export function buildMailOptions(credentials: AppPasswordCredentials, message: OutboundMessage) {
+  return {
     from: credentials.user,
     to: message.to.join(', '),
     cc: message.cc?.join(', '),
@@ -36,6 +33,14 @@ export async function sendViaAppPassword(
       path: a.path,
       contentType: a.mimeType,
     })),
-  });
+  };
+}
+
+export async function sendViaAppPassword(
+  credentials: AppPasswordCredentials,
+  message: OutboundMessage,
+): Promise<{ messageId: string }> {
+  const transport = createAppPasswordTransport(credentials);
+  const info = await transport.sendMail(buildMailOptions(credentials, message));
   return { messageId: info.messageId };
 }
