@@ -18,7 +18,7 @@ set up per-repo.
 **Planning complete. No implementation yet.** Everything in `src/` described
 in the docs is still to be written — Phase 1 (App Password send path +
 draft/confirm flow) is the next concrete step. See
-[docs/CHECKLIST.md](docs/CHECKLIST.md) for the full 9-phase (0–8) build
+[docs/CHECKLIST.md](docs/CHECKLIST.md) for the full 10-phase (0–9) build
 order.
 
 ## Repo facts
@@ -63,6 +63,12 @@ order.
   URL + code, poll in the background) when no local browser is reachable —
   SSH sessions, containers, headless boxes. No manual code paste-back
   either way (Google removed that flow in 2022).
+- **Scheduled sends don't rely on the MCP process staying alive.** The MCP
+  server is an ephemeral stdio process, not a daemon, so "send this
+  tomorrow" is persisted to disk (`scheduled.json`, encrypted like
+  `accounts.json`) and fired by one OS-level scheduler job per machine
+  (launchd/cron/Task Scheduler), not a JS timer that dies with the Claude
+  Code session. One-time schedules only — no recurring sends.
 
 ## Full docs
 

@@ -22,6 +22,9 @@ credential security (see Security model below).
   address book and, for OAuth2 accounts, the account's Google Contacts.
 - Read, list, and search the inbox/sent mail too — "last 10 emails," "search
   for X," "read this one" — not just send.
+- Support scheduling a send for a future time ("send this tomorrow at 9am"),
+  reliably surviving the MCP server process not being alive at that moment —
+  not just an in-memory timer that dies with the session.
 - Store all state in one **global, per-OS-user** location — never
   project-relative — so it's configured once per machine and available from
   every project/terminal/Claude session on that machine.
@@ -38,6 +41,7 @@ mailman/
 │   │   ├── init.ts, account.ts, contacts.ts, settings.ts
 │   │   ├── auth-login.ts, rotate-key.ts
 │   │   ├── register.ts, doctor.ts, reset.ts
+│   │   ├── send-scheduled.ts   the ticker's dispatch target — CLI-only
 │   │   └── status.ts        renders collectStatus() via @clack/prompts
 │   ├── auth/
 │   │   ├── app-password.ts    SMTP login (nodemailer + Gmail SMTP)
@@ -47,6 +51,10 @@ mailman/
 │   │   ├── gmail-api-client.ts   GmailApiProvider — list/search/read via Gmail API (oauth2 accounts)
 │   │   ├── imap-client.ts        ImapSmtpProvider — list/search/read via IMAP (app-password accounts)
 │   │   └── normalize.ts          maps both backends into one common email shape
+│   ├── scheduler/
+│   │   ├── store.ts             read/write scheduled.json (encrypted, same master key as accounts.json)
+│   │   ├── ticker-install.ts    per-OS idempotent registration (launchd/cron/Task Scheduler)
+│   │   └── dispatch.ts          fires due sends via MailProvider.send(), retry/fail bookkeeping
 │   ├── config/
 │   │   ├── paths.ts           cross-platform global config dir resolution
 │   │   ├── store.ts           read/write accounts.json, contacts.json, settings.json
@@ -268,25 +276,27 @@ OS's own credential store.
 
 ## Data integrity & storage (DBA review)
 
-There's no database here — `accounts.json`, `contacts.json`, `settings.json`
-are flat files, and they get the same rigor a DBA would demand of any small
-persistent store:
+There's no database here — `accounts.json`, `contacts.json`, `settings.json`,
+and `scheduled.json` are flat files, and they get the same rigor a DBA would
+demand of any small persistent store:
 
 - **Atomic writes, always.** Every write is: serialize → write to a temp
   file in the same directory → `fs.rename()` over the real path. A crash or
   power loss mid-write leaves the *old* file intact, never a half-written or
   corrupt JSON blob. Never write in place.
-- **Single in-process writer.** All three files go through one write queue
-  (`config/store.ts`). Even with only one OS process, tool calls can race
-  each other — an `add_contact` auto-upsert from `confirm_send` overlapping
-  a manual `configure_account` call, for instance. Reads/writes to the
-  *same* file are serialized through that queue; unrelated files aren't
-  blocked by each other.
+- **Single in-process writer.** All files go through one write queue
+  (`config/store.ts`, shared by `scheduler/store.ts`). Even with only one
+  OS process, tool calls can race each other — an `add_contact` auto-upsert
+  from `confirm_send` overlapping a manual `configure_account` call, or the
+  ticker's `send-scheduled` marking an entry `sent` while `schedule_send`
+  adds a new one, for instance. Reads/writes to the *same* file are
+  serialized through that queue; unrelated files aren't blocked by each
+  other.
 - **`schemaVersion` field in every file, checked on load.** A future
   mailman release that changes a file's shape runs a migration keyed on
   that version instead of crashing on an old config or silently misreading
-  a field. No migrations exist yet (v1 for all three), but the field ships
-  from day one so it's never a breaking retrofit.
+  a field. No migrations exist yet (v1 for all four files), but the field
+  ships from day one so it's never a breaking retrofit.
 - **Corruption recovery.** Each write to any of the three files first copies
   the current file to `<file>.bak` before the atomic rename. If a load ever
   hits a JSON parse error, fall back to `.bak` and log a warning rather than
@@ -355,6 +365,92 @@ Drafts expire after a configurable TTL (default 10 minutes — see Settings)
 so a stale confirmation can't fire off an old, possibly-outdated draft, and
 can't double-send if confirmed twice.
 
+## Scheduled sends — persistence beyond the MCP server's lifetime
+
+"Send this later" can't be built as an in-memory timer on the draft store,
+because the MCP server is a stdio process the Claude CLI owns and can kill
+at any time (see Process lifecycle below) — closing that Claude Code
+session hours before the scheduled moment would silently lose the send.
+Scheduling needs two things a live process can't guarantee on its own:
+durable storage, and a trigger that fires independently of whether mailman
+happens to be running at that instant.
+
+**Flow:**
+
+```
+User: "mailman, send this tomorrow at 9am instead of now"
+  → Claude resolves "tomorrow at 9am" to an absolute instant (mailman does
+    no natural-language date parsing itself — same "Claude resolves
+    intent, mailman stays dumb" split as attachment paths)
+  → Claude calls draft_email(...) as normal, gets a draftId + preview
+  → Claude shows the preview *and* the resolved send time, asks to confirm
+  → User confirms
+  → Claude calls schedule_send({ draftId, sendAt }) instead of confirm_send
+  → mailman persists the drafted email to scheduled.json, installs the
+    recurring OS ticker job if this machine doesn't have one yet, returns
+    a scheduledId. Nothing is sent yet — same non-destructive preview-first
+    principle as an immediate send, just with a future execution time
+    instead of "now."
+```
+
+**Persisted store.** `scheduled.json` lives in the same global config
+directory as `accounts.json`, and is encrypted at rest with the same
+keytar-backed master key (see Security model) — a scheduled email's
+recipient/subject/body sitting in plaintext on disk until it fires would be
+a real exposure, so it gets the same treatment as credentials rather than a
+separate new mechanism. Each entry: `{ scheduledId, account, to, cc, bcc,
+subject, body, bodyType, attachments, sendAt, status: "pending" | "sent" |
+"failed", attempts }`.
+
+**The ticker.** One recurring OS-level job per machine, installed once
+(idempotently) the first time `schedule_send` is ever called, polling every
+1–5 minutes:
+
+| OS | Mechanism |
+|---|---|
+| macOS | `launchd` agent (`~/Library/LaunchAgents/`), preferred over cron |
+| Linux | `crontab` entry |
+| Windows | Task Scheduler task |
+
+Each tick runs `mcp-mailman send-scheduled --due` — a **CLI-only** command,
+never an MCP tool (it's an OS-triggered background mechanism, not a
+conversational action; same exclusion logic as `auth rotate-key`). It reads
+`scheduled.json`, dispatches everything with `sendAt <= now` and
+`status: "pending"` through the exact same `MailProvider.send()` path
+`confirm_send` uses, then marks each `sent` or `failed`.
+
+- **Attachments are re-resolved fresh at fire time**, not snapshotted when
+  scheduled — consistent with attachment resolution always being a live
+  path lookup elsewhere in this doc. If a file's moved or deleted between
+  scheduling and firing, the send fails with `ATTACHMENT_NOT_FOUND` rather
+  than silently going out without it.
+- **Retries, not silent loss.** A failed dispatch (network blip, expired
+  OAuth2 token, missing attachment) retries on the next tick, up to a cap
+  (5 attempts); after that it's marked `failed` and surfaces in
+  `list_scheduled`/`status` rather than disappearing.
+- **Honest limit, not a bug to hide**: if the machine is fully powered off
+  (not just asleep) at the scheduled instant, the send fires on the next
+  tick after it wakes/boots — cron/launchd/Task Scheduler can't run on a
+  powered-off machine. It's late, not lost, and that's worth being upfront
+  about rather than implying second-precision delivery guarantees a
+  personal-machine scheduler can't actually make.
+- **`doctor` reports ticker health** (installed? last observed run?) as a
+  recovery path if something's wrong with the OS-level registration,
+  rather than that being a total black box.
+
+**Scope, deliberately**: one-time scheduled sends only. Recurring/repeating
+sends ("every Monday, send X") are a deliberate non-goal for now, not an
+oversight — a materially different feature (needs its own cadence model,
+skip/pause semantics, etc.) that can be a future decision if it comes up.
+
+**MCP-tool-only, like sending itself.** `schedule_send`/`cancel_scheduled`
+are MCP tools, not CLI commands — scheduling a send is still "sending
+mail," just deferred, so it stays behind Claude's conversational
+confirm-first flow rather than becoming a bare CLI escape hatch (same
+reasoning docs/CLI.md already gives for why `draft_email`/`confirm_send`
+aren't CLI commands). `list_scheduled` is read-only and safe either way, so
+it gets both an MCP tool and a CLI mirror (`mcp-mailman scheduled list`).
+
 ## Concurrency, resilience & idempotency
 
 **Draft store concurrency.** Drafts live in an in-memory `Map<draftId,
@@ -385,6 +481,7 @@ so Claude can branch reliably instead of pattern-matching prose:
 | `AUTH_EXPIRED` | any oauth2-backed tool | refresh-token exchange failed; needs `auth login` re-run |
 | `RATE_LIMITED` | Gmail API / IMAP calls | provider backpressure; includes a `retryAfterMs` hint |
 | `NO_MASTER_KEY` | any account-scoped tool | keytar has no key for this machine (see Data integrity & storage) |
+| `SCHEDULE_NOT_FOUND` | `cancel_scheduled` | `scheduledId` doesn't exist or already fired |
 
 **Provider-level retries.** Gmail API calls retry once on `401` (after an
 OAuth2 token refresh) and up to twice more on `429`/`5xx` with exponential
@@ -568,4 +665,5 @@ version of this list.
 5. Multi-account + settings (list/configure/remove account, default resolution, get/update settings)
 6. Recipient suggestions (local contacts store, Google People API for OAuth2 accounts)
 7. Reading/listing/searching mail (Gmail API for OAuth2 accounts, IMAP for App Password accounts)
-8. Polish & publish (README finalized, npm publish, `claude mcp add` docs, cross-OS testing)
+8. Scheduled sends (`scheduled.json`, per-OS ticker install, `schedule_send`/`list_scheduled`/`cancel_scheduled`, `send-scheduled` CLI dispatch)
+9. Polish & publish (README finalized, npm publish, `claude mcp add` docs, cross-OS testing)

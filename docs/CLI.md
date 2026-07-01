@@ -29,7 +29,9 @@ servers; colliding with that isn't hypothetical.
 | `mcp-mailman settings set <key> <value>` | Update one setting. |
 | `mcp-mailman register` | Prints the exact `claude mcp add mailman -- npx -y mcp-mailman` line to run — doesn't execute it for you, just gives you the copy-pasteable command. |
 | `mcp-mailman doctor` | Environment pre-flight checks, distinct from `status` (which reports *configured* state): is a keyring backend actually reachable right now (catches the headless-Linux-no-keyring case before `account add` fails confusingly), Node version ≥18, DNS/TCP reachability to `smtp.gmail.com:465` and `imap.gmail.com:993`. |
-| `mcp-mailman status` | The `@clack/prompts` tree view — accounts, security, MCP registration, activity. Already specced in docs/PLAN.md. |
+| `mcp-mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |
+| `mcp-mailman send-scheduled --due` | The scheduled-send ticker's actual dispatch target — invoked by the OS scheduler (launchd/cron/Task Scheduler), never run manually or by an LLM. Reads `scheduled.json`, sends everything due through the same path `confirm_send` uses, marks each `sent`/`failed`. |
+| `mcp-mailman status` | The `@clack/prompts` tree view — accounts, security, MCP registration, activity, pending-scheduled count. Already specced in docs/PLAN.md. |
 | `mcp-mailman reset` | Wipes the global config directory (`accounts.json`, `contacts.json`, `settings.json`, `activity.log`) **and** removes the keytar master-key entry, for a clean re-setup. Destructive — requires explicit `--yes`, no default-confirm bypass. |
 | `mcp-mailman --version` / `--help` | Standard. |
 
@@ -42,6 +44,13 @@ the draft → preview → confirm safety flow entirely, or need to reimplement
 that same confirmation UX outside of a Claude conversation — out of scope
 for v1. If a scripting/cron use case for headless sending shows up later,
 that's a deliberate future decision, not an oversight.
+
+**Scheduling or canceling a scheduled send** — same reasoning:
+`schedule_send`/`cancel_scheduled` are MCP-tool-only, since scheduling a
+send is still "sending mail," just deferred. `mcp-mailman send-scheduled`
+is the one scheduling-related CLI command that exists, and it's not a
+counter-example — it's the ticker's dispatch target, invoked by the OS
+scheduler, not something a human or an LLM ever runs directly.
 
 ## Command → underlying logic reuse
 

@@ -107,11 +107,26 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [ ] `list_accounts` output includes `canRead: true/false` per account so it's visible which accounts have read access granted
 - [ ] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account
 
-## Phase 8 — Polish & publish
+## Phase 8 — Scheduled sends
+
+- [ ] `src/config/schema.ts` — zod schema for `scheduled.json`, `schemaVersion` from day one
+- [ ] `src/scheduler/store.ts` — read/write `scheduled.json` through the same atomic-write + `.bak` + write-queue machinery as `config/store.ts`; encrypted at rest with the keytar-backed master key
+- [ ] `src/scheduler/ticker-install.ts` — idempotent per-OS registration: `launchd` agent (macOS), `crontab` entry (Linux), Task Scheduler task (Windows); polls every 1–5 min
+- [ ] `src/scheduler/dispatch.ts` — resolves attachments fresh (not snapshotted), sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed`
+- [ ] `schedule_send` tool — persists to `scheduled.json`, installs the ticker if not already present, returns `scheduledId`
+- [ ] `list_scheduled` / `cancel_scheduled` tools; `SCHEDULE_NOT_FOUND` error code
+- [ ] `mcp-mailman send-scheduled --due` CLI command (ticker's dispatch target — CLI-only, never an MCP tool)
+- [ ] `mcp-mailman scheduled list` CLI command (read-only mirror of `list_scheduled`)
+- [ ] `doctor` — report ticker install/last-run health
+- [ ] `status`/`get_status` — add pending-scheduled count
+- [ ] Unit tests: due-detection logic, retry/fail-after-cap bookkeeping, attachment re-resolution at fire time
+- [ ] Manual test: schedule a send a few minutes out, close the Claude Code session entirely, confirm it still fires via the OS ticker with mailman's MCP process not running
+
+## Phase 9 — Polish & publish
 
 - [ ] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
-- [ ] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`
-- [ ] Finalize `mcp-mailman status` tree rendering (accounts / security / mcp registration / activity sections)
+- [ ] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`, pending-scheduled count
+- [ ] Finalize `mcp-mailman status` tree rendering (accounts / security / mcp registration / activity / scheduled sections)
 - [ ] `mcp-mailman register` CLI command — prints the `claude mcp add mailman -- npx -y mcp-mailman` line (doesn't auto-run it)
 - [ ] `mcp-mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
 - [ ] `mcp-mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`

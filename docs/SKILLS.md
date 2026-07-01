@@ -19,9 +19,10 @@ branch on `code` (e.g. re-ask the user on `AMBIGUOUS_ACCOUNT`, back off and
 retry on `RATE_LIMITED`) instead of pattern-matching the message text.
 
 **Not exposed as MCP tools, deliberately**: key rotation
-(`mcp-mailman auth rotate-key`) and attachment-content download are
-CLI-only/unbuilt respectively — see docs/PLAN.md's Data integrity section
-for why key rotation in particular stays out of LLM-callable reach.
+(`mcp-mailman auth rotate-key`), the scheduled-send ticker's dispatch
+target (`mcp-mailman send-scheduled`), and attachment-content download are
+CLI-only/CLI-only/unbuilt respectively — see docs/PLAN.md's Data integrity
+and Scheduled sends sections for why.
 
 ## `draft_email`
 
@@ -59,6 +60,40 @@ Discards a pending draft without sending.
 
 - **Input**: `{ draftId: string }`
 - **Output**: `{ cancelled: true }`
+
+## `schedule_send`
+
+Confirms a draft for **future** dispatch instead of immediate sending —
+the "send this tomorrow at 9am" case. Persists to `scheduled.json`
+(encrypted, same master key as `accounts.json`) and, if this machine
+doesn't have one yet, installs the recurring OS ticker job that will
+actually fire it later. Nothing is sent by this call itself.
+
+- **Input**: `{ draftId: string, sendAt: string }` (`sendAt` is an absolute
+  ISO-8601 instant — Claude resolves any relative phrase like "tomorrow at
+  9am" to this before calling; mailman does no date parsing itself)
+- **Output**: `{ scheduledId: string, sendAt: string, status: "pending" }`
+- **Notes**: like `confirm_send`, must be called before the source draft's
+  TTL expires — once scheduled, the entry lives independently in
+  `scheduled.json`, decoupled from the ephemeral draft store. One-time
+  sends only; there's no recurring/repeating schedule support.
+
+## `list_scheduled`
+
+Lists pending (and recently resolved) scheduled sends.
+
+- **Input**: `{ account?: string }`
+- **Output**: `{ scheduled: [{ scheduledId, to, subject, sendAt, status: "pending" | "sent" | "failed", attempts }] }`
+- **Notes**: also available as a CLI command (`mcp-mailman scheduled list`)
+  since it's read-only.
+
+## `cancel_scheduled`
+
+Cancels a pending scheduled send before it fires.
+
+- **Input**: `{ scheduledId: string }`
+- **Output**: `{ cancelled: true }`, or `SCHEDULE_NOT_FOUND` if the id
+  doesn't exist or already fired.
 
 ## `suggest_recipients`
 
