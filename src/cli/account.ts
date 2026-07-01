@@ -10,11 +10,14 @@ import {
 import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { authorizeOAuth2Account } from './auth-login.js';
+import { promptProfileDetails } from './prompt-profile.js';
 
 interface AppPasswordDetails {
   alias: string;
   email: string;
   pass: string;
+  displayName?: string;
+  signature?: string;
 }
 
 async function promptMethod(): Promise<'app-password' | 'oauth2'> {
@@ -61,7 +64,9 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     process.exit(1);
   }
 
-  return { alias: String(alias), email: String(email), pass: String(pass) };
+  const { displayName, signature } = await promptProfileDetails();
+
+  return { alias: String(alias), email: String(email), pass: String(pass), displayName, signature };
 }
 
 async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: boolean) {
@@ -72,6 +77,8 @@ async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: b
       method: 'app-password',
       credentials: { user: details.email, pass: details.pass },
       setDefault,
+      displayName: details.displayName,
+      signature: details.signature,
     });
   } catch (err) {
     if (err instanceof KeyringUnavailableError) {

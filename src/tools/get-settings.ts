@@ -8,6 +8,7 @@ async function handler() {
     defaultAccount: settings.defaultAccount,
     draftTtlMinutes: settings.draftTtlMinutes,
     alwaysConfirm: settings.alwaysConfirm,
+    defaultBodyType: settings.defaultBodyType,
   });
 }
 

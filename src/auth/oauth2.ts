@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { formatFromAddress } from '../mail/compose.js';
 import type { OutboundMessage } from '../mail/provider.js';
 
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -124,7 +125,7 @@ export async function sendViaOAuth2(
   const info = await withOAuth2Retry(credentials, async (accessToken) => {
     const transport = createXOAuth2Transport(fromEmail, accessToken);
     return transport.sendMail({
-      from: fromEmail,
+      from: formatFromAddress(fromEmail, message.fromDisplayName),
       to: message.to.join(', '),
       cc: message.cc?.join(', '),
       bcc: message.bcc?.join(', '),

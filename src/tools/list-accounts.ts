@@ -14,6 +14,8 @@ async function handler() {
       // and App Password accounts get IMAP implicitly. The field exists
       // for a future case where read access isn't guaranteed either way.
       canRead: true,
+      displayName: a.displayName,
+      signature: a.signature,
     })),
   });
 }

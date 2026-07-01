@@ -15,6 +15,8 @@ const InputSchema = z.discriminatedUnion('method', [
       pass: z.string().min(1),
     }),
     setDefault: z.boolean().optional(),
+    displayName: z.string().optional(),
+    signature: z.string().optional(),
   }),
   z.object({
     alias: z.string().min(1),
@@ -26,6 +28,8 @@ const InputSchema = z.discriminatedUnion('method', [
       refreshToken: z.string().min(1),
     }),
     setDefault: z.boolean().optional(),
+    displayName: z.string().optional(),
+    signature: z.string().optional(),
   }),
 ]);
 
@@ -63,6 +67,8 @@ export const configureAccountTool: Tool = {
             'For app-password: { user, pass }. For oauth2: { clientId, clientSecret, refreshToken }.',
         },
         setDefault: { type: 'boolean' },
+        displayName: { type: 'string', description: '"From Name" shown to recipients, e.g. "Kalpesh Gamit"' },
+        signature: { type: 'string', description: 'Appended to every draft from this account' },
       },
       required: ['alias', 'email', 'method', 'credentials'],
     },

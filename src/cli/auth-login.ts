@@ -2,6 +2,7 @@ import { intro, outro, log, text, password, isCancel, cancel } from '@clack/prom
 import { configureAccount } from '../accounts.js';
 import { runOAuthLogin, type OAuthClientConfig } from '../auth/oauth2-login.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
+import { promptProfileDetails } from './prompt-profile.js';
 import type { Account } from '../config/schema.js';
 
 async function promptClientCredentials(): Promise<OAuthClientConfig> {
@@ -48,6 +49,7 @@ export async function authorizeOAuth2Account(
     noBrowser: opts.noBrowser,
     onInstructions: (message) => log.info(message),
   });
+  const { displayName, signature } = await promptProfileDetails();
 
   try {
     return await configureAccount({
@@ -56,6 +58,8 @@ export async function authorizeOAuth2Account(
       method: 'oauth2',
       credentials: { clientId: client.clientId, clientSecret: client.clientSecret, refreshToken },
       setDefault: opts.setDefault,
+      displayName,
+      signature,
     });
   } catch (err) {
     if (err instanceof KeyringUnavailableError) {

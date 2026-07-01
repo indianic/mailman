@@ -2,6 +2,7 @@ import { draftEmailTool } from './draft-email.js';
 import { confirmSendTool } from './confirm-send.js';
 import { cancelDraftTool } from './cancel-draft.js';
 import { configureAccountTool } from './configure-account.js';
+import { updateAccountProfileTool } from './update-account-profile.js';
 import { previewAttachmentsTool } from './preview-attachments.js';
 import { listAccountsTool } from './list-accounts.js';
 import { removeAccountTool } from './remove-account.js';
@@ -26,6 +27,7 @@ export const allTools: Tool[] = [
   confirmSendTool,
   cancelDraftTool,
   configureAccountTool,
+  updateAccountProfileTool,
   previewAttachmentsTool,
   listAccountsTool,
   removeAccountTool,

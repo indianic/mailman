@@ -11,6 +11,7 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
         defaultAccount: settings.defaultAccount,
         draftTtlMinutes: settings.draftTtlMinutes,
         alwaysConfirm: settings.alwaysConfirm,
+        defaultBodyType: settings.defaultBodyType,
       },
       null,
       2,
@@ -18,7 +19,7 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
   );
 }
 
-const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm'] as const;
+const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'defaultBodyType'] as const;
 
 /** `mcp-mailman settings set <key> <value>` */
 export async function runSettingsSet(args: string[]): Promise<void> {
@@ -48,12 +49,18 @@ export async function runSettingsSet(args: string[]): Promise<void> {
       process.exit(1);
     }
     await updateSettings((current) => ({ ...current, draftTtlMinutes: parsed }));
-  } else {
+  } else if (key === 'alwaysConfirm') {
     if (value !== 'true' && value !== 'false') {
       log.error('alwaysConfirm must be "true" or "false"');
       process.exit(1);
     }
     await updateSettings((current) => ({ ...current, alwaysConfirm: value === 'true' }));
+  } else {
+    if (value !== 'text' && value !== 'html') {
+      log.error('defaultBodyType must be "text" or "html"');
+      process.exit(1);
+    }
+    await updateSettings((current) => ({ ...current, defaultBodyType: value }));
   }
 
   process.stdout.write(`Set ${key} = ${value}\n`);

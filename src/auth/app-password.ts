@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { formatFromAddress } from '../mail/compose.js';
 import type { OutboundMessage } from '../mail/provider.js';
 
 export interface AppPasswordCredentials {
@@ -21,7 +22,7 @@ export function createAppPasswordTransport(credentials: AppPasswordCredentials) 
 /** Pure — the exact options object handed to nodemailer, independently testable against a fake transport. */
 export function buildMailOptions(credentials: AppPasswordCredentials, message: OutboundMessage) {
   return {
-    from: credentials.user,
+    from: formatFromAddress(credentials.user, message.fromDisplayName),
     to: message.to.join(', '),
     cc: message.cc?.join(', '),
     bcc: message.bcc?.join(', '),

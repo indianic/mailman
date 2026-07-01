@@ -5,6 +5,7 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
 import { resolveAttachments } from './resolve-attachments.js';
+import { formatFromAddress, appendSignature } from '../mail/compose.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({
@@ -54,6 +55,8 @@ async function handler(rawArgs: Record<string, unknown>) {
   const to = Array.isArray(input.to) ? input.to : [input.to];
   const subject = input.subject ?? defaultSubject(resolved.files);
   const settings = await getSettings();
+  const bodyType = input.bodyType ?? settings.defaultBodyType;
+  const body = appendSignature(input.body, account.signature, bodyType);
 
   const draft = createDraft({
     account: account.alias,
@@ -61,8 +64,8 @@ async function handler(rawArgs: Record<string, unknown>) {
     cc: input.cc,
     bcc: input.bcc,
     subject,
-    body: input.body,
-    bodyType: input.bodyType,
+    body,
+    bodyType,
     attachments: resolved.files,
     rawAttachments: input.attachments,
     recursive: input.recursive,
@@ -73,7 +76,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     draftId: draft.draftId,
     expiresAt: draft.expiresAt,
     preview: {
-      from: account.email,
+      from: formatFromAddress(account.email, account.displayName),
       to: draft.to,
       cc: draft.cc,
       bcc: draft.bcc,

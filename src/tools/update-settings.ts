@@ -9,6 +9,7 @@ const InputSchema = z.object({
   defaultAccount: z.string().nullable().optional(),
   draftTtlMinutes: z.number().int().positive().optional(),
   alwaysConfirm: z.boolean().optional(),
+  defaultBodyType: z.enum(['text', 'html']).optional(),
 });
 
 async function handler(rawArgs: Record<string, unknown>) {
@@ -30,12 +31,14 @@ async function handler(rawArgs: Record<string, unknown>) {
     ...(input.defaultAccount !== undefined ? { defaultAccount: input.defaultAccount } : {}),
     ...(input.draftTtlMinutes !== undefined ? { draftTtlMinutes: input.draftTtlMinutes } : {}),
     ...(input.alwaysConfirm !== undefined ? { alwaysConfirm: input.alwaysConfirm } : {}),
+    ...(input.defaultBodyType !== undefined ? { defaultBodyType: input.defaultBodyType } : {}),
   }));
 
   return toolResponse({
     defaultAccount: settings.defaultAccount,
     draftTtlMinutes: settings.draftTtlMinutes,
     alwaysConfirm: settings.alwaysConfirm,
+    defaultBodyType: settings.defaultBodyType,
   });
 }
 
@@ -49,6 +52,7 @@ export const updateSettingsTool: Tool = {
         defaultAccount: { type: ['string', 'null'] },
         draftTtlMinutes: { type: 'number' },
         alwaysConfirm: { type: 'boolean' },
+        defaultBodyType: { type: 'string', enum: ['text', 'html'] },
       },
     },
   },

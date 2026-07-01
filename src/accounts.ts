@@ -79,6 +79,8 @@ export type ConfigureAccountInput =
       method: 'app-password';
       credentials: { user: string; pass: string };
       setDefault?: boolean;
+      displayName?: string;
+      signature?: string;
     }
   | {
       alias: string;
@@ -86,6 +88,8 @@ export type ConfigureAccountInput =
       method: 'oauth2';
       credentials: { clientId: string; clientSecret: string; refreshToken: string };
       setDefault?: boolean;
+      displayName?: string;
+      signature?: string;
     };
 
 /**
@@ -108,6 +112,8 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
       email: input.email,
       method: input.method,
       credentials: encryptedCredentials,
+      displayName: input.displayName,
+      signature: input.signature,
     };
     return { ...current, accounts: [...withoutSameAlias, newAccount] };
   });
@@ -119,6 +125,33 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
   const account = file.accounts.find((a) => a.alias === input.alias)!;
   const isDefault = (await getDefaultAlias()) === input.alias;
   return { account, isDefault };
+}
+
+export interface UpdateAccountProfileInput {
+  displayName?: string | null;
+  signature?: string | null;
+}
+
+/**
+ * Updates displayName/signature on an existing account without touching its
+ * (encrypted) credentials. `undefined` leaves a field as-is; `null` clears
+ * it — distinguishing "not passed" from "explicitly remove" the same way
+ * update_settings/update_account_profile's caller expects.
+ */
+export async function updateAccountProfile(alias: string, input: UpdateAccountProfileInput): Promise<Account> {
+  const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    const updated: Account = {
+      ...target,
+      displayName: input.displayName === null ? undefined : input.displayName ?? target.displayName,
+      signature: input.signature === null ? undefined : input.signature ?? target.signature,
+    };
+    return { ...current, accounts: current.accounts.map((a) => (a.alias === alias ? updated : a)) };
+  });
+  return file.accounts.find((a) => a.alias === alias)!;
 }
 
 export class AccountRemovalConfirmationError extends Error {
