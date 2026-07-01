@@ -19,9 +19,9 @@ export function toolResponse(value: unknown): ToolResponse {
  * account, rate limiting, expired drafts) needs a code Claude can branch
  * on, not just prose to pattern-match.
  */
-export function toolError(code: string, message: string): ToolResponse {
+export function toolError(code: string, message: string, extra?: Record<string, unknown>): ToolResponse {
   return {
-    content: [{ type: 'text', text: JSON.stringify({ code, message }) }],
+    content: [{ type: 'text', text: JSON.stringify({ code, message, ...extra }) }],
     isError: true,
   };
 }

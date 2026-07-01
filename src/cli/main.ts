@@ -4,6 +4,7 @@ import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
 import { runInit, runAccountAdd } from './account.js';
 import { runRotateKey } from './rotate-key.js';
+import { runAuthLogin } from './auth-login.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -20,7 +21,7 @@ const COMMANDS: Record<string, CommandEntry> = {
   init: { handler: runInit, summary: 'First-run wizard: add your first account' },
   account: { handler: null, summary: 'list / remove / set-default (see `account add`)' },
   'account add': { handler: runAccountAdd, summary: 'Add another account' },
-  'auth login': { handler: null, summary: 'OAuth2 consent for an account' },
+  'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
   contacts: { handler: null, summary: 'list / add / remove local contacts' },
   settings: { handler: null, summary: 'get / set global settings' },

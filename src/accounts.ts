@@ -57,22 +57,30 @@ export async function resolveAccount(alias?: string): Promise<Account> {
   );
 }
 
-export interface ConfigureAppPasswordAccountInput {
-  alias: string;
-  email: string;
-  method: 'app-password';
-  credentials: { user: string; pass: string };
-  setDefault?: boolean;
-}
+export type ConfigureAccountInput =
+  | {
+      alias: string;
+      email: string;
+      method: 'app-password';
+      credentials: { user: string; pass: string };
+      setDefault?: boolean;
+    }
+  | {
+      alias: string;
+      email: string;
+      method: 'oauth2';
+      credentials: { clientId: string; clientSecret: string; refreshToken: string };
+      setDefault?: boolean;
+    };
 
 /**
- * Shared by the `configure_account` MCP tool and the `init`/`account add`
- * CLI commands — one account-creation function, two entry points. First
- * account ever added becomes default automatically; later ones only if
- * `setDefault` is passed. Credentials are encrypted before ever touching
- * disk — see docs/PLAN.md's Security model.
+ * Shared by the `configure_account` MCP tool and the `init`/`account add`/
+ * `auth login` CLI commands — one account-creation function, several
+ * entry points. First account ever added becomes default automatically;
+ * later ones only if `setDefault` is passed. Credentials are encrypted
+ * before ever touching disk — see docs/PLAN.md's Security model.
  */
-export async function configureAccount(input: ConfigureAppPasswordAccountInput): Promise<Account> {
+export async function configureAccount(input: ConfigureAccountInput): Promise<Account> {
   const masterKey = await getOrCreateMasterKey();
   const encryptedCredentials = encrypt(masterKey, JSON.stringify(input.credentials));
 
@@ -84,7 +92,7 @@ export async function configureAccount(input: ConfigureAppPasswordAccountInput):
     const newAccount: Account = {
       alias: input.alias,
       email: input.email,
-      method: 'app-password',
+      method: input.method,
       isDefault: makeDefault,
       credentials: encryptedCredentials,
     };

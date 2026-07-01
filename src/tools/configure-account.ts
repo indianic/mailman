@@ -5,18 +5,29 @@ import { configureAccount } from '../accounts.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import type { Tool } from './types.js';
 
-// oauth2 is added in Phase 4 — for now this only accepts app-password,
-// with a clear validation error rather than silently mishandling it.
-const InputSchema = z.object({
-  alias: z.string().min(1),
-  email: z.string().email(),
-  method: z.literal('app-password'),
-  credentials: z.object({
-    user: z.string().email(),
-    pass: z.string().min(1),
+const InputSchema = z.discriminatedUnion('method', [
+  z.object({
+    alias: z.string().min(1),
+    email: z.string().email(),
+    method: z.literal('app-password'),
+    credentials: z.object({
+      user: z.string().email(),
+      pass: z.string().min(1),
+    }),
+    setDefault: z.boolean().optional(),
   }),
-  setDefault: z.boolean().optional(),
-});
+  z.object({
+    alias: z.string().min(1),
+    email: z.string().email(),
+    method: z.literal('oauth2'),
+    credentials: z.object({
+      clientId: z.string().min(1),
+      clientSecret: z.string().min(1),
+      refreshToken: z.string().min(1),
+    }),
+    setDefault: z.boolean().optional(),
+  }),
+]);
 
 async function handler(rawArgs: Record<string, unknown>) {
   const parsed = InputSchema.safeParse(rawArgs);
@@ -38,20 +49,18 @@ async function handler(rawArgs: Record<string, unknown>) {
 export const configureAccountTool: Tool = {
   definition: {
     name: 'configure_account',
-    description: 'Add or update a Gmail account. The first account ever added becomes the default automatically.',
+    description:
+      'Add or update a Gmail account. The first account ever added becomes the default automatically. For oauth2, the refresh token must already exist — get one via the `mcp-mailman auth login`/`account add` CLI commands, which drive the browser consent flow this tool itself cannot.',
     inputSchema: {
       type: 'object',
       properties: {
         alias: { type: 'string' },
         email: { type: 'string' },
-        method: { type: 'string', enum: ['app-password'] },
+        method: { type: 'string', enum: ['app-password', 'oauth2'] },
         credentials: {
           type: 'object',
-          properties: {
-            user: { type: 'string' },
-            pass: { type: 'string', description: 'Gmail App Password (16 characters)' },
-          },
-          required: ['user', 'pass'],
+          description:
+            'For app-password: { user, pass }. For oauth2: { clientId, clientSecret, refreshToken }.',
         },
         setDefault: { type: 'boolean' },
       },

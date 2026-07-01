@@ -5,6 +5,7 @@ import { resolveAccount, getDecryptedCredentials, AccountResolutionError } from 
 import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
 import { getDraft, markSent } from '../drafts.js';
 import { sendViaAppPassword } from '../auth/app-password.js';
+import { sendViaOAuth2, OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({ draftId: z.string() });
@@ -44,10 +45,6 @@ async function handler(rawArgs: Record<string, unknown>) {
     throw err;
   }
 
-  if (account.method !== 'app-password') {
-    return toolError(ErrorCodes.AUTH_EXPIRED, 'OAuth2 sending is not implemented yet.');
-  }
-
   let credentials;
   try {
     credentials = await getDecryptedCredentials(account);
@@ -58,7 +55,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     throw err;
   }
 
-  const { messageId } = await sendViaAppPassword(credentials as { user: string; pass: string }, {
+  const outboundMessage = {
     to: draft.to,
     cc: draft.cc.length > 0 ? draft.cc : undefined,
     bcc: draft.bcc.length > 0 ? draft.bcc : undefined,
@@ -66,7 +63,28 @@ async function handler(rawArgs: Record<string, unknown>) {
     body: draft.body,
     bodyType: draft.bodyType,
     attachments: draft.attachments.map((a) => ({ path: a.path, name: a.name, mimeType: a.mimeType })),
-  });
+  };
+
+  let messageId: string;
+  try {
+    if (account.method === 'app-password') {
+      ({ messageId } = await sendViaAppPassword(credentials as { user: string; pass: string }, outboundMessage));
+    } else {
+      ({ messageId } = await sendViaOAuth2(
+        credentials as { clientId: string; clientSecret: string; refreshToken: string },
+        account.email,
+        outboundMessage,
+      ));
+    }
+  } catch (err) {
+    if (err instanceof OAuth2AuthError) {
+      return toolError(ErrorCodes.AUTH_EXPIRED, err.message);
+    }
+    if (err instanceof OAuth2RateLimitError) {
+      return toolError(ErrorCodes.RATE_LIMITED, err.message, { retryAfterMs: err.retryAfterMs });
+    }
+    throw err;
+  }
 
   const sentAt = new Date().toISOString();
   markSent(draftId, { messageId, sentAt });

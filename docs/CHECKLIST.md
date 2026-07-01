@@ -61,15 +61,15 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 4 — OAuth2 auth path
 
-- [ ] Google Cloud OAuth client setup doc (in README) — creating the client ID/secret; confirm current client-type requirements for the device-flow endpoint against Google's live docs, don't trust this checklist's assumptions
-- [ ] `mcp-mailman auth login <alias>` CLI command, loopback path — local ephemeral-port HTTP listener, opens browser via `open`, captures the redirect code automatically, exchanges for refresh token
-- [ ] `mcp-mailman auth login <alias>` CLI command, device-flow fallback — detect no reachable local browser (missing `DISPLAY`/`WAYLAND_DISPLAY` on Linux, or explicit `--no-browser`); print verification URL + user code, poll Google's token endpoint at the server-specified interval until approved
-- [ ] Do not implement the deprecated manual copy-paste-code (OOB) flow — Google removed it in 2022
-- [ ] `src/auth/oauth2.ts` — access-token refresh + XOAUTH2 nodemailer transport, implements `MailProvider.send`
-- [ ] Retry policy: one retry on `401` after token refresh; up to two more retries on `429`/`5xx` with exponential backoff (~500ms/1500ms), then surface `RATE_LIMITED`/`AUTH_EXPIRED`
-- [ ] `configure_account` supports `method: "oauth2"`
-- [ ] `mcp-mailman account add` — wire in the OAuth2 path (same browser flow as `auth login`)
-- [ ] Manual end-to-end test: configure one OAuth2 account, draft, confirm, verify real delivery
+- [x] Google Cloud OAuth client setup doc (in README) — creating the client ID/secret ("Desktop app" type, for the loopback flow)
+- [x] `mcp-mailman auth login <alias>` CLI command, loopback path — local ephemeral-port HTTP listener, opens browser via `open`, captures the redirect code automatically, exchanges for refresh token
+- [x] `mcp-mailman auth login <alias>` CLI command, headless fallback — detect no reachable local browser (missing `DISPLAY`/`WAYLAND_DISPLAY` on Linux, or explicit `--no-browser`); print the consent URL plus an `ssh -L` port-forward command instead of launching a browser (same listener, tunneled). **Not** a Device Authorization Grant — checked against Google's live docs at implementation time per this checklist's original instruction, and confirmed the device-flow grant doesn't support Gmail/Contacts scopes on any client type, so it's infeasible here and isn't built.
+- [x] Do not implement the deprecated manual copy-paste-code (OOB) flow — Google removed it in 2022
+- [x] `src/auth/oauth2.ts` — access-token refresh + XOAUTH2 nodemailer transport, implements `MailProvider.send`
+- [x] Retry policy: one retry on `401` after token refresh; up to two more retries on `429`/`5xx` with exponential backoff (~500ms/1500ms), then surface `RATE_LIMITED`/`AUTH_EXPIRED`
+- [x] `configure_account` supports `method: "oauth2"`
+- [x] `mcp-mailman account add` — wire in the OAuth2 path (same browser flow as `auth login`)
+- [ ] Manual end-to-end test: configure one OAuth2 account, draft, confirm, verify real delivery — **pending user action** (needs a real Google Cloud OAuth client; smoke-tested the full pipeline against Google's real token endpoint with fake credentials and got a clean `AUTH_EXPIRED`)
 
 ## Phase 5 — Multi-account + settings
 

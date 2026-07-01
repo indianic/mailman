@@ -168,29 +168,36 @@ uses OAuth2" switch:
   below) and for reading mail via the Gmail API (see Reading/listing/
   searching mail below). Two completion paths, chosen automatically:
 
-  1. **Loopback redirect** (default, when a local GUI browser is
-     reachable): a local HTTP listener opens on an ephemeral port, the
-     default browser opens straight to Google's consent screen with that
-     as the redirect target. One click on "Allow," Google redirects to
-     `localhost:<port>`, the listener captures the code automatically and
-     exchanges it for tokens. No manual copy-paste at any point.
-  2. **Device Authorization Grant** (RFC 8628) fallback — used when no
-     local browser can be opened (headless Linux with no `DISPLAY`/
-     `WAYLAND_DISPLAY`, an SSH session, a container) or when `--no-browser`
-     is passed explicitly: mailman prints a short verification URL plus a
-     short user code, you open that URL on *any* device (phone, another
-     machine — it never needs to reach the machine running mailman), enter
-     the code, and mailman polls Google's token endpoint in the background
-     at the server-specified interval until you approve. Still fully
-     automatic completion detection — no code gets typed back into the CLI.
+  **Loopback redirect only — there is no device-flow fallback.** A local
+  HTTP listener opens on an ephemeral port, the default browser opens
+  straight to Google's consent screen with that as the redirect target.
+  One click on "Allow," Google redirects to `localhost:<port>`, the
+  listener captures the code automatically and exchanges it for tokens.
+  No manual copy-paste at any point.
 
-  Note for whoever implements Phase 4: Google deprecated the old
-  "copy this code, paste it back" out-of-band flow in 2022 for security
-  reasons — don't build that. Confirm current Google Cloud Console OAuth
-  client-type requirements for the device-flow endpoint against Google's
-  live docs at implementation time rather than trusting this document,
-  since client-type rules for device flow are the kind of detail Google
-  changes without much notice.
+  When no local GUI browser is reachable (headless Linux with no
+  `DISPLAY`/`WAYLAND_DISPLAY`, an SSH session, a container) or
+  `--no-browser` is passed explicitly, mailman skips trying to launch a
+  browser and instead prints the consent URL plus an `ssh -L
+  <port>:localhost:<port> <host>` command to run *from your local
+  machine* — forward the ephemeral port back to wherever mailman is
+  running, open the printed URL in your local browser, approve, and the
+  same listener captures the redirect through the tunnel exactly as it
+  would locally. Same code path either way; headless is just "you're
+  opening the browser somewhere else and tunneling the callback back."
+
+  **Device Authorization Grant (RFC 8628) was considered and rejected.**
+  Checked against Google's live docs at implementation time (Phase 4) per
+  this doc's original instruction not to trust its own assumptions here:
+  the device-flow grant only supports a small scope allowlist (OpenID
+  Connect's `email`/`openid`/`profile`, `drive.appdata`/`drive.file`,
+  YouTube) — Gmail and Contacts scopes are not on it and cannot be
+  requested via device flow at all, on any client type. So the
+  "print a code, approve from any device" fallback this doc originally
+  described is not just a client-type detail that changed — it's
+  categorically infeasible for what mailman needs, and isn't built.
+  Google's deprecated-in-2022 manual copy-paste-code (OOB) flow was never
+  an option either.
 
 Since reading mail is now in scope, the OAuth2 consent screen requests three
 scopes, not one: `gmail.send`, `gmail.readonly`, `contacts.readonly`.

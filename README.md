@@ -37,9 +37,10 @@ Claude: [address book, merged with Google Contacts for OAuth2 accounts]
 
 ## Status
 
-Phase 0 (project setup) complete — see [docs/PLAN.md](docs/PLAN.md) for the
-architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order.
-Phase 1 (core send path) is next.
+Phases 0–4 complete (project setup, core send + draft/confirm, attachment
+resolution, security hardening, OAuth2 auth) — see [docs/PLAN.md](docs/PLAN.md)
+for the architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build
+order. Phase 5 (multi-account + settings) is next.
 
 ## Docs
 
@@ -58,6 +59,44 @@ npx mcp-mailman init
 # register with Claude CLI (global, not project-scoped)
 claude mcp add mailman -- npx -y mcp-mailman
 ```
+
+## OAuth2 setup (optional — App Password is faster)
+
+App Password (`mcp-mailman init`, choosing App Password) needs nothing
+beyond 2-Step Verification and a generated 16-character password — start
+there unless you specifically need OAuth2 (a Workspace admin disabling
+app passwords, or you want Google Contacts–backed recipient suggestions).
+
+OAuth2 needs your own Google Cloud OAuth client — mailman doesn't ship a
+shared one, so each user's `auth login` uses credentials they create
+themselves:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/),
+   create or select a project.
+2. **APIs & Services → Library**: enable the **Gmail API**.
+3. **APIs & Services → OAuth consent screen**: User type **External**,
+   publishing status **Testing** (add your own Gmail address as a test
+   user). This is sufficient for personal use — Google's app-verification
+   review is only required to go past Testing mode, which you don't need.
+4. **APIs & Services → Credentials → Create Credentials → OAuth client
+   ID**: application type **Desktop app**. Copy the generated **Client
+   ID** and **Client Secret**.
+5. Run `mcp-mailman auth login <alias>` (or `account add`, choosing
+   OAuth2) and paste in the Client ID/Secret when prompted. A browser
+   opens automatically to Google's consent screen — approve, and mailman
+   captures the redirect and stores the refresh token (encrypted) for you.
+
+**No local browser reachable** (SSH session, headless box, container)?
+`auth login` detects this (or pass `--no-browser` to force it) and prints
+the consent URL plus an `ssh -L <port>:localhost:<port> <user>@<host>`
+command instead of trying to launch a browser — run that from your
+*local* machine, open the printed URL in your local browser, approve, and
+the same listener on the remote machine captures the redirect through the
+tunnel. There's no separate device-code flow: Google's Device
+Authorization Grant doesn't support Gmail or Contacts scopes on any
+client type, so it can't be used here — this port-forward is the
+loopback flow completing from wherever your actual browser lives, not a
+different OAuth mechanism.
 
 ## Security
 
