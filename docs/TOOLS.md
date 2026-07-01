@@ -4,6 +4,17 @@ The tools this server exposes to a Claude session. Each tool is a plain,
 stateless MCP call — the intelligence of interpreting "those docs" or
 composing a subject/body lives in the calling Claude session, not here.
 
+**Errors are structured, not just prose.** Any tool below that can fail
+returns `{ code, message }` — see the error-code table in
+[docs/PLAN.md](PLAN.md#concurrency-resilience--idempotency) — so Claude can
+branch on `code` (e.g. re-ask the user on `AMBIGUOUS_ACCOUNT`, back off and
+retry on `RATE_LIMITED`) instead of pattern-matching the message text.
+
+**Not exposed as MCP tools, deliberately**: key rotation
+(`mcp-mailman auth rotate-key`) and attachment-content download are
+CLI-only/unbuilt respectively — see docs/PLAN.md's Data integrity section
+for why key rotation in particular stays out of LLM-callable reach.
+
 ## `draft_email`
 
 Resolves recipients/attachments/account and returns a preview. **Does not
@@ -22,11 +33,14 @@ send.**
 Dispatches the exact draft produced by `draft_email`.
 
 - **Input**: `{ draftId: string }`
-- **Output**: `{ sent: true, messageId: string, sentAt: string }` or an error
-  if the draft expired or was already sent.
+- **Output**: `{ sent: true, messageId: string, sentAt: string }`, or an
+  error (`DRAFT_EXPIRED`) if the TTL elapsed.
 - **Notes**: this is the only tool that actually causes mail to leave the
   machine. Never call it without the user having seen and confirmed the
-  `draft_email` preview first.
+  `draft_email` preview first. **Idempotent**: calling it again with the
+  same `draftId` after a successful send returns the original result
+  (`DRAFT_ALREADY_SENT` internally, surfaced as success) instead of
+  resending — safe to retry on an ambiguous prior response.
 
 ## `cancel_draft`
 
@@ -68,12 +82,14 @@ Adds or updates an account.
 
 Deletes a configured account.
 
-- **Input**: `{ alias: string }`
-- **Output**: `{ removed: true }`
+- **Input**: `{ alias: string, confirmRemoval?: boolean }`
+- **Output**: `{ removed: true }`, or an error requiring `confirmRemoval:
+  true` if `alias` is the last remaining account or the current default.
 - **Notes**: if the removed account was the default, `settings.defaultAccount`
   is cleared — subsequent `draft_email` calls with multiple remaining
-  accounts and no default will return the "ambiguous account" error until a
-  new default is set.
+  accounts and no default will return `AMBIGUOUS_ACCOUNT` until a new
+  default is set. The `confirmRemoval` gate exists so one ambiguous
+  instruction can't silently leave zero configured accounts.
 
 ## `get_settings`
 
@@ -120,22 +136,26 @@ Contacts for OAuth2 accounts — the "get my contacts" case, as opposed to
 
 Lists the most recent emails in a folder — "last 10 emails," "last 10 sent."
 
-- **Input**: `{ account?: string, folder?: "inbox" | "sent", limit?: number }` (`folder` defaults to `"inbox"`, `limit` defaults to `10`)
-- **Output**: `{ emails: [{ id, from, to, subject, snippet, date, hasAttachments, isUnread }] }`
+- **Input**: `{ account?: string, folder?: "inbox" | "sent", limit?: number, pageToken?: string }` (`folder` defaults to `"inbox"`, `limit` defaults to `10`, capped at `50`)
+- **Output**: `{ emails: [{ id, from, to, subject, snippet, date, hasAttachments, isUnread }], nextPageToken?: string }`
 - **Notes**: backed by the Gmail API for `oauth2` accounts, IMAP for
   `app-password` accounts — same normalized output shape either way.
+  `snippet` is capped at ~200 characters. `limit` is capped at 50 regardless
+  of what's requested, to keep a single call's context cost bounded — use
+  `nextPageToken` to page further rather than requesting a huge `limit`.
 
 ## `search_emails`
 
 Searches a folder (or all mail) by query.
 
-- **Input**: `{ account?: string, query: string, folder?: "inbox" | "sent" | "all", limit?: number }`
+- **Input**: `{ account?: string, query: string, folder?: "inbox" | "sent" | "all", limit?: number, pageToken?: string }`
 - **Output**: same shape as `list_recent_emails`, filtered by `query`.
 - **Notes**: `oauth2` accounts get Gmail's native query syntax passed through
   verbatim (`from:`, `subject:`, `after:`, `has:attachment`, ...).
   `app-password` accounts get a simplified subset (subject/from/date-range)
   since IMAP `SEARCH` is less expressive — a real capability gap between the
-  two auth methods, not a bug.
+  two auth methods, not a bug. Same `limit`/`nextPageToken` behavior as
+  `list_recent_emails`.
 
 ## `get_status`
 
@@ -153,7 +173,9 @@ registration, and recent activity counts.
 Reads the full content of one email.
 
 - **Input**: `{ account?: string, id: string }`
-- **Output**: `{ id, from, to, cc, subject, date, bodyText, bodyHtml?, attachments: [{ name, sizeBytes, mimeType }] }`
+- **Output**: `{ id, from, to, cc, subject, date, bodyText, bodyHtml?, truncated: boolean, attachments: [{ name, sizeBytes, mimeType }] }`
 - **Notes**: attachment entries are metadata only — this tool does not
   download attachment bytes. `id` comes from a prior `list_recent_emails` or
-  `search_emails` call.
+  `search_emails` call. `bodyText`/`bodyHtml` are capped at ~20,000
+  characters each; `truncated: true` marks an email that hit the cap, so
+  Claude knows not to treat the returned body as complete.

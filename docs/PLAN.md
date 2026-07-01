@@ -52,6 +52,33 @@ mailman/
 └── README.md
 ```
 
+## Provider abstraction — one interface, two backends today
+
+Every account-scoped operation (send, list, search, read, list-contacts)
+goes through one internal interface, not five call sites each branching on
+`method`:
+
+```ts
+interface MailProvider {
+  send(message: OutboundMessage): Promise<{ messageId: string }>
+  list(opts: { folder: Folder; limit: number; pageToken?: string }): Promise<Page<EmailSummary>>
+  search(opts: { query: string; folder: Folder; limit: number; pageToken?: string }): Promise<Page<EmailSummary>>
+  read(id: string): Promise<EmailDetail>
+  listContacts(): Promise<Contact[]>
+}
+```
+
+- `GmailApiProvider` (oauth2 accounts) and `ImapSmtpProvider` (app-password
+  accounts) both implement this. Tools call `getProvider(account)` and never
+  branch on `method` themselves.
+- This is what makes "IMAP search is a simplified subset" a one-line fact
+  inside `ImapSmtpProvider`, not something every tool has to special-case.
+- Deliberately scoped to Gmail-only backends for now — the interface is
+  provider-agnostic so a third backend (plain SMTP+IMAP for a non-Gmail
+  address, or Outlook/Graph API later) is a new class implementing
+  `MailProvider`, not a rewrite of the tool layer. Not building that third
+  backend now — just not closing the door on it structurally.
+
 ## Auth: both methods, selectable per account
 
 Each configured account picks its own method — there's no global "the app
@@ -161,6 +188,49 @@ OS's own credential store.
   file — not scattered across whatever the OS's default log verbosity
   happened to capture.
 
+## Data integrity & storage (DBA review)
+
+There's no database here — `accounts.json`, `contacts.json`, `settings.json`
+are flat files, and they get the same rigor a DBA would demand of any small
+persistent store:
+
+- **Atomic writes, always.** Every write is: serialize → write to a temp
+  file in the same directory → `fs.rename()` over the real path. A crash or
+  power loss mid-write leaves the *old* file intact, never a half-written or
+  corrupt JSON blob. Never write in place.
+- **Single in-process writer.** All three files go through one write queue
+  (`config/store.ts`). Even with only one OS process, tool calls can race
+  each other — an `add_contact` auto-upsert from `confirm_send` overlapping
+  a manual `configure_account` call, for instance. Reads/writes to the
+  *same* file are serialized through that queue; unrelated files aren't
+  blocked by each other.
+- **`schemaVersion` field in every file, checked on load.** A future
+  mailman release that changes a file's shape runs a migration keyed on
+  that version instead of crashing on an old config or silently misreading
+  a field. No migrations exist yet (v1 for all three), but the field ships
+  from day one so it's never a breaking retrofit.
+- **Corruption recovery.** Each write to any of the three files first copies
+  the current file to `<file>.bak` before the atomic rename. If a load ever
+  hits a JSON parse error, fall back to `.bak` and log a warning rather than
+  crashing the whole server over one bad file.
+- **Growth is a non-issue at this scale.** `contacts.json` grows by one
+  entry per unique recipient ever emailed — hundreds to low thousands of
+  rows for real usage, and `suggest_recipients`'s linear scan over that is
+  sub-millisecond. No indexing, no pruning policy needed; that's a stated
+  sizing judgment, not an oversight. `activity.log` is the one file with
+  real unbounded-growth risk (one line per tool call) — capped at 5,000
+  lines / 5 MB, whichever comes first, rotating the current file to
+  `activity.log.1` and starting fresh (single rotation, not a logrotate-style
+  chain).
+- **Key rotation is CLI-only, never an MCP tool.** `mcp-mailman auth
+  rotate-key` generates a new master key, decrypts every account's secrets
+  with the old key, re-encrypts with the new one, stores the new key via
+  keytar, and atomically swaps `accounts.json`. Deliberately *not* exposed
+  as an MCP tool — a high-privilege, hard-to-reverse operation like
+  re-keying every stored credential shouldn't be triggerable by anything an
+  LLM session could be talked into calling; it requires a human at the
+  actual terminal.
+
 ## Attachment resolution — flexible by design
 
 The MCP tool stays "dumb"; the calling Claude session decides intent from
@@ -206,6 +276,63 @@ expected/primary path is still Claude always supplying real composed text.
 Drafts expire after a configurable TTL (default 10 minutes — see Settings)
 so a stale confirmation can't fire off an old, possibly-outdated draft, and
 can't double-send if confirmed twice.
+
+## Concurrency, resilience & idempotency
+
+**Draft store concurrency.** Drafts live in an in-memory `Map<draftId,
+Draft>` keyed by `crypto.randomUUID()`. Concurrent `draft_email` calls never
+collide on an ID; no further locking is needed since Node's event loop
+serializes the synchronous parts of each call.
+
+**`confirm_send` is idempotent.** Calling it twice with the same `draftId`
+after a successful send returns the *original* `{ sent: true, messageId,
+sentAt }` again rather than attempting to resend. This matters because LLM
+agents occasionally retry a tool call when a prior result was ambiguous
+(timeout, dropped connection) — a naive implementation would double-send.
+The draft's state machine is `pending → sent | expired | cancelled`, and
+only the `pending → sent` transition ever dispatches mail.
+
+**Structured error codes, not just error strings.** Every tool that can
+fail returns a machine-readable `code` alongside a human-readable `message`,
+so Claude can branch reliably instead of pattern-matching prose:
+
+| Code | Where | Meaning |
+|---|---|---|
+| `ACCOUNT_NOT_FOUND` | any account-scoped tool | `account` param doesn't match a configured alias |
+| `AMBIGUOUS_ACCOUNT` | `draft_email` | multiple accounts, no default, no explicit `account` |
+| `DRAFT_EXPIRED` | `confirm_send` | TTL elapsed since `draft_email` |
+| `DRAFT_ALREADY_SENT` | `confirm_send` | idempotent replay, see above — not a failure Claude needs to surface as an error |
+| `ATTACHMENT_TOO_LARGE` | `draft_email`, `preview_attachments` | total size exceeds the ~25 MB cap |
+| `ATTACHMENT_NOT_FOUND` | `draft_email`, `preview_attachments` | a given path doesn't resolve to a readable file |
+| `AUTH_EXPIRED` | any oauth2-backed tool | refresh-token exchange failed; needs `auth login` re-run |
+| `RATE_LIMITED` | Gmail API / IMAP calls | provider backpressure; includes a `retryAfterMs` hint |
+| `NO_MASTER_KEY` | any account-scoped tool | keytar has no key for this machine (see Data integrity & storage) |
+
+**Provider-level retries.** Gmail API calls retry once on `401` (after an
+OAuth2 token refresh) and up to twice more on `429`/`5xx` with exponential
+backoff (roughly 500ms/1500ms), then surface `RATE_LIMITED`/`AUTH_EXPIRED`
+rather than retrying indefinitely. IMAP connections reconnect once on an
+unexpected socket close before surfacing an error — a transient Wi-Fi drop
+shouldn't fail a `list_recent_emails` call outright.
+
+**Pagination on read tools.** `list_recent_emails`/`search_emails` cap
+`limit` at 50 and return a `nextPageToken`; `snippet` is capped at ~200
+characters. `read_email`'s `bodyText`/`bodyHtml` are capped (e.g. 20,000
+characters) with a `truncated: true` flag on overflow — a single long email
+body or an uncapped message list can otherwise consume a large slice of
+Claude's context window for one tool call.
+
+**Destructive-tool confirmation.** `remove_account` requires a
+`confirmRemoval: true` flag when removing the *last remaining* account or
+the current default — same philosophy as the draft/confirm step for
+sending: don't let one ambiguous instruction silently leave zero configured
+accounts.
+
+**Process lifecycle.** The MCP server is a long-lived stdio process the
+Claude CLI owns and can terminate at any time. On `SIGTERM`/`SIGINT`: flush
+any pending `activity.log` write, close an open IMAP session if one is
+mid-call, then exit — never attempt to "finish" an in-flight send after a
+shutdown signal; better to fail the call cleanly and let Claude retry.
 
 ## Multi-account + settings
 
@@ -318,6 +445,26 @@ plain JSON for Claude to read/summarize. One data source, two presentations:
 a pretty tree for a human running it directly in a terminal, structured JSON
 for Claude. Depends on `@clack/prompts` (CLI-only dependency, not loaded by
 the MCP server process itself).
+
+## Testing & CI strategy
+
+- **Unit tests** (no network, no real accounts): attachment resolution
+  (paths/glob/dir/size-caps), account resolution order, the draft TTL
+  expiry and `pending → sent | expired | cancelled` state machine, contacts
+  merge/ranking logic, config atomic-write + `.bak` recovery.
+- **Integration tests against fakes, not real Gmail**: `nodemailer`'s
+  built-in JSON transport (or `nodemailer-mock`) stands in for SMTP; a local
+  test IMAP server (e.g. Dockerized Dovecot) or a mocked `imapflow` client
+  stands in for IMAP; Gmail API calls go through a mocked `googleapis`
+  client. None of this hits a real Google account.
+- **CI (GitHub Actions)**: lint + typecheck + the unit/integration tests
+  above run on every PR. The real-Gmail end-to-end tests already called out
+  per-phase in docs/CHECKLIST.md (actual delivery, actual OAuth2 flow) stay
+  manual/local-only — they need real credentials that have no business
+  living in CI secrets for a personal-use tool.
+- **Cross-OS verification** stays manual too (Phase 8 in the checklist): CI
+  can't easily exercise macOS Keychain / Windows Credential Manager / Linux
+  Secret Service from a single runner image the way a real machine can.
 
 ## Final naming
 
