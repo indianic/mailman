@@ -53,14 +53,21 @@ async function readRaw<T>(filePath: string, schema: z.ZodType<T>, defaultValue: 
   }
 }
 
+// These files can hold plaintext credentials (encryption at rest lands in
+// Phase 3) — owner-only permissions from the very first write, not just
+// once encryption exists.
+const PRIVATE_FILE_MODE = 0o600;
+const PRIVATE_DIR_MODE = 0o700;
+
 async function writeRaw<T>(filePath: string, schema: z.ZodType<T>, value: T): Promise<void> {
   const validated = schema.parse(value);
   const dir = path.dirname(filePath);
-  await fs.mkdir(dir, { recursive: true });
+  await fs.mkdir(dir, { recursive: true, mode: PRIVATE_DIR_MODE });
 
   // Back up whatever's currently on disk before overwriting it.
   try {
     await fs.copyFile(filePath, `${filePath}.bak`);
+    await fs.chmod(`${filePath}.bak`, PRIVATE_FILE_MODE);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw err;
@@ -69,9 +76,10 @@ async function writeRaw<T>(filePath: string, schema: z.ZodType<T>, value: T): Pr
 
   // Atomic write: temp file in the same directory, then rename over the
   // real path — a crash mid-write leaves the old file intact, never a
-  // half-written blob.
+  // half-written blob. Mode is set explicitly rather than trusting umask.
   const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
   await fs.writeFile(tmpPath, JSON.stringify(validated, null, 2), 'utf8');
+  await fs.chmod(tmpPath, PRIVATE_FILE_MODE);
   await fs.rename(tmpPath, filePath);
 }
 

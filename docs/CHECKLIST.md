@@ -36,13 +36,13 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 2 — Attachment resolution
 
-- [ ] `src/tools/resolve-attachments.ts` — explicit paths, glob, directory (non-recursive default, `recursive` opt-in)
-- [ ] Per-file + total size cap enforcement (~25 MB Gmail limit), reported as an error not silently truncated
-- [ ] MIME-type inference for attachment headers
-- [ ] Missing/unreadable path → clear error back to caller
-- [ ] `preview_attachments` tool
-- [ ] Wire attachment resolution into `draft_email`
-- [ ] Unit tests: paths/glob/dir resolution, per-file + total size caps, missing-path error path
+- [x] `src/tools/resolve-attachments.ts` — explicit paths, glob, directory (non-recursive default, `recursive` opt-in)
+- [x] Per-file + total size cap enforcement (~25 MB Gmail limit), reported as an error not silently truncated
+- [x] MIME-type inference for attachment headers
+- [x] Missing/unreadable path → clear error back to caller
+- [x] `preview_attachments` tool
+- [x] Wire attachment resolution into `draft_email`
+- [x] Unit tests: paths/glob/dir resolution, per-file + total size caps, missing-path error path
 
 ## Phase 3 — Security hardening
 

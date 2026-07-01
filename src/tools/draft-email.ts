@@ -1,12 +1,10 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
 import { ErrorCodes } from '../errors.js';
 import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
-import { guessMimeType } from '../mail/mime.js';
+import { resolveAttachments } from './resolve-attachments.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({
@@ -17,31 +15,9 @@ const InputSchema = z.object({
   body: z.string(),
   bodyType: z.enum(['text', 'html']).optional(),
   attachments: z.array(z.string()).optional(),
+  recursive: z.boolean().optional(),
   account: z.string().optional(),
 });
-
-// Explicit paths only for now — glob/directory expansion and size caps
-// are Phase 2's resolve-attachments.ts. This just stats each given path.
-async function resolveExplicitAttachments(paths: string[]): Promise<DraftAttachment[] | { notFound: string }> {
-  const attachments: DraftAttachment[] = [];
-  for (const filePath of paths) {
-    try {
-      const stat = await fs.stat(filePath);
-      if (!stat.isFile()) {
-        return { notFound: filePath };
-      }
-      attachments.push({
-        path: filePath,
-        name: path.basename(filePath),
-        sizeBytes: stat.size,
-        mimeType: guessMimeType(filePath),
-      });
-    } catch {
-      return { notFound: filePath };
-    }
-  }
-  return attachments;
-}
 
 function defaultSubject(attachments: DraftAttachment[]): string {
   return attachments.length > 0 ? `Files attached: ${attachments.map((a) => a.name).join(', ')}` : 'Files attached';
@@ -64,17 +40,19 @@ async function handler(rawArgs: Record<string, unknown>) {
     throw err;
   }
 
-  let attachments: DraftAttachment[] = [];
-  if (input.attachments && input.attachments.length > 0) {
-    const result = await resolveExplicitAttachments(input.attachments);
-    if ('notFound' in result) {
-      return toolError(ErrorCodes.ATTACHMENT_NOT_FOUND, `Attachment not found or unreadable: ${result.notFound}`);
-    }
-    attachments = result;
+  const resolved = await resolveAttachments(input.attachments, { recursive: input.recursive });
+  if ('code' in resolved) {
+    return toolError(resolved.code, resolved.message);
+  }
+  if (resolved.exceedsLimit) {
+    return toolError(
+      ErrorCodes.ATTACHMENT_TOO_LARGE,
+      `Attachments exceed Gmail's ~25 MB limit (total ${resolved.totalSizeBytes} bytes across ${resolved.files.length} file(s))`,
+    );
   }
 
   const to = Array.isArray(input.to) ? input.to : [input.to];
-  const subject = input.subject ?? defaultSubject(attachments);
+  const subject = input.subject ?? defaultSubject(resolved.files);
   const settings = await getSettings();
 
   const draft = createDraft({
@@ -85,7 +63,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     subject,
     body: input.body,
     bodyType: input.bodyType,
-    attachments,
+    attachments: resolved.files,
     ttlMinutes: settings.draftTtlMinutes,
   });
 
@@ -119,7 +97,12 @@ export const draftEmailTool: Tool = {
         subject: { type: 'string', description: 'Optional — a minimal default is filled in if omitted' },
         body: { type: 'string' },
         bodyType: { type: 'string', enum: ['text', 'html'] },
-        attachments: { type: 'array', items: { type: 'string' }, description: 'Explicit file paths' },
+        attachments: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Explicit file paths, glob patterns, or directories',
+        },
+        recursive: { type: 'boolean', description: 'Expand directory attachments recursively (default: top-level only)' },
         account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
       },
       required: ['to', 'body'],
