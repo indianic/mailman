@@ -34,21 +34,29 @@ mailman/
 ├── src/
 │   ├── index.ts            MCP server entrypoint (stdio transport)
 │   ├── tools/               one file per MCP tool — see docs/TOOLS.md
+│   ├── cli/                 one file per terminal command — see docs/CLI.md
+│   │   ├── init.ts, account.ts, contacts.ts, settings.ts
+│   │   ├── auth-login.ts, rotate-key.ts
+│   │   ├── register.ts, doctor.ts, reset.ts
+│   │   └── status.ts        renders collectStatus() via @clack/prompts
 │   ├── auth/
 │   │   ├── app-password.ts    SMTP login (nodemailer + Gmail SMTP)
 │   │   └── oauth2.ts          Google OAuth2 (XOAUTH2), refresh-token flow
 │   ├── mail/
-│   │   ├── gmail-api-client.ts   list/search/read via Gmail API (oauth2 accounts)
-│   │   ├── imap-client.ts        list/search/read via IMAP (app-password accounts)
+│   │   ├── provider.ts           the MailProvider interface (see below)
+│   │   ├── gmail-api-client.ts   GmailApiProvider — list/search/read via Gmail API (oauth2 accounts)
+│   │   ├── imap-client.ts        ImapSmtpProvider — list/search/read via IMAP (app-password accounts)
 │   │   └── normalize.ts          maps both backends into one common email shape
 │   ├── config/
 │   │   ├── paths.ts           cross-platform global config dir resolution
 │   │   ├── store.ts           read/write accounts.json, contacts.json, settings.json
 │   │   ├── schema.ts          zod schemas for all three files
 │   │   └── keychain.ts        master-key generation/retrieval via keytar (see Security model)
+│   ├── status.ts             collectStatus() — shared data source for `status` CLI + get_status tool
+│   ├── response.ts           toolResponse()/toolError() JSON-in-text helpers (see Output format below)
 │   ├── audit.ts              append-only activity.log writer (see Security model)
 │   └── logging.ts           redacts secrets; never logs credentials/bodies by default
-├── bin/mcp-mailman.js      CLI shim
+├── bin/mcp-mailman.js      thin shim — dispatches into dist/index.js (MCP) or dist/cli/* by argv
 └── README.md
 ```
 
@@ -409,7 +417,7 @@ shutdown signal; better to fail the call cleanly and let Claude retry.
 ```
 config-dir/
 ├── accounts.json   [{alias, email, method, credentials(encrypted), ...}, ...]
-├── contacts.json    {email, name?, source: "manual"|"auto", useCount, lastUsedAt}
+├── contacts.json    {email, name?, source: "manual"|"recents", useCount, lastUsedAt}
 └── settings.json    { defaultAccount: "alias", draftTtlMinutes: 10, alwaysConfirm: true }
 ```
 

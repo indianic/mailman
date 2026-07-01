@@ -29,10 +29,13 @@ Resolves recipients/attachments/account and returns a preview. **Does not
 send.**
 
 - **Input**: `{ to: string | string[], cc?: string[], bcc?: string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string }`
-- **Output**: `{ draftId: string, expiresAt: string, preview: { from, to, cc, bcc, subject, bodyPreview, attachments: [{ name, sizeBytes, mimeType }] } }`
+- **Output**: `{ draftId: string, expiresAt: string, preview: { from, to, cc, bcc, subject, bodyPreview, attachments: [{ name, sizeBytes, mimeType }] }, next_steps?: string[] }`
 - **Notes**: `subject` is optional — if omitted, mailman fills a minimal
   templated default. `attachments` accepts explicit paths, a glob, or a
-  directory (expanded non-recursively unless `recursive: true`).
+  directory (expanded non-recursively unless `recursive: true`). `next_steps`
+  is a belt-and-suspenders hint (e.g. "show this preview and get explicit
+  confirmation before calling confirm_send") reinforcing the tool
+  description in case a host's model skims past it.
 - **Example trigger**: *"mailman, send those docs to kalpesh.gamit@indianic.com"*
   → Claude resolves "those docs" to paths, composes subject/body, calls this.
 
@@ -62,9 +65,12 @@ Discards a pending draft without sending.
 Ranked recipient candidates for a partial name/email.
 
 - **Input**: `{ query: string, account?: string }`
-- **Output**: `{ suggestions: [{ email, name?, source: "recents" | "google-contacts", useCount?, lastUsedAt? }] }`
+- **Output**: `{ suggestions: [{ email, name?, source: "recents" | "manual" | "google-contacts", useCount?, lastUsedAt? }], next_steps?: string[] }`
 - **Notes**: `google-contacts` results only appear for accounts using the
-  `oauth2` auth method. `app-password` accounts only ever return `recents`.
+  `oauth2` auth method. `app-password` accounts only ever return
+  `recents`/`manual`. `next_steps` appears when the match is ambiguous
+  (multiple similarly-ranked candidates) — a hint to ask the user which one
+  before calling `draft_email`, rather than picking one silently.
 - **Example trigger**: *"email John the report"* → Claude calls this with
   `query: "John"` before drafting, to resolve the ambiguous name to an
   address (or ask the user to pick, if multiple match).
@@ -74,7 +80,13 @@ Ranked recipient candidates for a partial name/email.
 Lists configured sender aliases (no secrets returned).
 
 - **Input**: `{}`
-- **Output**: `{ accounts: [{ alias, email, method, isDefault }] }`
+- **Output**: `{ accounts: [{ alias, email, method, isDefault, canRead }] }`
+- **Notes**: `canRead` reflects whether read access (IMAP for app-password,
+  `gmail.readonly` for oauth2) was actually granted for that account — in
+  practice this is expected to always be `true` today, since scope requests
+  are all-or-nothing at consent and App Password accounts get IMAP
+  implicitly, but the field exists explicitly for a future scenario where
+  read access isn't guaranteed.
 
 ## `configure_account`
 

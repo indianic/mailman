@@ -112,7 +112,7 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 - [ ] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
 - [ ] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`
 - [ ] Finalize `mcp-mailman status` tree rendering (accounts / security / mcp registration / activity sections)
-- [ ] `mcp-mailman mcp register` CLI command — prints the `claude mcp add mailman -- npx -y mcp-mailman` line (doesn't auto-run it)
+- [ ] `mcp-mailman register` CLI command — prints the `claude mcp add mailman -- npx -y mcp-mailman` line (doesn't auto-run it)
 - [ ] `mcp-mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
 - [ ] `mcp-mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
 - [ ] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked/Dockerized IMAP, mocked `googleapis` — wired into the CI pipeline from Phase 0

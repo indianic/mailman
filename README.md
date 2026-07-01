@@ -50,8 +50,8 @@ started yet; see [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order.
 ## Install (once implemented)
 
 ```bash
-# one-time account setup — App Password or OAuth2
-npx mcp-mailman auth login
+# one-time setup — add your first account (App Password or OAuth2)
+npx mcp-mailman init
 
 # register with Claude CLI (global, not project-scoped)
 claude mcp add mailman -- npx -y mcp-mailman
