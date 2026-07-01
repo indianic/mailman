@@ -61,8 +61,10 @@ each item and [docs/TOOLS.md](TOOLS.md) for exact tool signatures.
 
 ## Phase 4 — OAuth2 auth path
 
-- [ ] Google Cloud OAuth client setup doc (in README) — creating the client ID/secret
-- [ ] `mcp-mailman auth login <alias>` CLI command — opens browser via `open`, runs local redirect listener, exchanges code for refresh token
+- [ ] Google Cloud OAuth client setup doc (in README) — creating the client ID/secret; confirm current client-type requirements for the device-flow endpoint against Google's live docs, don't trust this checklist's assumptions
+- [ ] `mcp-mailman auth login <alias>` CLI command, loopback path — local ephemeral-port HTTP listener, opens browser via `open`, captures the redirect code automatically, exchanges for refresh token
+- [ ] `mcp-mailman auth login <alias>` CLI command, device-flow fallback — detect no reachable local browser (missing `DISPLAY`/`WAYLAND_DISPLAY` on Linux, or explicit `--no-browser`); print verification URL + user code, poll Google's token endpoint at the server-specified interval until approved
+- [ ] Do not implement the deprecated manual copy-paste-code (OOB) flow — Google removed it in 2022
 - [ ] `src/auth/oauth2.ts` — access-token refresh + XOAUTH2 nodemailer transport, implements `MailProvider.send`
 - [ ] Retry policy: one retry on `401` after token refresh; up to two more retries on `429`/`5xx` with exponential backoff (~500ms/1500ms), then surface `RATE_LIMITED`/`AUTH_EXPIRED`
 - [ ] `configure_account` supports `method: "oauth2"`

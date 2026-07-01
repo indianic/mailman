@@ -145,12 +145,36 @@ uses OAuth2" switch:
 - **App Password**: `nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })`.
   Fast setup (2-Step Verification + generated app password), no Google Cloud
   project needed.
-- **OAuth2**: one-time `mcp-mailman auth login <alias>` opens a browser
-  (Google consent screen), stores a refresh token; at send-time it's
-  exchanged for a short-lived access token (XOAUTH2). Required if a Workspace
-  admin disables app passwords, and needed anyway for Google Contacts access
-  (see Recipient suggestions below) and for reading mail via the Gmail API
-  (see Reading/listing/searching mail below).
+- **OAuth2**: one-time `mcp-mailman auth login <alias>`, stores a refresh
+  token; at send-time it's exchanged for a short-lived access token
+  (XOAUTH2). Required if a Workspace admin disables app passwords, and
+  needed anyway for Google Contacts access (see Recipient suggestions
+  below) and for reading mail via the Gmail API (see Reading/listing/
+  searching mail below). Two completion paths, chosen automatically:
+
+  1. **Loopback redirect** (default, when a local GUI browser is
+     reachable): a local HTTP listener opens on an ephemeral port, the
+     default browser opens straight to Google's consent screen with that
+     as the redirect target. One click on "Allow," Google redirects to
+     `localhost:<port>`, the listener captures the code automatically and
+     exchanges it for tokens. No manual copy-paste at any point.
+  2. **Device Authorization Grant** (RFC 8628) fallback — used when no
+     local browser can be opened (headless Linux with no `DISPLAY`/
+     `WAYLAND_DISPLAY`, an SSH session, a container) or when `--no-browser`
+     is passed explicitly: mailman prints a short verification URL plus a
+     short user code, you open that URL on *any* device (phone, another
+     machine — it never needs to reach the machine running mailman), enter
+     the code, and mailman polls Google's token endpoint in the background
+     at the server-specified interval until you approve. Still fully
+     automatic completion detection — no code gets typed back into the CLI.
+
+  Note for whoever implements Phase 4: Google deprecated the old
+  "copy this code, paste it back" out-of-band flow in 2022 for security
+  reasons — don't build that. Confirm current Google Cloud Console OAuth
+  client-type requirements for the device-flow endpoint against Google's
+  live docs at implementation time rather than trusting this document,
+  since client-type rules for device flow are the kind of detail Google
+  changes without much notice.
 
 Since reading mail is now in scope, the OAuth2 consent screen requests three
 scopes, not one: `gmail.send`, `gmail.readonly`, `contacts.readonly`.
