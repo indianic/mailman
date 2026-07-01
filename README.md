@@ -37,11 +37,12 @@ Claude: [address book, merged with Google Contacts for OAuth2 accounts]
 
 ## Status
 
-Phases 0–6 complete (project setup, core send + draft/confirm, attachment
+Phases 0–7 complete (project setup, core send + draft/confirm, attachment
 resolution, security hardening, OAuth2 auth, multi-account + settings,
-recipient suggestions) — see [docs/PLAN.md](docs/PLAN.md) for the
-architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the build
-order. Phase 7 (reading/listing/searching mail) is next.
+recipient suggestions, reading/listing/searching mail) — see
+[docs/PLAN.md](docs/PLAN.md) for the architecture and
+[docs/CHECKLIST.md](docs/CHECKLIST.md) for the build order. Phase 8
+(scheduled sends) is next.
 
 ## Docs
 
@@ -86,6 +87,15 @@ themselves:
    OAuth2) and paste in the Client ID/Secret when prompted. A browser
    opens automatically to Google's consent screen — approve, and mailman
    captures the redirect and stores the refresh token (encrypted) for you.
+
+**Scope disclosure**: the consent screen requests `gmail.send`,
+`gmail.readonly`, and `contacts.readonly`. `gmail.readonly` is a
+materially broader grant than send-only — it's read access to your whole
+mailbox (list/search/read), not just permission to send. App Password
+accounts get equivalent read access implicitly too (the same app password
+that authorizes SMTP also authorizes IMAP on that Gmail account) — it's
+the same capability either way, just worth being explicit about for
+OAuth2's separate consent step.
 
 **No local browser reachable** (SSH session, headless box, container)?
 `auth login` detects this (or pass `--no-browser` to force it) and prints

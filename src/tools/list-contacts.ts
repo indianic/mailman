@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
 import { listContacts, mergeWithGoogleContacts } from '../contacts.js';
-import { resolveAccount, getDecryptedCredentials } from '../accounts.js';
-import { fetchGoogleContacts } from '../mail/google-contacts.js';
-import type { OAuth2Credentials } from '../auth/oauth2.js';
+import { resolveAccount } from '../accounts.js';
+import { getProvider } from '../mail/get-provider.js';
 import { debugLog } from '../logging.js';
 import type { Tool } from './types.js';
 
@@ -16,24 +15,23 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
 
   const local = await listContacts();
-  let googleContacts: Array<{ email: string; name?: string }> = [];
+  let providerContacts: Array<{ email: string; name?: string }> = [];
 
-  // A missing/ambiguous account or a People API failure falls back to
-  // local-only results rather than failing the whole call — App Password
-  // accounts never have Google Contacts access anyway.
+  // A missing/ambiguous account or a provider-level failure falls back to
+  // local-only results rather than failing the whole call — ImapSmtpProvider
+  // always returns [] here anyway (App Password accounts have no Google
+  // Contacts access).
   try {
     const account = await resolveAccount(parsed.data.account);
-    if (account.method === 'oauth2') {
-      const credentials = (await getDecryptedCredentials(account)) as OAuth2Credentials;
-      googleContacts = await fetchGoogleContacts(credentials);
-    }
+    const provider = await getProvider(account);
+    providerContacts = await provider.listContacts();
   } catch (err) {
-    debugLog('list_contacts: skipping google-contacts merge', {
+    debugLog('list_contacts: skipping provider contacts merge', {
       message: err instanceof Error ? err.message : String(err),
     });
   }
 
-  return toolResponse({ contacts: mergeWithGoogleContacts(local, googleContacts) });
+  return toolResponse({ contacts: mergeWithGoogleContacts(local, providerContacts) });
 }
 
 export const listContactsTool: Tool = {

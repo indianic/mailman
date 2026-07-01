@@ -11,6 +11,9 @@ import { addContactTool } from './add-contact.js';
 import { removeContactTool } from './remove-contact.js';
 import { listContactsTool } from './list-contacts.js';
 import { suggestRecipientsTool } from './suggest-recipients.js';
+import { listRecentEmailsTool } from './list-recent-emails.js';
+import { searchEmailsTool } from './search-emails.js';
+import { readEmailTool } from './read-email.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
@@ -27,4 +30,7 @@ export const allTools: Tool[] = [
   removeContactTool,
   listContactsTool,
   suggestRecipientsTool,
+  listRecentEmailsTool,
+  searchEmailsTool,
+  readEmailTool,
 ];

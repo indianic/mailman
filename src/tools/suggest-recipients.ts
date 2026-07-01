@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
 import { listContacts, mergeWithGoogleContacts, type SuggestionEntry } from '../contacts.js';
-import { resolveAccount, getDecryptedCredentials } from '../accounts.js';
-import { fetchGoogleContacts } from '../mail/google-contacts.js';
-import type { OAuth2Credentials } from '../auth/oauth2.js';
+import { resolveAccount } from '../accounts.js';
+import { getProvider } from '../mail/get-provider.js';
 import { debugLog } from '../logging.js';
 import type { Tool } from './types.js';
 
@@ -32,24 +31,21 @@ async function handler(rawArgs: Record<string, unknown>) {
   const { query } = parsed.data;
 
   const local = await listContacts();
-  let googleContacts: Array<{ email: string; name?: string }> = [];
+  let providerContacts: Array<{ email: string; name?: string }> = [];
 
-  // App Password accounts never have Google Contacts access; a missing/
-  // ambiguous account or a People API failure just means no google-
-  // contacts results this time, not a hard failure of the whole call.
+  // A missing/ambiguous account or a provider-level failure just means no
+  // google-contacts results this time, not a hard failure of the whole call.
   try {
     const account = await resolveAccount(parsed.data.account);
-    if (account.method === 'oauth2') {
-      const credentials = (await getDecryptedCredentials(account)) as OAuth2Credentials;
-      googleContacts = await fetchGoogleContacts(credentials);
-    }
+    const provider = await getProvider(account);
+    providerContacts = await provider.listContacts();
   } catch (err) {
-    debugLog('suggest_recipients: skipping google-contacts merge', {
+    debugLog('suggest_recipients: skipping provider contacts merge', {
       message: err instanceof Error ? err.message : String(err),
     });
   }
 
-  const suggestions: SuggestionEntry[] = mergeWithGoogleContacts(local, googleContacts, query);
+  const suggestions: SuggestionEntry[] = mergeWithGoogleContacts(local, providerContacts, query);
 
   const output: { suggestions: SuggestionEntry[]; next_steps?: string[] } = { suggestions };
   const q = query.trim().toLowerCase();

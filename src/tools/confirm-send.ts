@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
 import { ErrorCodes } from '../errors.js';
-import { resolveAccount, getDecryptedCredentials, AccountResolutionError } from '../accounts.js';
+import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
 import { getDraft, markSent } from '../drafts.js';
-import { sendViaAppPassword } from '../auth/app-password.js';
-import { sendViaOAuth2, OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
+import { getProvider } from '../mail/get-provider.js';
+import { OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
 import { upsertRecipient } from '../contacts.js';
 import { debugLog } from '../logging.js';
 import type { Tool } from './types.js';
@@ -47,16 +47,6 @@ async function handler(rawArgs: Record<string, unknown>) {
     throw err;
   }
 
-  let credentials;
-  try {
-    credentials = await getDecryptedCredentials(account);
-  } catch (err) {
-    if (err instanceof NoMasterKeyError || err instanceof KeyringUnavailableError) {
-      return toolError(ErrorCodes.NO_MASTER_KEY, err.message);
-    }
-    throw err;
-  }
-
   const outboundMessage = {
     to: draft.to,
     cc: draft.cc.length > 0 ? draft.cc : undefined,
@@ -69,16 +59,12 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   let messageId: string;
   try {
-    if (account.method === 'app-password') {
-      ({ messageId } = await sendViaAppPassword(credentials as { user: string; pass: string }, outboundMessage));
-    } else {
-      ({ messageId } = await sendViaOAuth2(
-        credentials as { clientId: string; clientSecret: string; refreshToken: string },
-        account.email,
-        outboundMessage,
-      ));
-    }
+    const provider = await getProvider(account);
+    ({ messageId } = await provider.send(outboundMessage));
   } catch (err) {
+    if (err instanceof NoMasterKeyError || err instanceof KeyringUnavailableError) {
+      return toolError(ErrorCodes.NO_MASTER_KEY, err.message);
+    }
     if (err instanceof OAuth2AuthError) {
       return toolError(ErrorCodes.AUTH_EXPIRED, err.message);
     }

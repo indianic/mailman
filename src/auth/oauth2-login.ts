@@ -5,10 +5,15 @@ import open from 'open';
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-// contacts.readonly is requested now so Phase 6's recipient suggestions
-// don't need a second consent round; gmail.readonly is added in Phase 7
-// once reading mail actually exists (see docs/PLAN.md's Auth section).
-export const OAUTH_SCOPES = ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/contacts.readonly'];
+// gmail.readonly grants full-mailbox read access, not just send — a
+// materially broader grant, worth being explicit about (see auth-login.ts's
+// prompt and README) rather than bundling it silently into "just send
+// email" setup. See docs/PLAN.md's Auth section.
+export const OAUTH_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/contacts.readonly',
+];
 
 export interface OAuthClientConfig {
   clientId: string;

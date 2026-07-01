@@ -9,6 +9,10 @@ async function promptClientCredentials(): Promise<OAuthClientConfig> {
     'Needs a Google Cloud OAuth client ("Desktop app" type) — see the README for setup steps if you ' +
       "haven't created one yet.",
   );
+  log.warn(
+    'This grants full-mailbox read access (gmail.readonly), not just send — mailman will be able to ' +
+      'list, search, and read your inbox and sent mail, not only send new messages.',
+  );
   const clientId = await text({ message: 'OAuth Client ID' });
   if (isCancel(clientId)) {
     cancel('Cancelled.');

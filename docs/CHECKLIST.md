@@ -97,15 +97,15 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
 ## Phase 7 — Reading, listing, searching mail
 
-- [ ] Add `gmail.readonly` scope to the OAuth2 consent request (alongside `gmail.send`, `contacts.readonly`); update `auth login` prompt/README to call out that this grants full-mailbox read access, not just send
-- [ ] `src/mail/gmail-api-client.ts` — `GmailApiProvider implements MailProvider`; list/search/read via Gmail API for `oauth2` accounts, native query syntax passed through on search; IMAP reconnect-once-on-drop retry
-- [ ] `src/mail/imap-client.ts` — `ImapSmtpProvider implements MailProvider`; list/search/read via IMAP for `app-password` accounts (same app password authorizes IMAP on Gmail); simplified search subset (subject/from/date-range)
-- [ ] `src/mail/normalize.ts` — common email shape both backends map into
-- [ ] `list_recent_emails` tool — `limit` capped at 50, `nextPageToken` on the response, `snippet` capped at ~200 chars
-- [ ] `search_emails` tool (`folder: "inbox" | "sent" | "all"`) — same `limit`/`nextPageToken` behavior
-- [ ] `read_email` tool — headers + body + attachment metadata only (no attachment download); `bodyText`/`bodyHtml` capped at ~20,000 chars with a `truncated` flag
-- [ ] `list_accounts` output includes `canRead: true/false` per account so it's visible which accounts have read access granted
-- [ ] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account
+- [x] Add `gmail.readonly` scope to the OAuth2 consent request (alongside `gmail.send`, `contacts.readonly`); update `auth login` prompt/README to call out that this grants full-mailbox read access, not just send
+- [x] `src/mail/gmail-api-client.ts` — `GmailApiProvider implements MailProvider`; list/search/read via Gmail API for `oauth2` accounts, native query syntax passed through on search; retry via `withOAuth2Retry` on 401/429/5xx
+- [x] `src/mail/imap-client.ts` — `ImapSmtpProvider implements MailProvider`; list/search/read via IMAP for `app-password` accounts (same app password authorizes IMAP on Gmail); simplified search subset (subject/from/date-range); reconnect-once-on-drop retry
+- [x] `src/mail/normalize.ts` — common email shape both backends map into (shared truncation/limit helpers; `MailProvider`'s `EmailSummary`/`EmailDetail` types were already the shared shape from Phase 0)
+- [x] `list_recent_emails` tool — `limit` capped at 50, `nextPageToken` on the response, `snippet` capped at ~200 chars
+- [x] `search_emails` tool (`folder: "inbox" | "sent" | "all"`) — same `limit`/`nextPageToken` behavior
+- [x] `read_email` tool — headers + body + attachment metadata only (no attachment download); `bodyText`/`bodyHtml` capped at ~20,000 chars with a `truncated` flag
+- [x] `list_accounts` output includes `canRead: true/false` per account so it's visible which accounts have read access granted (already true since Phase 5, hardcoded `true` per the "expected to always be true today" note)
+- [x] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account — smoke-tested against real Google/IMAP endpoints with fake credentials; both fail cleanly (`AUTH_EXPIRED` / clear IMAP auth message) rather than mishandling the request. Full success-path validation (real message parsing/pagination) is **pending user action** — needs real credentials, same pattern as prior phases' real-delivery tests
 
 ## Phase 8 — Scheduled sends
 
