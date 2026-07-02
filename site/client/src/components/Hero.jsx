@@ -17,11 +17,12 @@ const HERO_LINES = [
 export default function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* ambient grid + glow */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
+      {/* ambient animated grid + glow */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="bg-grid absolute inset-0" />
-        <div className="absolute left-1/2 top-[-10rem] h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-brand-400/25 blur-3xl dark:bg-brand-600/20" />
-        <div className="absolute right-[-6rem] top-40 h-72 w-72 rounded-full bg-fuchsia-400/20 blur-3xl dark:bg-fuchsia-700/20" />
+        <div className="grid-sheen absolute inset-0" />
+        <div className="glow-pulse absolute left-1/2 top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-brand-400/25 blur-3xl dark:bg-brand-600/20" />
+        <div className="glow-pulse-2 absolute right-[-6rem] top-40 h-72 w-72 rounded-full bg-fuchsia-400/20 blur-3xl dark:bg-fuchsia-700/20" />
       </div>
 
       <div className="mx-auto max-w-6xl px-5 pb-20 pt-16 sm:pt-24">

@@ -16,6 +16,19 @@ const FALLBACK = [
   { icon: 'laptop', title: 'Cross-OS, pure Node', desc: 'Same behavior on macOS, Linux and Windows. Ships as @indianic/mailman on the private registry.' },
 ];
 
+// Per-icon gradient palette — gives the icon set a distinctive, branded look.
+const GRADS = [
+  'from-indigo-500 to-blue-600',
+  'from-amber-400 to-orange-500',
+  'from-violet-500 to-purple-700',
+  'from-rose-400 to-pink-600',
+  'from-sky-400 to-cyan-600',
+  'from-emerald-400 to-teal-600',
+  'from-fuchsia-500 to-purple-600',
+  'from-blue-500 to-indigo-700',
+  'from-teal-400 to-emerald-600',
+];
+
 export default function Features() {
   const features = useContent('features', FALLBACK);
   return (
@@ -35,7 +48,7 @@ export default function Features() {
           return (
             <Reveal key={f.title} delay={(i % 3) * 0.08}>
               <div className="group h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-brand-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition group-hover:scale-110 dark:bg-brand-900/40 dark:text-brand-300">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-md shadow-slate-900/10 ring-1 ring-black/5 transition duration-300 group-hover:-rotate-6 group-hover:scale-110 ${GRADS[i % GRADS.length]}`}>
                   <Icon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-semibold">{f.title}</h3>

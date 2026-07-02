@@ -50,7 +50,8 @@ body {
   @apply bg-gradient-to-r from-brand-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent;
 }
 
-/* Faint grid backdrop, radially masked so it fades at the edges. */
+/* Faint grid backdrop, radially masked so it fades at the edges — now slowly
+   panning for subtle motion. */
 .bg-grid {
   background-image:
     linear-gradient(to right, rgba(100, 116, 139, 0.10) 1px, transparent 1px),
@@ -58,11 +59,48 @@ body {
   background-size: 44px 44px;
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+  animation: grid-pan 26s linear infinite;
 }
 .dark .bg-grid {
   background-image:
     linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+}
+@keyframes grid-pan {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 44px 44px, 44px 44px; }
+}
+
+/* Diagonal light sheen sweeping across the grid. */
+.grid-sheen {
+  background: linear-gradient(
+    115deg,
+    transparent 34%,
+    rgba(99, 102, 241, 0.12) 47%,
+    rgba(217, 70, 239, 0.12) 53%,
+    transparent 66%
+  );
+  background-size: 250% 250%;
+  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 30%, transparent 100%);
+  animation: sheen 9s ease-in-out infinite;
+}
+@keyframes sheen {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+/* Breathing glow blobs. */
+.glow-pulse { animation: glow-pulse 7s ease-in-out infinite; }
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.85; transform: translate(-50%, 0) scale(1); }
+  50%      { opacity: 1; transform: translate(-50%, 0) scale(1.12); }
+}
+.glow-pulse-2 { animation: glow-pulse-2 8.5s ease-in-out infinite; }
+@keyframes glow-pulse-2 {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.15); }
 }
 
 /* Flow-diagram "data moving" marching-ants on the dashed connectors. */
@@ -110,4 +148,5 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .flow-line, .flow-line-slow, .hub-pulse, .animate-float { animation: none; }
   .reveal, .notif { animation: none; }
+  .bg-grid, .grid-sheen, .glow-pulse, .glow-pulse-2 { animation: none; }
 }
