@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.3] - 2026-07-02
+
+- feat(cli): passive 'update available' notifier — cached, non-blocking, TTY-only notice shown before command output when a newer version is published
+
 ## [0.5.2] - 2026-07-02
 
 - Sent messages are now branded for easy tracking: Message-ID local part is mcp-mailman.<uuid> and an X-Mailer: mcp-mailman header is set on every send (both App Password and OAuth2).
