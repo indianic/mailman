@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.0] - 2026-07-02
+
+- Primary CLI command is now 'mailman' (e.g. 'mailman init', 'mailman register --tools claude,cursor'); 'mcp-mailman' kept as an alias for hosts where GNU Mailman owns /usr/bin/mailman. All help/usage/docs updated.
+
 ## [0.2.0] - 2026-07-02
 
 - init now auto-writes MCP config into your AI tools (Claude Code, Cursor, Gemini CLI, Windsurf, Codex) with a multi-select + scope prompt, ContextBrain-style; new register --tools/-i for scripted or interactive re-registration.
