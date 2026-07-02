@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.5] - 2026-07-02
+
+- Scheduled-send ticker fix: launchd/cron jobs now carry a PATH that includes node's bin dir — without it every tick failed to find npx (launchd/cron don't inherit the shell PATH).
+
 ## [0.4.4] - 2026-07-02
 
 - Tight spacing everywhere: doctor restructured under one ◆ checks section, and all remaining error/info/warning messages (usage errors, update failures, OAuth guidance) now render tight tree rows instead of padded clack log output.
