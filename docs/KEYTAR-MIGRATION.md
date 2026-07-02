@@ -85,7 +85,7 @@ in keychain.ts and doctor.ts) dies with keytar.
 
 ## Plan
 
-1. **0.5.0**: swap all four touchpoints to `@napi-rs/keyring`; remove
+1. **0.6.0** (next minor after 0.5.0): swap all four touchpoints to `@napi-rs/keyring`; remove
    `keytar` from dependencies entirely (direct swap, no dual-read —
    justified by the verified macOS cross-read plus the empty
    Linux/Windows install base). Update CROSS-OS.md (musl row → 🟡

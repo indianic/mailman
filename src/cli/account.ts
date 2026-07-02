@@ -3,6 +3,8 @@ import {
   configureAccount,
   listAccounts,
   removeAccount,
+  resolveAccount,
+  updateAccountProfile,
   getDefaultAlias,
   AccountResolutionError,
   AccountRemovalConfirmationError,
@@ -161,7 +163,14 @@ export async function runAccountList(_args: string[]): Promise<void> {
 
   section('accounts');
   for (const a of accounts) {
-    const flags = [a.method, a.alias === defaultAlias ? 'default' : null, 'read: yes'].filter(Boolean).join('   ');
+    const flags = [
+      a.method,
+      a.alias === defaultAlias ? 'default' : null,
+      'read: yes',
+      a.displayName ? `from: "${a.displayName}"` : null,
+    ]
+      .filter(Boolean)
+      .join('   ');
     detail(`${a.alias}   ${a.email}   ${flags}`);
   }
   outro(`${accounts.length} account(s)`);
@@ -224,4 +233,88 @@ export async function runAccountSetDefault(args: string[]): Promise<void> {
 
   await updateSettings((current) => ({ ...current, defaultAccount: alias }));
   outro(`"${alias}" is now the default account.`);
+}
+
+function renderProfile(account: { alias: string; email: string; displayName?: string; signature?: string }): void {
+  section(`profile — ${account.alias} (${account.email})`);
+  detail(`from name   ${account.displayName ?? '(not set — recipients see the bare address)'}`);
+  // Multi-line signatures render with the rail unbroken (tree.ts handles \n continuation).
+  detail(`signature   ${account.signature ?? '(not set)'}`);
+}
+
+/**
+ * `mailman account profile [alias] [--name "..."] [--signature "..."]
+ *  [--clear-name] [--clear-signature]`
+ *
+ * The terminal path to the same displayName/signature fields the
+ * `update_account_profile` MCP tool edits — added because a real user went
+ * looking for a signature command in `help`/`examples` and found nothing:
+ * these fields were previously settable only via the init wizard's prompts
+ * or the MCP tool. With no flags, shows the current profile. The alias is
+ * optional and resolves like everywhere else (explicit → only account →
+ * default). Credentials are never touched.
+ */
+export async function runAccountProfile(args: string[]): Promise<void> {
+  intro('mailman — account profile');
+
+  let alias: string | undefined;
+  let displayName: string | null | undefined;
+  let signature: string | null | undefined;
+
+  // Only OUR flags disqualify a value — a plain startsWith('--') check
+  // rejected a real user's signature of "---------------" (all dashes).
+  const KNOWN_FLAGS = ['--name', '--signature', '--clear-name', '--clear-signature'];
+  const missingValue = (v: string | undefined) => v === undefined || KNOWN_FLAGS.includes(v);
+
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--name') {
+      displayName = args[++i];
+      if (missingValue(displayName)) {
+        fail('--name requires a value (use --clear-name to remove it)');
+        process.exit(1);
+      }
+    } else if (a === '--signature') {
+      signature = args[++i];
+      if (missingValue(signature)) {
+        fail('--signature requires a value (use --clear-signature to remove it)');
+        process.exit(1);
+      }
+      // Shells pass \n as two literal characters — convert so
+      // `--signature "Regards,\nKalpesh"` really produces a two-line
+      // signature, as `mailman examples` promises.
+      signature = signature!.replace(/\\n/g, '\n');
+    } else if (a === '--clear-name') {
+      displayName = null;
+    } else if (a === '--clear-signature') {
+      signature = null;
+    } else if (!a.startsWith('--') && alias === undefined) {
+      alias = a;
+    } else {
+      fail(`Unknown argument: ${a}\nUsage: mailman account profile [alias] [--name "..."] [--signature "..."] [--clear-name] [--clear-signature]`);
+      process.exit(1);
+    }
+  }
+
+  let account;
+  try {
+    account = await resolveAccount(alias);
+  } catch (err) {
+    if (err instanceof AccountResolutionError) {
+      fail(err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
+
+  // No flags → just show the current profile.
+  if (displayName === undefined && signature === undefined) {
+    renderProfile(account);
+    outro('Change it: mailman account profile --name "..." --signature "..."');
+    return;
+  }
+
+  const updated = await updateAccountProfile(account.alias, { displayName, signature });
+  renderProfile(updated);
+  outro('Profile updated. Applies to the next draft — no restart needed.');
 }

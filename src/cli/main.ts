@@ -4,7 +4,7 @@ import { intro, outro } from '@clack/prompts';
 import { section, detail, fail } from './tree.js';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
-import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault } from './account.js';
+import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile } from './account.js';
 import { runRotateKey } from './rotate-key.js';
 import { runAuthLogin } from './auth-login.js';
 import { runSettingsGet, runSettingsSet } from './settings.js';
@@ -28,11 +28,12 @@ interface CommandEntry {
 // phase fills one in.
 const COMMANDS: Record<string, CommandEntry> = {
   init: { handler: runInit, summary: 'First-run wizard: add your first account' },
-  account: { handler: null, summary: 'see `account add` / `account list` / `account remove` / `account set-default`' },
+  account: { handler: null, summary: 'see `account add` / `account list` / `account profile` / `account remove` / `account set-default`' },
   'account add': { handler: runAccountAdd, summary: 'Add another account' },
   'account list': { handler: runAccountList, summary: 'Table of configured accounts' },
   'account remove': { handler: runAccountRemove, summary: 'Remove an account (--yes to skip confirm)' },
   'account set-default': { handler: runAccountSetDefault, summary: 'Set the default account' },
+  'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / email signature (--name, --signature, --clear-*)' },
   'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
   contacts: { handler: null, summary: 'see `contacts list` / `contacts add` / `contacts remove`' },
@@ -105,6 +106,12 @@ function printExamples(): void {
   detail('mailman register --tools claude,cursor    (re)write editor MCP configs without re-adding an account');
   detail("mailman status                            what's configured right now");
   detail('mailman doctor                            environment pre-flight checks');
+
+  section('from name & email signature');
+  detail('mailman account profile                                    show the current From Name + signature');
+  detail('mailman account profile --name "Kalpesh Gamit"             what recipients see instead of the bare address');
+  detail('mailman account profile --signature "Regards,\\nKalpesh"    appended to every draft (\\n = new line)');
+  detail('mailman account profile --clear-signature                  remove it');
 
   section('inside your AI tool (Claude Code, Cursor, ...), in plain English');
   detail('"mailman, send those docs to kalpesh@example.com"');
