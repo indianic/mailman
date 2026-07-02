@@ -11,15 +11,21 @@ deliberate non-goal.
 
 ## Support matrix
 
+Linux (desktop) cells marked ✅ were verified 2026-07-02 by the Docker
+harness `docker/test-linux.sh` (Ubuntu 24.04 · node 20 · arm64 ·
+gnome-keyring over `dbus-run-session`) — every step except a real Gmail
+send (which needs live creds and stays the macOS-verified manual step).
+
 | Capability | macOS | Linux (desktop) | Linux (headless) | WSL | Windows |
 |---|---|---|---|---|---|
-| Credential store (master key) | ✅ Keychain (login) | 🟡 Secret Service via libsecret (gnome-keyring / KWallet) | ❌ by design — fails with instructions, never plaintext | ❌ like headless Linux (no Secret Service daemon by default) | 🟡 Credential Manager |
-| Config dir | ✅ `~/Library/Application Support/mcp-mailman/` | 🟡 `~/.config/mcp-mailman/` | 🟡 same | 🟡 same | 🟡 `%APPDATA%\mcp-mailman\` |
-| Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | 🟡 same code path | — | — | 🟡 same code path |
-| No-keyring failure mode (clear error, no plaintext fallback) | ✅ simulated (deleted keychain entry → clean `NO_MASTER_KEY`) | 🟡 | 🟡 doctor names the missing daemon | 🟡 | 🟡 |
-| Scheduled-send ticker | ✅ launchd agent (live fire verified 2026-07-02) | 🟡 crontab entry | 🟡 crontab | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
-| CLI bins (`mailman` + `mcp-mailman` alias) | ✅ | 🟡 (GNU Mailman collision possible → use `mcp-mailman`) | 🟡 same | 🟡 | 🟡 npm `.cmd`/`.ps1` shims; no GNU collision |
-| MCP stdio server + editor config write | ✅ (Claude Code, real `~/.claude.json`) | 🟡 | ❌ interactive `init` needs a TTY (guard added) | 🟡 | 🟡 |
+| Credential store (master key) | ✅ Keychain (login) | ✅ Secret Service via libsecret / gnome-keyring (Docker) | ❌ by design — fails with instructions, never plaintext | ❌ like headless Linux (no Secret Service daemon by default) | 🟡 Credential Manager |
+| Config dir | ✅ `~/Library/Application Support/mcp-mailman/` | ✅ `~/.config/mcp-mailman/` (Docker) | ✅ same | 🟡 same | 🟡 `%APPDATA%\mcp-mailman\` |
+| Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | ✅ ciphertext-only + decrypt roundtrip (Docker) | — | — | 🟡 same code path |
+| No-keyring failure mode (clear error, no plaintext fallback) | ✅ simulated (deleted keychain entry → clean `NO_MASTER_KEY`) | ✅ missing key → `NoMasterKeyError` (Docker) | ✅ configureAccount → `KeyringUnavailableError`, no accounts.json (Docker) | 🟡 | 🟡 |
+| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves `@indianic/mailman` (Docker) | ✅ same | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
+| CLI bins (`mailman` + `mcp-mailman` alias) | ✅ | ✅ both on PATH (Docker) | ✅ same | 🟡 | 🟡 npm `.cmd`/`.ps1` shims; no GNU collision |
+| MCP stdio server + editor config write | ✅ (Claude Code, real `~/.claude.json`) | ✅ `register --tools claude` wrote valid `~/.claude.json` (Docker) | ❌ interactive `init` needs a TTY (guard added) | 🟡 | 🟡 |
+| Real Gmail send + read | ✅ (App Password, live) | 🟡 not run in container (needs live creds) | — | — | 🟡 |
 
 ## How the credential store works per OS
 
@@ -47,6 +53,29 @@ Secret Service daemon → setup fails with instructions rather than silently
 degrading to plaintext (see README's security section). A user who *wants*
 keyring-on-headless can run `dbus-run-session` + `gnome-keyring-daemon`,
 but mailman doesn't automate or recommend that.
+
+## Linux: automated Docker harness
+
+`docker/test-linux.sh` runs the Linux checklist reproducibly and cleans up
+after itself — no hardware needed:
+
+```bash
+./docker/test-linux.sh              # build, run desktop + headless, report, teardown
+./docker/test-linux.sh --keep-image # keep the image for faster re-runs
+```
+
+It `npm pack`s a **hermetic tarball** (mailman installs from that, never
+from `npm.indianic.in` — no registry token in any image layer), builds an
+Ubuntu 24.04 + node 20 image, then runs the checklist twice: **desktop**
+(gnome-keyring up via `dbus-run-session` → success path) and **headless**
+(no keyring → must fail clean). A timestamped report lands in
+`docker/reports/`; the image is removed on exit (base-layer build cache is
+kept so re-runs are fast — reclaim with `docker builder prune`).
+
+Not covered by the container, by design: a **real Gmail send/read** (needs
+live credentials — stays the macOS-verified manual step) and **Windows**
+(Windows containers can't run on a Linux Docker daemon → needs a
+`windows-latest` CI runner).
 
 ## Verification checklist (run per OS when hardware is available)
 

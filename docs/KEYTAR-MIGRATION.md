@@ -43,12 +43,28 @@ do both libraries address the **same** OS credential record?
 - ✅ set → get → delete roundtrip clean under a throwaway service name.
 
 So on macOS the swap is **zero-migration**: existing installs keep
-decrypting with no user action. Windows/Linux cross-read is unverified
-(no hardware), but this matters less than it sounds: **macOS is the only
-platform with real mailman installs today** (see CROSS-OS.md), so there
-are no legacy Linux/Windows entries to preserve. Still, "verify
-keytar↔keyring cross-read" is added to the Linux/Windows smoke checklists
-before those platforms are declared supported.
+decrypting with no user action.
+
+**Linux is different — verified 2026-07-02 in the Docker harness
+(`docker/test-linux.sh`), and it changes the plan.** On Linux the two
+libraries do **NOT** cross-read: `@napi-rs/keyring` works standalone
+(self-roundtrip ✓) but returns `null` for an entry keytar wrote
+(`KEYRING_SELF=yes XREAD=no`). The cause is structural, not a bug — the
+Secret Service (libsecret) matches items by **attribute sets**, and keytar
+vs keyring-rs populate different attributes, so a keyring lookup never
+finds keytar's item. macOS avoided this because the Keychain keys generic
+passwords natively on (service, account); Linux/libsecret does not.
+
+Consequence: a Linux user who configured mailman on keytar would hit
+`NO_MASTER_KEY` after the swap and have to re-run `configure_account`.
+**This is acceptable today only because there are zero real Linux installs
+yet** (macOS is the only verified platform). But it means the swap is
+*not* universally zero-migration, and if Linux users onboard before the
+migration lands, 0.6.0 must either (a) accept a one-time reconfigure on
+Linux, or (b) ship a transitional step that reads the old key via keytar
+and rewrites it via keyring during the upgrade (keeping keytar as a
+short-lived transitional dep). Windows cross-read remains unverified (no
+Windows Docker on a Linux daemon — needs a CI runner).
 
 ## API mapping
 
@@ -85,11 +101,13 @@ in keychain.ts and doctor.ts) dies with keytar.
 
 ## Plan
 
-1. **0.6.0** (next minor after 0.5.0): swap all four touchpoints to `@napi-rs/keyring`; remove
-   `keytar` from dependencies entirely (direct swap, no dual-read —
-   justified by the verified macOS cross-read plus the empty
-   Linux/Windows install base). Update CROSS-OS.md (musl row → 🟡
-   prebuild available; prebuild paragraph rewritten).
+1. **0.6.0** (next minor after 0.5.0): swap all four touchpoints to
+   `@napi-rs/keyring`; remove `keytar`. macOS is zero-migration (verified
+   cross-read). Linux does NOT cross-read (verified — see above), but the
+   install base there is empty, so a direct swap is still acceptable; if
+   that changes, add the read-old-via-keytar/write-new-via-keyring
+   transitional step. Update CROSS-OS.md (musl row → 🟡 prebuild
+   available; prebuild paragraph rewritten).
 2. **Acceptance on this machine**: full test suite green; `mailman
    status` still shows "master key found"; a real send works with **no
    reconfiguration** (proves the existing key kept decrypting).
