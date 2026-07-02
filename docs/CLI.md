@@ -27,7 +27,7 @@ servers; colliding with that isn't hypothetical.
 | `mcp-mailman contacts remove <email>` | Remove a contact. |
 | `mcp-mailman settings get` | Print current global settings (`defaultAccount`, `draftTtlMinutes`, `alwaysConfirm`, `defaultBodyType`). |
 | `mcp-mailman settings set <key> <value>` | Update one setting. `defaultBodyType` accepts `text` or `html` — what `draft_email` falls back to when a call omits `bodyType`. |
-| `mcp-mailman register` | Prints the exact `claude mcp add mailman -- npx -y mcp-mailman` line to run — doesn't execute it for you, just gives you the copy-pasteable command. |
+| `mcp-mailman register` | Prints the exact `claude mcp add mailman -- npx -y @indianic/mailman` line to run — doesn't execute it for you, just gives you the copy-pasteable command. |
 | `mcp-mailman doctor` | Environment pre-flight checks, distinct from `status` (which reports *configured* state): is a keyring backend actually reachable right now (catches the headless-Linux-no-keyring case before `account add` fails confusingly), Node version ≥18, DNS/TCP reachability to `smtp.gmail.com:465` and `imap.gmail.com:993`. |
 | `mcp-mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |
 | `mcp-mailman send-scheduled --due` | The scheduled-send ticker's actual dispatch target — invoked by the OS scheduler (launchd/cron/Task Scheduler), never run manually or by an LLM. Reads `scheduled.json`, sends everything due through the same path `confirm_send` uses, marks each `sent`/`failed`. |

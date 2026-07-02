@@ -11,6 +11,14 @@ const CRON_MARKER = '# mcp-mailman-ticker';
 const SCHTASKS_NAME = 'mcp-mailman-ticker';
 const POLL_INTERVAL_SECONDS = 180; // within the 1-5 min range docs/PLAN.md specifies
 
+// The npm package name the OS ticker `npx`-resolves at fire time. This is
+// the published *package* (@indianic/mailman), NOT the CLI binary name
+// (mcp-mailman) — they differ. Keeping it a single constant so a future
+// rename can't silently leave the scheduler resolving a dead package name
+// and failing every scheduled send. (labels/markers/log paths above stay
+// "mcp-mailman" — they're just local identifiers, not npm package names.)
+const NPM_PACKAGE = '@indianic/mailman';
+
 export type TickerMechanism = 'launchd' | 'crontab' | 'schtasks';
 
 export function getPlatformMechanism(): TickerMechanism {
@@ -33,7 +41,7 @@ export function buildLaunchdPlist(pollIntervalSeconds: number = POLL_INTERVAL_SE
     <string>/usr/bin/env</string>
     <string>npx</string>
     <string>-y</string>
-    <string>mcp-mailman</string>
+    <string>${NPM_PACKAGE}</string>
     <string>send-scheduled</string>
     <string>--due</string>
   </array>
@@ -69,7 +77,7 @@ async function installLaunchd(): Promise<void> {
 // --- crontab (Linux) -----------------------------------------------------
 
 export function buildCronLine(pollIntervalMinutes = 3): string {
-  return `*/${pollIntervalMinutes} * * * * npx -y mcp-mailman send-scheduled --due >> ~/.mcp-mailman-ticker.log 2>&1 ${CRON_MARKER}`;
+  return `*/${pollIntervalMinutes} * * * * npx -y ${NPM_PACKAGE} send-scheduled --due >> ~/.mcp-mailman-ticker.log 2>&1 ${CRON_MARKER}`;
 }
 
 export function isCronInstalled(currentCrontab: string): boolean {
@@ -120,7 +128,7 @@ export function buildSchtasksCreateArgs(pollIntervalMinutes = 3): string[] {
   return [
     '/Create',
     '/TN', SCHTASKS_NAME,
-    '/TR', 'npx -y mcp-mailman send-scheduled --due',
+    '/TR', `npx -y ${NPM_PACKAGE} send-scheduled --due`,
     '/SC', 'MINUTE',
     '/MO', String(pollIntervalMinutes),
     '/F',

@@ -1,4 +1,4 @@
-# mailman (`mcp-mailman`)
+# mailman — `@indianic/mailman`
 
 An MCP server that lets any Claude CLI session send **and read** email — with
 attachments, a preview/confirmation step before anything actually goes out,
@@ -7,9 +7,18 @@ listing/search/read. Pure Node.js, so it runs the same way on macOS, Linux,
 and Windows. Configured once, globally, and available from any project you
 run Claude in — not tied to a single repo.
 
-It is an **MCP server**, not a typed CLI — Claude calls its tools from
-natural language ("mailman, send this," "list my last 10 emails"), the same
-way in any project, since it's registered globally rather than per-project.
+It's a native stdio MCP server: your editor launches it via `npx`, and it
+talks to Gmail directly — over SMTP/IMAP for App Password accounts, or the
+Gmail REST API for OAuth2 accounts. Claude calls its tools from natural
+language ("mailman, send this," "list my last 10 emails"); there's nothing
+project-specific to wire up per repo.
+
+> **Package vs. command names.** The npm package is **`@indianic/mailman`**
+> (that's what you `npx` / `npm install` / register with Claude). The CLI
+> binary it installs is **`mcp-mailman`** — deliberately not a bare
+> `mailman`, since GNU Mailman already owns that name on many Linux servers.
+> So you run `mcp-mailman init`, `mcp-mailman doctor`, etc., but register
+> `npx -y @indianic/mailman`.
 
 ## Examples
 
@@ -60,7 +69,9 @@ Still deliberately left for you rather than done automatically:
   real endpoints with fake credentials (clean `AUTH_EXPIRED`), but needs
   your own Google Cloud OAuth client to confirm an actual send/read.
 - **Cross-OS smoke test** (Linux/Windows) — only macOS was available.
-- **`npm publish`** — a real, public, hard-to-reverse action.
+- **Public `npm publish`** — mailman is published to the IndiaNIC private
+  registry as `@indianic/mailman`, but a public `registry.npmjs.org`
+  release is still pending (needs an interactive 2FA/OTP step).
 - **The scheduled-send OS ticker** (`launchd`/`crontab`/Task Scheduler) —
   registering it mutates real system state outside this repo and persists
   across reboots, so it's not installed automatically; `schedule_send`
@@ -74,21 +85,73 @@ Still deliberately left for you rather than done automatically:
 - [docs/CLI.md](docs/CLI.md) — the terminal commands you run yourself (setup, accounts, diagnostics)
 - [docs/CHECKLIST.md](docs/CHECKLIST.md) — phased implementation checklist
 
-## Install
+## Quick setup (interactive wizard)
+
+The fastest way in — one command walks you through adding your first Gmail
+account (App Password or OAuth2), encrypts the credentials into your OS
+keychain, and sets it as the default:
 
 ```bash
-# one-time setup — add your first account (App Password or OAuth2)
-npx mcp-mailman init
-
-# register with Claude CLI (global, not project-scoped)
-claude mcp add mailman -- npx -y mcp-mailman
+npx @indianic/mailman init
 ```
 
-`mcp-mailman register` prints that second line again any time you need
-it. `mcp-mailman doctor` checks Node version, OS keyring reachability,
+Then register it with Claude (global, so it works from every project):
+
+```bash
+claude mcp add mailman -- npx -y @indianic/mailman
+```
+
+That's it — start a Claude session and say *"mailman, list my last 10
+emails."* `mcp-mailman register` reprints that second line anytime, and
+`mcp-mailman doctor` checks Node version, OS keyring reachability,
 SMTP/IMAP network reachability, and scheduled-send ticker status — run it
-first if something's not working. See [docs/CLI.md](docs/CLI.md) for
-every terminal command (accounts, contacts, settings, scheduled sends).
+first if something's off. Every terminal command (accounts, contacts,
+settings, scheduled sends) is in [docs/CLI.md](docs/CLI.md).
+
+## Install from `npm.indianic.in`
+
+Published to the IndiaNIC private registry. The `@indianic` scope is routed
+there by your `~/.npmrc`, so no `--registry` flag is needed and mailman's
+own public dependencies still resolve from the public npm registry:
+
+```bash
+# one-shot, no local install (what `claude mcp add` uses)
+npx -y @indianic/mailman
+
+# or install the CLI globally
+npm install -g @indianic/mailman
+```
+
+If your `~/.npmrc` doesn't already scope `@indianic`, add:
+
+```
+@indianic:registry=https://npm.indianic.in/
+```
+
+## Configure in your AI editor (manual)
+
+`claude mcp add` above handles Claude Code for you. For any other MCP host,
+the launch block is the same everywhere — and notably carries **no secrets**,
+because your Gmail credentials live encrypted in the OS keychain, not in
+editor config:
+
+```json
+{
+  "mcpServers": {
+    "mailman": {
+      "command": "npx",
+      "args": ["-y", "@indianic/mailman"]
+    }
+  }
+}
+```
+
+- **Claude Code** — `claude mcp add mailman -- npx -y @indianic/mailman`, or drop the block into `~/.claude.json` (global) / project `.mcp.json`.
+- **Cursor** — add the block to `~/.cursor/mcp.json` (or project `./.cursor/mcp.json`).
+- **Windsurf / Gemini CLI / Codex** — add the same block to that tool's MCP config file.
+
+Accounts are configured once via `mcp-mailman init` (above) and shared across
+every editor, since they live in one global config dir, not per-tool.
 
 ## OAuth2 setup (optional — App Password is faster)
 

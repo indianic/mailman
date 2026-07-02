@@ -13,11 +13,18 @@ test('buildLaunchdPlist embeds the send-scheduled --due command and a poll inter
   assert.match(plist, /send-scheduled/);
   assert.match(plist, /--due/);
   assert.match(plist, /<integer>120<\/integer>/);
+  // npx must resolve the published scoped package, not the (unpublished)
+  // bare binary name — a regression here silently breaks every scheduled send.
+  assert.match(plist, /@indianic\/mailman/);
 });
 
 test('isCronInstalled detects the mailman marker line', () => {
   assert.equal(isCronInstalled('* * * * * echo hi\n'), false);
   assert.equal(isCronInstalled(`${buildCronLine()}\n`), true);
+});
+
+test('buildCronLine npx-resolves the scoped package, not the bare binary name', () => {
+  assert.match(buildCronLine(), /npx -y @indianic\/mailman send-scheduled --due/);
 });
 
 test('upsertCronLine appends the ticker line without touching unrelated entries', () => {
@@ -38,6 +45,6 @@ test('upsertCronLine replaces a prior mailman line instead of duplicating it', (
 test('buildSchtasksCreateArgs includes the task name and due command', () => {
   const args = buildSchtasksCreateArgs(4);
   assert.ok(args.includes('mcp-mailman-ticker'));
-  assert.ok(args.includes('npx -y mcp-mailman send-scheduled --due'));
+  assert.ok(args.includes('npx -y @indianic/mailman send-scheduled --due'));
   assert.ok(args.includes('4'));
 });

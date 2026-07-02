@@ -123,7 +123,7 @@ export async function runInit(_args: string[]): Promise<void> {
   const { account, isDefault } = await addAccountInteractive();
   outro(
     `Added "${account.alias}"${isDefault ? ' (default)' : ''}. Next: run ` +
-      '`claude mcp add mailman -- npx -y mcp-mailman` to register it, then try "mailman, send ..." from a Claude session.',
+      '`claude mcp add mailman -- npx -y @indianic/mailman` to register it, then try "mailman, send ..." from a Claude session.',
   );
 }
 
