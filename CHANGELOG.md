@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.2] - 2026-07-02
+
+- MCP initialize handshake now reports the real package version (was hardcoded 0.1.0).
+
 ## [0.3.1] - 2026-07-02
 
 - Friendly 'requires Node >= 18' message on old Node instead of a cryptic ERR_UNSUPPORTED_ESM_URL_SCHEME crash (surfaced by a real 'mailman init' run on an old shell node).
