@@ -17,7 +17,7 @@ deliberate non-goal.
 | Config dir | ✅ `~/Library/Application Support/mcp-mailman/` | 🟡 `~/.config/mcp-mailman/` | 🟡 same | 🟡 same | 🟡 `%APPDATA%\mcp-mailman\` |
 | Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | 🟡 same code path | — | — | 🟡 same code path |
 | No-keyring failure mode (clear error, no plaintext fallback) | ✅ simulated (deleted keychain entry → clean `NO_MASTER_KEY`) | 🟡 | 🟡 doctor names the missing daemon | 🟡 | 🟡 |
-| Scheduled-send ticker | 🟡 launchd agent (written + unit-tested; live fire pending explicit opt-in) | 🟡 crontab entry | 🟡 crontab | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
+| Scheduled-send ticker | ✅ launchd agent (live fire verified 2026-07-02) | 🟡 crontab entry | 🟡 crontab | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
 | CLI bins (`mailman` + `mcp-mailman` alias) | ✅ | 🟡 (GNU Mailman collision possible → use `mcp-mailman`) | 🟡 same | 🟡 | 🟡 npm `.cmd`/`.ps1` shims; no GNU collision |
 | MCP stdio server + editor config write | ✅ (Claude Code, real `~/.claude.json`) | 🟡 | ❌ interactive `init` needs a TTY (guard added) | 🟡 | 🟡 |
 
