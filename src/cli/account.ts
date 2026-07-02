@@ -1,4 +1,4 @@
-import { intro, outro, text, password, select, confirm, isCancel, cancel } from '@clack/prompts';
+import { intro, outro, text, password, confirm, isCancel, cancel } from '@clack/prompts';
 import {
   configureAccount,
   listAccounts,
@@ -11,7 +11,6 @@ import {
 } from '../accounts.js';
 import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
-import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
@@ -23,21 +22,6 @@ interface AppPasswordDetails {
   pass: string;
   displayName?: string;
   signature?: string;
-}
-
-async function promptMethod(): Promise<'app-password' | 'oauth2'> {
-  const method = await select({
-    message: 'Auth method',
-    options: [
-      { value: 'app-password', label: 'App Password (fast — 2-Step Verification + a generated password)' },
-      { value: 'oauth2', label: 'OAuth2 (needs a Google Cloud OAuth client — see README)' },
-    ],
-  });
-  if (isCancel(method)) {
-    cancel('Cancelled.');
-    process.exit(1);
-  }
-  return method as 'app-password' | 'oauth2';
 }
 
 async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
@@ -94,31 +78,18 @@ async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: b
   }
 }
 
+/**
+ * App Password only — no "auth method" question. The wizard used to open
+ * with an App-Password-vs-OAuth2 select, which forced every user to read
+ * about Google Cloud clients/secrets before doing the simple thing (a real
+ * user asked for its removal). OAuth2 is deliberately NOT deleted: it
+ * lives behind its expert entry point, `mailman auth login <alias>`
+ * (browser consent, client ID/secret), for Workspace tenants that disable
+ * app passwords or users who want Google Contacts suggestions.
+ */
 async function addAccountInteractive(setDefault?: boolean) {
-  const method = await promptMethod();
-  if (method === 'app-password') {
-    const details = await promptAppPasswordDetails();
-    return addAppPasswordAccount(details, setDefault);
-  }
-
-  const alias = await text({
-    message: 'Account alias (a short nickname, e.g. "work-gmail")',
-    placeholder: 'work-gmail',
-    validate: (v) => (v.trim().length > 0 ? undefined : 'Alias is required'),
-  });
-  if (isCancel(alias)) {
-    cancel('Cancelled.');
-    process.exit(1);
-  }
-  const email = await text({
-    message: 'Gmail address',
-    validate: (v) => (v.includes('@') ? undefined : 'Enter a valid email address'),
-  });
-  if (isCancel(email)) {
-    cancel('Cancelled.');
-    process.exit(1);
-  }
-  return authorizeOAuth2Account({ alias: String(alias), email: String(email), setDefault });
+  const details = await promptAppPasswordDetails();
+  return addAppPasswordAccount(details, setDefault);
 }
 
 /** `mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use, then auto-writes each selected editor's MCP config. */

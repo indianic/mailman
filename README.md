@@ -89,10 +89,11 @@ Still deliberately left for you rather than done automatically:
 
 ## Quick setup (interactive wizard)
 
-One command does the whole thing — adds your first Gmail account (App
-Password or OAuth2), encrypts the credentials into your OS keychain, sets
-it as default, **and writes the MCP config into whichever AI tools you
-pick** (Claude Code, Cursor, Gemini CLI, Windsurf, Codex):
+One command does the whole thing — adds your first Gmail account (just
+your email + an App Password, no OAuth clients or secrets), encrypts the
+credentials into your OS keychain, sets it as default, **and writes the
+MCP config into whichever AI tools you pick** (Claude Code, Cursor,
+Gemini CLI, Windsurf, Codex):
 
 ```bash
 npx @indianic/mailman init
@@ -162,12 +163,14 @@ not in editor config:
 Accounts are configured once via `mailman init` (above) and shared across
 every editor, since they live in one global config dir, not per-tool.
 
-## OAuth2 setup (optional — App Password is faster)
+## OAuth2 setup (optional — the expert path)
 
-App Password (`mailman init`, choosing App Password) needs nothing
-beyond 2-Step Verification and a generated 16-character password — start
-there unless you specifically need OAuth2 (a Workspace admin disabling
-app passwords, or you want Google Contacts–backed recipient suggestions).
+`mailman init` / `account add` are App Password–only on purpose: nothing
+beyond 2-Step Verification and a generated 16-character password, no
+method question to answer. OAuth2 exists behind its own command —
+`mailman auth login <alias>` — for the two cases that genuinely need it:
+a Workspace admin disabling app passwords, or Google Contacts–backed
+recipient suggestions.
 
 OAuth2 needs your own Google Cloud OAuth client — mailman doesn't ship a
 shared one, so each user's `auth login` uses credentials they create
@@ -183,10 +186,10 @@ themselves:
 4. **APIs & Services → Credentials → Create Credentials → OAuth client
    ID**: application type **Desktop app**. Copy the generated **Client
    ID** and **Client Secret**.
-5. Run `mailman auth login <alias>` (or `account add`, choosing
-   OAuth2) and paste in the Client ID/Secret when prompted. A browser
-   opens automatically to Google's consent screen — approve, and mailman
-   captures the redirect and stores the refresh token (encrypted) for you.
+5. Run `mailman auth login <alias>` and paste in the Client ID/Secret
+   when prompted. A browser opens automatically to Google's consent
+   screen — approve, and mailman captures the redirect and stores the
+   refresh token (encrypted) for you.
 
 **Scope disclosure**: the consent screen requests `gmail.send`,
 `gmail.readonly`, and `contacts.readonly`. `gmail.readonly` is a
