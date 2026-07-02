@@ -1,7 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { intro, outro } from '@clack/prompts';
 import { section, detail, fail } from './tree.js';
+import { getPackageVersion } from '../version.js';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
 import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile } from './account.js';
@@ -57,12 +56,6 @@ const COMMANDS: Record<string, CommandEntry> = {
   help: { handler: async (args) => printHelp(args[0]), summary: 'This list (or `help <command>` for one command)' },
   examples: { handler: async () => printExamples(), summary: 'Usage examples — terminal setup + what to say in your AI tool' },
 };
-
-function getVersion(): string {
-  const pkgPath = fileURLToPath(new URL('../../package.json', import.meta.url));
-  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string };
-  return pkg.version;
-}
 
 // Tree-rendered like every other command (per the user's explicit call:
 // the diamond trail applies to help/examples too, not just data commands).
@@ -165,7 +158,7 @@ export async function runCli(args: string[]): Promise<void> {
   const [first, second] = args;
 
   if (first === '--version' || first === '-v') {
-    process.stdout.write(`${getVersion()}\n`);
+    process.stdout.write(`${getPackageVersion()}\n`);
     return;
   }
   if (!first || first === '--help' || first === '-h') {

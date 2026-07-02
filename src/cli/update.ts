@@ -1,17 +1,11 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { intro, outro } from '@clack/prompts';
 import { section, detail, fail } from './tree.js';
+import { getPackageVersion } from '../version.js';
 
 const execFileAsync = promisify(execFile);
 const PKG = '@indianic/mailman';
-
-function installedVersion(): string {
-  const pkgPath = fileURLToPath(new URL('../../package.json', import.meta.url));
-  return (JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string }).version;
-}
 
 /**
  * `mailman update` (alias: `upgrade`) — check npm.indianic.in for a newer
@@ -21,7 +15,7 @@ function installedVersion(): string {
  */
 export async function runUpdate(_args: string[]): Promise<void> {
   intro('mailman — update');
-  const current = installedVersion();
+  const current = getPackageVersion();
 
   let latest: string;
   try {
