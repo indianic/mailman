@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -11,7 +12,17 @@ import { allTools } from './tools/index.js';
 import { appendActivity, extractAuditMetadata } from './audit.js';
 import { debugLog } from './logging.js';
 
-const server = new Server({ name: 'mcp-mailman', version: '0.1.0' }, { capabilities: { tools: {} } });
+// Version comes from package.json, not a literal — a hardcoded '0.1.0' here
+// survived five releases unnoticed (only visible in the MCP initialize
+// handshake, which nothing asserted on). Same pattern as cli/main.ts's
+// getVersion(); dist/index.js sits one level below the package root.
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
+
+// `name` stays 'mcp-mailman' deliberately — it's the MCP protocol identifier
+// hosts may key state on, not a user-facing command name.
+const server = new Server({ name: 'mcp-mailman', version }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: allTools.map((t) => t.definition),
