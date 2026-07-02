@@ -15,7 +15,7 @@ servers; colliding with that isn't hypothetical.
 
 | Command | Purpose |
 |---|---|
-| `mcp-mailman init` | First-run wizard: add your first account (app-password or OAuth2), auto-set as default. Also prompts for an optional "From Name" and signature. The recommended starting point. |
+| `mcp-mailman init` | First-run wizard: add your first account (app-password or OAuth2), auto-set as default, prompt for an optional "From Name"/signature, then **auto-write the `mailman` MCP config into whichever AI tools you pick** (Claude Code, Cursor, Gemini CLI, Windsurf, Codex) at a chosen scope. Idempotent. The recommended starting point. |
 | `mcp-mailman account add` | Add another account. Prompts for alias, email, method, and an optional "From Name"/signature. App Password: masked password prompt. OAuth2: opens the browser consent flow (same as `auth login`). `--default` forces it as default even if not the first account. |
 | `mcp-mailman account list` | Plain table of configured accounts (alias, method, default, read-access). |
 | `mcp-mailman account remove <alias>` | Remove an account. Requires `--yes` (or an interactive confirm) if it's the last remaining account or the current default — mirrors the `confirmRemoval` gate on the `remove_account` MCP tool. |
@@ -27,7 +27,7 @@ servers; colliding with that isn't hypothetical.
 | `mcp-mailman contacts remove <email>` | Remove a contact. |
 | `mcp-mailman settings get` | Print current global settings (`defaultAccount`, `draftTtlMinutes`, `alwaysConfirm`, `defaultBodyType`). |
 | `mcp-mailman settings set <key> <value>` | Update one setting. `defaultBodyType` accepts `text` or `html` — what `draft_email` falls back to when a call omits `bodyType`. |
-| `mcp-mailman register` | Prints the exact `claude mcp add mailman -- npx -y @indianic/mailman` line to run — doesn't execute it for you, just gives you the copy-pasteable command. |
+| `mcp-mailman register` | Register mailman with your AI editors. `register --tools <a,b,…\|all> [--scope global\|project]` writes/merges each tool's MCP config directly (Claude Code, Cursor, Gemini CLI, Windsurf, Codex — the same engine `init` uses; idempotent). `register -i` runs the interactive picker. Bare `register` just prints the copy-pasteable `claude mcp add mailman -- npx -y @indianic/mailman` line without writing anything. User-level-only tools (Gemini/Windsurf/Codex) always write their user config regardless of `--scope`. |
 | `mcp-mailman doctor` | Environment pre-flight checks, distinct from `status` (which reports *configured* state): is a keyring backend actually reachable right now (catches the headless-Linux-no-keyring case before `account add` fails confusingly), Node version ≥18, DNS/TCP reachability to `smtp.gmail.com:465` and `imap.gmail.com:993`. |
 | `mcp-mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |
 | `mcp-mailman send-scheduled --due` | The scheduled-send ticker's actual dispatch target — invoked by the OS scheduler (launchd/cron/Task Scheduler), never run manually or by an LLM. Reads `scheduled.json`, sends everything due through the same path `confirm_send` uses, marks each `sent`/`failed`. |

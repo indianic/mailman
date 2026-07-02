@@ -11,6 +11,7 @@ import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
+import { promptAndWriteEditorConfigs } from './register-editors.js';
 import { section, detail } from './tree.js';
 
 interface AppPasswordDetails {
@@ -117,14 +118,26 @@ async function addAccountInteractive(setDefault?: boolean) {
   return authorizeOAuth2Account({ alias: String(alias), email: String(email), setDefault });
 }
 
-/** `mcp-mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use. */
+/** `mcp-mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use, then auto-writes each selected editor's MCP config. */
 export async function runInit(_args: string[]): Promise<void> {
   intro('mailman — first-run setup');
   const { account, isDefault } = await addAccountInteractive();
-  outro(
-    `Added "${account.alias}"${isDefault ? ' (default)' : ''}. Next: run ` +
-      '`claude mcp add mailman -- npx -y @indianic/mailman` to register it, then try "mailman, send ..." from a Claude session.',
-  );
+
+  // Auto-write editor configs, ContextBrain-style — the account alone doesn't
+  // make Claude/Cursor/etc. aware of mailman; this is the step that does.
+  const written = await promptAndWriteEditorConfigs();
+
+  if (written.length > 0) {
+    outro(
+      `Added "${account.alias}"${isDefault ? ' (default)' : ''} and registered it with ${written.length} tool(s). ` +
+        'Restart the tool so it loads mailman, then try "mailman, send ..." there.',
+    );
+  } else {
+    outro(
+      `Added "${account.alias}"${isDefault ? ' (default)' : ''}. To register it later, run ` +
+        '`mcp-mailman register --tools claude` (or `claude mcp add mailman -- npx -y @indianic/mailman`).',
+    );
+  }
 }
 
 /** `mcp-mailman account add [--default]` — same underlying paths as `init`, for adding additional accounts. */

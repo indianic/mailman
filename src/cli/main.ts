@@ -39,7 +39,7 @@ const COMMANDS: Record<string, CommandEntry> = {
   settings: { handler: null, summary: 'see `settings get` / `settings set`' },
   'settings get': { handler: runSettingsGet, summary: 'Print current global settings' },
   'settings set': { handler: runSettingsSet, summary: 'Update one setting' },
-  register: { handler: runRegister, summary: 'Print the `claude mcp add` command' },
+  register: { handler: runRegister, summary: 'Register with AI editors (--tools <a,b|all> [--scope], -i, or bare to print the command)' },
   doctor: { handler: runDoctor, summary: 'Environment pre-flight checks' },
   scheduled: { handler: null, summary: 'see `scheduled list`' },
   'scheduled list': { handler: runScheduledList, summary: 'List pending/sent/failed scheduled sends' },

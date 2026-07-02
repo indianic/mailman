@@ -87,22 +87,29 @@ Still deliberately left for you rather than done automatically:
 
 ## Quick setup (interactive wizard)
 
-The fastest way in — one command walks you through adding your first Gmail
-account (App Password or OAuth2), encrypts the credentials into your OS
-keychain, and sets it as the default:
+One command does the whole thing — adds your first Gmail account (App
+Password or OAuth2), encrypts the credentials into your OS keychain, sets
+it as default, **and writes the MCP config into whichever AI tools you
+pick** (Claude Code, Cursor, Gemini CLI, Windsurf, Codex):
 
 ```bash
 npx @indianic/mailman init
 ```
 
-Then register it with Claude (global, so it works from every project):
+The wizard asks for the account details, then a multi-select of which
+tools to register mailman with and a config scope (global or this-project).
+It writes/merges each tool's MCP config for you — idempotent, so re-running
+just updates the entry in place. Restart the tool afterward and say
+*"mailman, list my last 10 emails."*
+
+Already have an account and just want to (re)register more tools:
 
 ```bash
-claude mcp add mailman -- npx -y @indianic/mailman
+mcp-mailman register --tools claude,cursor        # non-interactive
+mcp-mailman register -i                            # interactive picker
+mcp-mailman register                               # just print the `claude mcp add …` line
 ```
 
-That's it — start a Claude session and say *"mailman, list my last 10
-emails."* `mcp-mailman register` reprints that second line anytime, and
 `mcp-mailman doctor` checks Node version, OS keyring reachability,
 SMTP/IMAP network reachability, and scheduled-send ticker status — run it
 first if something's off. Every terminal command (accounts, contacts,
@@ -130,10 +137,10 @@ If your `~/.npmrc` doesn't already scope `@indianic`, add:
 
 ## Configure in your AI editor (manual)
 
-`claude mcp add` above handles Claude Code for you. For any other MCP host,
-the launch block is the same everywhere — and notably carries **no secrets**,
-because your Gmail credentials live encrypted in the OS keychain, not in
-editor config:
+`init` / `register` write these files for you, but if you'd rather do it by
+hand, the launch block is the same everywhere — and notably carries **no
+secrets**, because your Gmail credentials live encrypted in the OS keychain,
+not in editor config:
 
 ```json
 {
