@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
-# release-indianic — Publish mcp-mailman to the IndiaNIC Private NPM Registry
+# release-indianic — Publish @indianic/mailman to the IndiaNIC Private NPM Registry
 #
 # Adapted from NewRA's scripts/release-indianic — same core mechanics (auth
 # check, version bump, build/test gate, git tag, npm publish, post-publish
@@ -9,21 +9,19 @@
 # paths, and the `newra changelog` CLI delegation (mailman has no such
 # command — this script generates the changelog entry inline instead).
 #
-# mcp-mailman stays UNSCOPED (not @indianic/mcp-mailman) — a deliberate
-# choice, not an oversight. npm.indianic.in's routing in ~/.npmrc only
-# applies to the @indianic scope, so every command below forces the
-# registry explicitly via --registry rather than relying on that scope
-# routing. Trade-off: anyone installing this from npm.indianic.in later
-# must also pass --registry explicitly, which (per NewRA's own script
-# comments) risks 404s if forced across a whole install's transitive
-# dependency tree — so this script's own post-publish verification below
-# only does a metadata check (`npm view`), never a full install-and-require
-# round-trip, to avoid hitting that exact problem.
+# Scoped as @indianic/mailman (not the unscoped mcp-mailman this package
+# started as) specifically so ~/.npmrc's existing `@indianic:registry=...`
+# routing resolves it automatically — installing it later only needs
+# `npm install -g @indianic/mailman`, no --registry flag, and mailman's own
+# public dependencies (nodemailer, zod, imapflow, ...) still resolve from
+# the public registry rather than 404ing against the private one. This
+# script still passes --registry explicitly on every command anyway, since
+# that's harmless and matches `publishConfig.registry` in package.json.
 #
 # This is separate from, and doesn't replace, a future public npm.js
-# publish of the same package name — that publish is still pending the
-# user completing an OTP step in their own terminal (npm requires 2FA
-# approval via browser, which can't happen from this script).
+# publish of the unscoped `mcp-mailman` name — that publish is still
+# pending the user completing an OTP step in their own terminal (npm
+# requires 2FA approval via browser, which can't happen from this script).
 #
 # Usage:
 #   ./scripts/release-indianic                    # auto patch bump
@@ -281,11 +279,11 @@ PUBLISH_OUTPUT=$(npm publish --registry="$REGISTRY" 2>&1) || {
 ok "Published successfully!"
 
 # ─── Verify ──────────────────────────────────────────────────────────────────
-# Metadata-only check, not a full install — mcp-mailman is unscoped, so a
-# real `npm install --registry=$REGISTRY` would force every transitive
-# dependency (nodemailer, zod, imapflow, ...) through the private registry
-# too and likely 404 — the same trap NewRA's own script warns about for
-# scoped packages colliding with an unrelated scope.
+# Metadata check first (always safe), then a real scoped install into a
+# throwaway dir — @indianic/mailman's scope means this resolves correctly
+# via ~/.npmrc without forcing --registry across mailman's own public
+# dependencies (nodemailer, zod, imapflow, ...), unlike the unscoped
+# mcp-mailman name this package started as.
 
 log "Verifying publish..."
 sleep 2
@@ -296,6 +294,19 @@ else
     warn "Could not verify via npm view — check manually: npm info $PKG_NAME --registry=$REGISTRY"
 fi
 
+VERIFY_DIR=$(mktemp -d)
+(
+    cd "$VERIFY_DIR"
+    npm init -y --silent > /dev/null 2>&1
+    if npm install "$PKG_NAME@$NEW_VERSION" > /dev/null 2>&1; then
+        INSTALLED_VER=$(node -e "console.log(require('$PKG_NAME/package.json').version)" 2>/dev/null)
+        echo -e "${GREEN}  ✓ Verified: $PKG_NAME@$INSTALLED_VER installs correctly (no --registry needed, scope routing handled it)${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ Scoped install check failed — verify manually: npm install $PKG_NAME@$NEW_VERSION${NC}"
+    fi
+)
+rm -rf "$VERIFY_DIR"
+
 # ─── Done ────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -304,9 +315,8 @@ echo -e "${GREEN}  Released: $PKG_NAME@$NEW_VERSION${NC}"
 echo -e "${GREEN}  Registry: $REGISTRY${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "  To install/test from this registry (unscoped — forces this"
-echo "  registry for ALL of mailman's deps too, so only do this in a"
-echo "  disposable/scratch environment, never inside a real project):"
+echo "  To install (scope routing in ~/.npmrc handles the registry —"
+echo "  no --registry flag needed, and other deps still resolve publicly):"
 echo ""
-echo "    npm install -g $PKG_NAME@$NEW_VERSION --registry=$REGISTRY"
+echo "    npm install -g $PKG_NAME@$NEW_VERSION"
 echo ""
