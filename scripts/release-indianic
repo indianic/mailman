@@ -1,0 +1,312 @@
+#!/usr/bin/env bash
+###############################################################################
+# release-indianic — Publish mcp-mailman to the IndiaNIC Private NPM Registry
+#
+# Adapted from NewRA's scripts/release-indianic — same core mechanics (auth
+# check, version bump, build/test gate, git tag, npm publish, post-publish
+# verify), trimmed of NewRA-specific machinery that doesn't apply here: the
+# L1/L2/L3 eval-gate surface detection tied to NewRA's daemon/task-runner
+# paths, and the `newra changelog` CLI delegation (mailman has no such
+# command — this script generates the changelog entry inline instead).
+#
+# mcp-mailman stays UNSCOPED (not @indianic/mcp-mailman) — a deliberate
+# choice, not an oversight. npm.indianic.in's routing in ~/.npmrc only
+# applies to the @indianic scope, so every command below forces the
+# registry explicitly via --registry rather than relying on that scope
+# routing. Trade-off: anyone installing this from npm.indianic.in later
+# must also pass --registry explicitly, which (per NewRA's own script
+# comments) risks 404s if forced across a whole install's transitive
+# dependency tree — so this script's own post-publish verification below
+# only does a metadata check (`npm view`), never a full install-and-require
+# round-trip, to avoid hitting that exact problem.
+#
+# This is separate from, and doesn't replace, a future public npm.js
+# publish of the same package name — that publish is still pending the
+# user completing an OTP step in their own terminal (npm requires 2FA
+# approval via browser, which can't happen from this script).
+#
+# Usage:
+#   ./scripts/release-indianic                    # auto patch bump
+#   ./scripts/release-indianic "Fixed X"           # with changelog message
+#   ./scripts/release-indianic --minor             # minor bump
+#   ./scripts/release-indianic --major             # major bump
+#   ./scripts/release-indianic -y "message"        # non-interactive (CI-safe)
+###############################################################################
+set -euo pipefail
+
+REGISTRY="https://npm.indianic.in"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log()  { echo -e "${BLUE}==> $1${NC}"; }
+ok()   { echo -e "${GREEN}  ✓ $1${NC}"; }
+warn() { echo -e "${YELLOW}  ⚠ $1${NC}"; }
+fail() { echo -e "${RED}  ✗ $1${NC}"; exit 1; }
+
+cd "$PROJECT_DIR"
+
+# ─── Parse arguments ─────────────────────────────────────────────────────────
+
+BUMP_TYPE="patch"
+CHANGELOG_MSG=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --minor) BUMP_TYPE="minor" ;;
+        --major) BUMP_TYPE="major" ;;
+        --patch) BUMP_TYPE="patch" ;;
+        --yes|-y) ;; # accepted for parity with other release-indianic scripts; this script has no interactive prompts to skip
+        --help|-h)
+            echo "Usage: $0 [--patch|--minor|--major] [-y|--yes] [\"changelog message\"]"
+            echo ""
+            echo "  --patch   (default) Bump patch version: 1.0.1 → 1.0.2"
+            echo "  --minor   Bump minor version: 1.0.1 → 1.1.0"
+            echo "  --major   Bump major version: 1.0.1 → 2.0.0"
+            echo ""
+            echo "  changelog message: brief description of changes."
+            echo "    If omitted, recent git commits since the last tag are used."
+            exit 0
+            ;;
+        --*) fail "Unknown flag: $arg" ;;
+        *) CHANGELOG_MSG="$arg" ;;
+    esac
+done
+
+echo ""
+echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BOLD}  IndiaNIC NPM Release — mcp-mailman${NC}"
+echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+# ─── Pre-flight checks ───────────────────────────────────────────────────────
+
+log "Pre-flight checks..."
+
+[ -f "package.json" ] || fail "package.json not found"
+
+PKG_NAME=$(node -e "console.log(require('./package.json').name)")
+CURRENT_VERSION=$(node -e "console.log(require('./package.json').version)")
+ok "Package: $PKG_NAME@$CURRENT_VERSION"
+
+if npm whoami --registry="$REGISTRY" > /dev/null 2>&1; then
+    WHOAMI=$(npm whoami --registry="$REGISTRY" 2>/dev/null)
+    ok "Authenticated as: $WHOAMI"
+else
+    fail "Not logged in to $REGISTRY. Run: npm adduser --registry=$REGISTRY"
+fi
+
+# Commit any pending changes (staged, unstaged, untracked)
+HAS_STAGED=$(git diff --cached --name-only 2>/dev/null)
+HAS_UNSTAGED=$(git diff --name-only 2>/dev/null)
+HAS_UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null)
+
+if [ -n "$HAS_STAGED" ] || [ -n "$HAS_UNSTAGED" ] || [ -n "$HAS_UNTRACKED" ]; then
+    log "Committing pending changes..."
+    git add -A 2>/dev/null
+    git commit -m "pre-release: pending changes before v$CURRENT_VERSION bump" 2>/dev/null || true
+    ok "Pending changes committed"
+else
+    ok "Git working tree clean"
+fi
+
+# ─── Quality gate ────────────────────────────────────────────────────────────
+# No NewRA-style surface-detection eval gates here — build/lint/test run
+# unconditionally, every release. Broken code never leaves this script.
+
+log "Build..."
+if npm run build >/tmp/mailman-release-build.log 2>&1; then
+    ok "Build passed"
+else
+    tail -40 /tmp/mailman-release-build.log
+    fail "Build failed — see /tmp/mailman-release-build.log"
+fi
+
+log "Lint..."
+if npm run lint >/tmp/mailman-release-lint.log 2>&1; then
+    ok "Lint passed"
+else
+    tail -40 /tmp/mailman-release-lint.log
+    fail "Lint failed — see /tmp/mailman-release-lint.log"
+fi
+
+log "Tests..."
+if npm test >/tmp/mailman-release-test.log 2>&1; then
+    ok "Tests passed"
+else
+    tail -40 /tmp/mailman-release-test.log
+    fail "Tests failed — see /tmp/mailman-release-test.log"
+fi
+
+# ─── Calculate new version ───────────────────────────────────────────────────
+
+log "Calculating new version ($BUMP_TYPE bump)..."
+
+CURRENT_ON_REGISTRY=$(npm view "$PKG_NAME@$CURRENT_VERSION" version --registry="$REGISTRY" 2>/dev/null || echo "")
+if [ "$CURRENT_ON_REGISTRY" != "$CURRENT_VERSION" ]; then
+    warn "Current version $CURRENT_VERSION is not on $REGISTRY yet — first release or resuming an interrupted one"
+    NEW_VERSION="$CURRENT_VERSION"
+else
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+    case "$BUMP_TYPE" in
+        patch) PATCH=$((PATCH + 1)) ;;
+        minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+        major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+    esac
+    NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+fi
+
+echo -e "  ${CYAN}$CURRENT_VERSION${NC} → ${GREEN}$NEW_VERSION${NC}"
+
+EXISTING=$(npm view "$PKG_NAME@$NEW_VERSION" version --registry="$REGISTRY" 2>/dev/null || echo "")
+if [ "$EXISTING" = "$NEW_VERSION" ]; then
+    fail "Version $NEW_VERSION already published on $REGISTRY"
+fi
+
+# ─── Changelog ────────────────────────────────────────────────────────────────
+# No `newra changelog`-style CLI here — write the given message, or fall
+# back to grouping git log entries since the previous tag.
+
+log "Generating changelog..."
+RELEASE_DATE=$(date +%Y-%m-%d)
+
+if [ -n "$CHANGELOG_MSG" ]; then
+    CHANGELOG_ENTRY="## [$NEW_VERSION] - $RELEASE_DATE
+
+- $CHANGELOG_MSG
+"
+else
+    PREV_TAG=$(git tag --sort=-creatordate | head -1 || echo "")
+    if [ -n "$PREV_TAG" ]; then
+        COMMITS=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s" --no-merges 2>/dev/null | grep -v -E '^- (pre-release:|[0-9]+\.[0-9]+\.[0-9]+$)' || true)
+    else
+        COMMITS=$(git log --pretty=format:"- %s" --no-merges 2>/dev/null | grep -v -E '^- (pre-release:|[0-9]+\.[0-9]+\.[0-9]+$)' | head -20 || true)
+    fi
+    if [ -z "$COMMITS" ]; then
+        COMMITS="- Release v$NEW_VERSION"
+    fi
+    CHANGELOG_ENTRY="## [$NEW_VERSION] - $RELEASE_DATE
+
+$COMMITS
+"
+fi
+
+echo -e "${CYAN}$CHANGELOG_ENTRY${NC}"
+
+if [ -f "CHANGELOG.md" ]; then
+    FIRST_VERSION_LINE=$(/usr/bin/grep -n '^## \[' CHANGELOG.md | /usr/bin/head -n 1 | /usr/bin/cut -d: -f1)
+    if [ -n "$FIRST_VERSION_LINE" ]; then
+        BEFORE=$(/usr/bin/sed -n "1,$((FIRST_VERSION_LINE - 1))p" CHANGELOG.md)
+        AFTER=$(/usr/bin/sed -n "${FIRST_VERSION_LINE},\$p" CHANGELOG.md)
+        cat > CHANGELOG.md << EOF
+$BEFORE
+$CHANGELOG_ENTRY
+$AFTER
+EOF
+    else
+        FIRST_LINE=$(/usr/bin/head -1 CHANGELOG.md)
+        REST=$(tail -n +2 CHANGELOG.md)
+        cat > CHANGELOG.md << EOF
+$FIRST_LINE
+$REST
+
+$CHANGELOG_ENTRY
+EOF
+    fi
+else
+    cat > CHANGELOG.md << EOF
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+$CHANGELOG_ENTRY
+EOF
+fi
+ok "CHANGELOG.md updated"
+
+# ─── Update version ─────────────────────────────────────────────────────────
+
+log "Updating package.json to $NEW_VERSION..."
+npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version > /dev/null 2>&1
+ok "package.json updated"
+
+# ─── Rebuild (dist/ must reflect the bumped version's package.json) ─────────
+
+log "Rebuilding..."
+if npm run build >/tmp/mailman-release-build2.log 2>&1; then
+    ok "Build successful"
+else
+    tail -40 /tmp/mailman-release-build2.log
+    npm version "$CURRENT_VERSION" --no-git-tag-version --allow-same-version > /dev/null 2>&1
+    fail "Build failed after version bump — reverted to $CURRENT_VERSION"
+fi
+
+# ─── Commit & Tag ───────────────────────────────────────────────────────────
+
+log "Committing and tagging..."
+
+git add -A 2>/dev/null
+
+git commit -m "$(cat <<EOF
+$NEW_VERSION
+
+Co-Authored-By: release-indianic script
+EOF
+)" 2>/dev/null || warn "Nothing to commit"
+
+git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION" 2>/dev/null
+ok "Tagged v$NEW_VERSION"
+
+# ─── Push (best-effort — mailman has no remote configured by default) ──────
+
+log "Pushing to origin (best-effort)..."
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git push origin "$BRANCH" 2>/dev/null && ok "Pushed commits" || warn "Push failed or no remote configured — publish continues anyway"
+git push origin "v$NEW_VERSION" 2>/dev/null && ok "Pushed tag v$NEW_VERSION" || warn "Tag push failed or no remote configured"
+
+# ─── Publish ─────────────────────────────────────────────────────────────────
+
+log "Publishing $PKG_NAME@$NEW_VERSION to $REGISTRY..."
+PUBLISH_OUTPUT=$(npm publish --registry="$REGISTRY" 2>&1) || {
+    echo "$PUBLISH_OUTPUT"
+    fail "Publish failed. Package may need manual cleanup."
+}
+ok "Published successfully!"
+
+# ─── Verify ──────────────────────────────────────────────────────────────────
+# Metadata-only check, not a full install — mcp-mailman is unscoped, so a
+# real `npm install --registry=$REGISTRY` would force every transitive
+# dependency (nodemailer, zod, imapflow, ...) through the private registry
+# too and likely 404 — the same trap NewRA's own script warns about for
+# scoped packages colliding with an unrelated scope.
+
+log "Verifying publish..."
+sleep 2
+VERIFIED=$(npm view "$PKG_NAME@$NEW_VERSION" version --registry="$REGISTRY" 2>/dev/null || echo "")
+if [ "$VERIFIED" = "$NEW_VERSION" ]; then
+    ok "Verified: $PKG_NAME@$NEW_VERSION is live on $REGISTRY"
+else
+    warn "Could not verify via npm view — check manually: npm info $PKG_NAME --registry=$REGISTRY"
+fi
+
+# ─── Done ────────────────────────────────────────────────────────────────────
+
+echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  Released: $PKG_NAME@$NEW_VERSION${NC}"
+echo -e "${GREEN}  Registry: $REGISTRY${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo "  To install/test from this registry (unscoped — forces this"
+echo "  registry for ALL of mailman's deps too, so only do this in a"
+echo "  disposable/scratch environment, never inside a real project):"
+echo ""
+echo "    npm install -g $PKG_NAME@$NEW_VERSION --registry=$REGISTRY"
+echo ""

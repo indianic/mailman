@@ -18,7 +18,8 @@
     "auth:login": "tsx src/cli/auth-login.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "release:indianic": "./scripts/release-indianic"
   },
   "engines": {
     "node": ">=18"
