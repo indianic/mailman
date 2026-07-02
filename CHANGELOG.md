@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.1] - 2026-07-02
+
+- Interactive commands (init, account add, auth login, rotate-key, register -i) now print a clear 'needs a real terminal' message when run without a TTY (AI-tool shells, pipes, CI) instead of crashing with ERR_TTY_INIT_FAILED.
+
 ## [0.4.0] - 2026-07-02
 
 - New 'mailman update' self-update command (alias: upgrade); typo suggestions on unknown commands; bare 'mailman' at a terminal now shows help instead of silently starting the stdio server.
