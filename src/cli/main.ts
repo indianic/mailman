@@ -13,6 +13,7 @@ import { runScheduledList } from './scheduled.js';
 import { runRegister } from './register.js';
 import { runReset } from './reset.js';
 import { runUpdate } from './update.js';
+import { maybeNotifyUpdate, refreshUpdateCache, REFRESH_COMMAND } from './update-notifier.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -157,10 +158,24 @@ export function suggestCommand(input: string, names: string[] = Object.keys(COMM
 export async function runCli(args: string[]): Promise<void> {
   const [first, second] = args;
 
+  // Hidden subcommand the passive notifier's detached refresh re-enters
+  // through — handled before everything else so it never prints a notice,
+  // routes through dispatch, or appears in help.
+  if (first === REFRESH_COMMAND) {
+    await refreshUpdateCache();
+    return;
+  }
+
   if (first === '--version' || first === '-v') {
     process.stdout.write(`${getPackageVersion()}\n`);
     return;
   }
+
+  // Passive "update available" notice — cached, non-blocking, TTY-only.
+  // Printed before the command's own output. Skipped for --version above
+  // (scripts parse that value). Never throws.
+  maybeNotifyUpdate(first ?? '');
+
   if (!first || first === '--help' || first === '-h') {
     printHelp();
     return;
