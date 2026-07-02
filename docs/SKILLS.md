@@ -74,8 +74,8 @@ actively hurt usability, so they stay plain text:
   indentation would corrupt a copy-paste.
 - **`send-scheduled --due`** — the OS ticker's dispatch target, read by a
   log file grep, never a human watching a terminal. Stays raw JSON.
-- **`--help` / usage-error text** — reference text meant to be scanned,
-  not a command *result*.
+- **`help` / `--help` / `examples` / usage-error text** — reference text
+  meant to be scanned and copy-pasted, not a command *result*.
 
 Any new CLI command should import `section`/`check`/`result`/`detail`
 from `src/cli/tree.ts` rather than reaching for `console.table()`,
