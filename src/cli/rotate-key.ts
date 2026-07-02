@@ -4,6 +4,7 @@ import { readJsonFile, writeJsonFile } from '../config/store.js';
 import { AccountsFileSchema, DEFAULT_ACCOUNTS_FILE } from '../config/schema.js';
 import { encrypt, decrypt } from '../config/crypto.js';
 import { getMasterKeyOrThrow, generateMasterKey, setMasterKey, NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
+import { requireTty } from './interactive.js';
 
 /**
  * CLI-only, never an MCP tool — re-keying every stored credential is a
@@ -13,6 +14,7 @@ import { getMasterKeyOrThrow, generateMasterKey, setMasterKey, NoMasterKeyError,
  */
 export async function runRotateKey(_args: string[]): Promise<void> {
   intro('mailman — rotate master key');
+  requireTty('`mailman auth rotate-key`');
 
   const file = await readJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE);
   if (file.accounts.length === 0) {

@@ -12,6 +12,7 @@ import { KeyringUnavailableError } from '../config/keychain.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
+import { isInteractiveTerminal, requireTty } from './interactive.js';
 import { section, detail } from './tree.js';
 
 interface AppPasswordDetails {
@@ -121,6 +122,7 @@ async function addAccountInteractive(setDefault?: boolean) {
 /** `mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use, then auto-writes each selected editor's MCP config. */
 export async function runInit(_args: string[]): Promise<void> {
   intro('mailman — first-run setup');
+  requireTty('`mailman init`');
   const { account, isDefault } = await addAccountInteractive();
 
   // Auto-write editor configs, ContextBrain-style — the account alone doesn't
@@ -143,6 +145,7 @@ export async function runInit(_args: string[]): Promise<void> {
 /** `mailman account add [--default]` — same underlying paths as `init`, for adding additional accounts. */
 export async function runAccountAdd(args: string[]): Promise<void> {
   intro('mailman — add account');
+  requireTty('`mailman account add`');
   const { account, isDefault } = await addAccountInteractive(args.includes('--default'));
   outro(`Added "${account.alias}"${isDefault ? ' (default)' : ''}.`);
 }
@@ -181,6 +184,10 @@ export async function runAccountRemove(args: string[]): Promise<void> {
     outro(`Removed "${alias}".`);
   } catch (err) {
     if (err instanceof AccountRemovalConfirmationError) {
+      if (!isInteractiveTerminal()) {
+        log.error(`${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Re-run with --yes to confirm non-interactively.`);
+        process.exit(1);
+      }
       const proceed = await confirm({ message: `${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Remove anyway?` });
       if (isCancel(proceed) || !proceed) {
         cancel('Cancelled — no changes made.');

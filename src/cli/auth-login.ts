@@ -3,6 +3,7 @@ import { configureAccount } from '../accounts.js';
 import { runOAuthLogin, type OAuthClientConfig } from '../auth/oauth2-login.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { promptProfileDetails } from './prompt-profile.js';
+import { requireTty } from './interactive.js';
 import type { Account } from '../config/schema.js';
 
 async function promptClientCredentials(): Promise<OAuthClientConfig> {
@@ -76,6 +77,7 @@ export async function runAuthLogin(args: string[]): Promise<void> {
   const noBrowser = args.includes('--no-browser');
 
   intro('mailman — OAuth2 login');
+  requireTty('`mailman auth login`');
   if (!alias) {
     log.error('Usage: mailman auth login <alias> [--no-browser]');
     process.exit(1);

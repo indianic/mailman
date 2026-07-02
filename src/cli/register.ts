@@ -1,5 +1,6 @@
 import { intro, outro } from '@clack/prompts';
 import { resolveTools, writeSelectedEditors, promptAndWriteEditorConfigs } from './register-editors.js';
+import { requireTty } from './interactive.js';
 import type { Scope } from './editor-config.js';
 
 /**
@@ -29,6 +30,7 @@ export async function runRegister(args: string[]): Promise<void> {
 
   if (interactive) {
     intro('mailman — register');
+    requireTty('`mailman register -i`', 'Non-interactive alternative: mailman register --tools claude,cursor [--scope global|project]');
     const written = await promptAndWriteEditorConfigs(scope);
     outro(written.length > 0 ? `Registered with ${written.length} tool(s). Restart them to load mailman.` : 'Nothing selected — no changes made.');
     return;
