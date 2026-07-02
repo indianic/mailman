@@ -4,7 +4,7 @@
   "description": "MCP server for sending and reading email (Gmail via SMTP/IMAP App Password or OAuth2 Gmail API) with attachments, draft/confirm review, multi-account settings, recipient suggestions, and inbox search — usable from any Claude CLI session on macOS, Linux, or Windows.",
   "type": "module",
   "bin": {
-    "mcp-mailman": "./bin/mcp-mailman.js"
+    "mcp-mailman": "bin/mcp-mailman.js"
   },
   "main": "dist/index.js",
   "files": [
