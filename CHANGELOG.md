@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.3] - 2026-07-02
+
+- New 'mailman help [command]' and 'mailman examples' subcommands — people type these as commands, not flags.
+
 ## [0.3.2] - 2026-07-02
 
 - MCP initialize handshake now reports the real package version (was hardcoded 0.1.0).
