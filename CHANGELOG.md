@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.2] - 2026-07-02
+
+- help, examples, and error messages now render in the same diamond-tree design as every other command (only --version and bare register stay plain, for scripts and copy-paste).
+
 ## [0.4.1] - 2026-07-02
 
 - Interactive commands (init, account add, auth login, rotate-key, register -i) now print a clear 'needs a real terminal' message when run without a TTY (AI-tool shells, pipes, CI) instead of crashing with ERR_TTY_INIT_FAILED.
