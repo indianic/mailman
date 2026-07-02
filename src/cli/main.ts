@@ -107,6 +107,10 @@ function printExamples(): void {
   detail('mailman account profile --signature "Regards,\\nKalpesh"    appended to every draft (\\n = new line)');
   detail('mailman account profile --clear-signature                  remove it');
 
+  section('desktop notifications');
+  detail('mailman settings set desktopNotifications false            turn off the "email sent" desktop pop-up (on by default)');
+  detail('mailman settings set desktopNotifications true             turn it back on');
+
   section('inside your AI tool (Claude Code, Cursor, ...), in plain English');
   detail('"mailman, send those docs to kalpesh@example.com"');
   detail('"mailman, list my last 10 emails"');
