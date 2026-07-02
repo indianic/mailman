@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.3] - 2026-07-02
+
+- Tightened diamond-tree spacing: rows attach directly (no more double-spacing), blank connector only before each section header — matching the reference design.
+
 ## [0.4.2] - 2026-07-02
 
 - help, examples, and error messages now render in the same diamond-tree design as every other command (only --version and bare register stay plain, for scripts and copy-paste).
