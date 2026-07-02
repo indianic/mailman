@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.1] - 2026-07-02
+
+- init/account add no longer ask App Password vs OAuth2 — they go straight into the simple email + App Password flow. OAuth2 stays available via 'mailman auth login <alias>' for Workspace/contacts cases.
+
 ## [0.5.0] - 2026-07-02
 
 - New 'mailman account profile' command: view/set/clear your From Name and email signature from the terminal (--name, --signature with \n support, --clear-*); account list now shows the From Name; help/examples document it.
