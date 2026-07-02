@@ -68,7 +68,9 @@ Still deliberately left for you rather than done automatically:
 - **OAuth2 real-delivery verification** — smoke-tested against Google's
   real endpoints with fake credentials (clean `AUTH_EXPIRED`), but needs
   your own Google Cloud OAuth client to confirm an actual send/read.
-- **Cross-OS smoke test** (Linux/Windows) — only macOS was available.
+- **Cross-OS smoke test** (Linux/Windows) — only macOS was available;
+  the per-OS keychain support matrix and verification checklist are in
+  [docs/CROSS-OS.md](docs/CROSS-OS.md).
 - **Public `npm publish`** — mailman is published to the IndiaNIC private
   registry as `@indianic/mailman`, but a public `registry.npmjs.org`
   release is still pending (needs an interactive 2FA/OTP step).
@@ -220,7 +222,9 @@ degrading to a weaker mode.
 > Linux headless caveat: this requires a running Secret Service provider
 > (gnome-keyring, kwallet, etc.). On a headless box with no keyring daemon,
 > setup will fail with instructions rather than silently falling back to
-> plaintext storage.
+> plaintext storage. Full per-OS support matrix (macOS Keychain, Windows
+> Credential Manager, Linux Secret Service, WSL) and the verification
+> checklist: [docs/CROSS-OS.md](docs/CROSS-OS.md).
 
 Every tool call is also appended to a local `activity.log` (tool name,
 account, non-sensitive metadata only — never bodies/credentials) for audit
