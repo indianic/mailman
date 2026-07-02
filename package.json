@@ -8,6 +8,7 @@
     "registry": "https://npm.indianic.in/"
   },
   "bin": {
+    "mailman": "bin/mcp-mailman.js",
     "mcp-mailman": "bin/mcp-mailman.js"
   },
   "main": "dist/index.js",

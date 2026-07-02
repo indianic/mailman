@@ -17,7 +17,7 @@ export async function runStatus(_args: string[]): Promise<void> {
 
   section('accounts');
   if (data.accounts.length === 0) {
-    detail('none configured — run `mcp-mailman init`');
+    detail('none configured — run `mailman init`');
   } else {
     for (const account of data.accounts) {
       const flags = [account.method, account.isDefault ? 'default' : null, `read: ${account.canRead ? 'yes' : 'no'}`]
@@ -34,7 +34,7 @@ export async function runStatus(_args: string[]): Promise<void> {
   section('mcp registration');
   check(
     data.mcpRegistration.registered,
-    data.mcpRegistration.registered ? 'claude cli registered (global)' : 'claude cli not registered — run `mcp-mailman register`',
+    data.mcpRegistration.registered ? 'claude cli registered (global)' : 'claude cli not registered — run `mailman register`',
   );
 
   section(`activity (last ${data.activity.sinceHours}h)`);

@@ -2,7 +2,7 @@ import { intro, outro } from '@clack/prompts';
 import { listScheduled, decryptContent } from '../scheduler/store.js';
 import { section, detail } from './tree.js';
 
-/** `mcp-mailman scheduled list` — read-only mirror of the list_scheduled MCP tool. */
+/** `mailman scheduled list` — read-only mirror of the list_scheduled MCP tool. */
 export async function runScheduledList(_args: string[]): Promise<void> {
   intro('mailman — scheduled');
   const entries = await listScheduled();

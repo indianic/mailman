@@ -118,7 +118,7 @@ async function addAccountInteractive(setDefault?: boolean) {
   return authorizeOAuth2Account({ alias: String(alias), email: String(email), setDefault });
 }
 
-/** `mcp-mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use, then auto-writes each selected editor's MCP config. */
+/** `mailman init` — first-run wizard; thin wrapper over the same account-creation paths `configure_account`/`auth login` use, then auto-writes each selected editor's MCP config. */
 export async function runInit(_args: string[]): Promise<void> {
   intro('mailman — first-run setup');
   const { account, isDefault } = await addAccountInteractive();
@@ -135,24 +135,24 @@ export async function runInit(_args: string[]): Promise<void> {
   } else {
     outro(
       `Added "${account.alias}"${isDefault ? ' (default)' : ''}. To register it later, run ` +
-        '`mcp-mailman register --tools claude` (or `claude mcp add mailman -- npx -y @indianic/mailman`).',
+        '`mailman register --tools claude` (or `claude mcp add mailman -- npx -y @indianic/mailman`).',
     );
   }
 }
 
-/** `mcp-mailman account add [--default]` — same underlying paths as `init`, for adding additional accounts. */
+/** `mailman account add [--default]` — same underlying paths as `init`, for adding additional accounts. */
 export async function runAccountAdd(args: string[]): Promise<void> {
   intro('mailman — add account');
   const { account, isDefault } = await addAccountInteractive(args.includes('--default'));
   outro(`Added "${account.alias}"${isDefault ? ' (default)' : ''}.`);
 }
 
-/** `mcp-mailman account list` — accounts (alias, method, default, read-access). */
+/** `mailman account list` — accounts (alias, method, default, read-access). */
 export async function runAccountList(_args: string[]): Promise<void> {
   intro('mailman — accounts');
   const [accounts, defaultAlias] = await Promise.all([listAccounts(), getDefaultAlias()]);
   if (accounts.length === 0) {
-    outro('No accounts configured — run `mcp-mailman init`.');
+    outro('No accounts configured — run `mailman init`.');
     return;
   }
 
@@ -164,7 +164,7 @@ export async function runAccountList(_args: string[]): Promise<void> {
   outro(`${accounts.length} account(s)`);
 }
 
-/** `mcp-mailman account remove <alias> [--yes]` — mirrors remove_account's confirmRemoval gate. */
+/** `mailman account remove <alias> [--yes]` — mirrors remove_account's confirmRemoval gate. */
 export async function runAccountRemove(args: string[]): Promise<void> {
   const alias = args.find((a) => !a.startsWith('--'));
   const yes = args.includes('--yes');
@@ -172,7 +172,7 @@ export async function runAccountRemove(args: string[]): Promise<void> {
   intro('mailman — remove account');
 
   if (!alias) {
-    log.error('Usage: mcp-mailman account remove <alias> [--yes]');
+    log.error('Usage: mailman account remove <alias> [--yes]');
     process.exit(1);
   }
 
@@ -198,14 +198,14 @@ export async function runAccountRemove(args: string[]): Promise<void> {
   }
 }
 
-/** `mcp-mailman account set-default <alias>` */
+/** `mailman account set-default <alias>` */
 export async function runAccountSetDefault(args: string[]): Promise<void> {
   const alias = args[0];
 
   intro('mailman — set default account');
 
   if (!alias) {
-    log.error('Usage: mcp-mailman account set-default <alias>');
+    log.error('Usage: mailman account set-default <alias>');
     process.exit(1);
   }
 

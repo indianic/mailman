@@ -3,7 +3,7 @@ import { resolveTools, writeSelectedEditors, promptAndWriteEditorConfigs } from 
 import type { Scope } from './editor-config.js';
 
 /**
- * `mcp-mailman register` — register mailman with your AI editors.
+ * `mailman register` — register mailman with your AI editors.
  *
  * Three modes:
  *  - `register` (bare): prints the copy-pasteable `claude mcp add …` line,

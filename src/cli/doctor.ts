@@ -19,7 +19,7 @@ function checkNodeVersion(): CheckResult {
     ok,
     detail: ok
       ? `v${process.versions.node} (>= ${MIN_NODE_MAJOR} required)`
-      : `v${process.versions.node} — mcp-mailman requires Node >= ${MIN_NODE_MAJOR}`,
+      : `v${process.versions.node} — mailman requires Node >= ${MIN_NODE_MAJOR}`,
   };
 }
 

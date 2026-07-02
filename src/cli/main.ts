@@ -55,8 +55,8 @@ function getVersion(): string {
 }
 
 function printHelp(): void {
-  process.stdout.write('mcp-mailman — MCP server + CLI for sending and reading Gmail\n\n');
-  process.stdout.write('Usage: mcp-mailman <command> [...args]\n\n');
+  process.stdout.write('mailman — MCP server + CLI for sending and reading Gmail\n\n');
+  process.stdout.write('Usage: mailman <command> [...args]\n\n');
   process.stdout.write('Commands:\n');
   for (const [name, entry] of Object.entries(COMMANDS)) {
     const tag = entry.handler ? '' : ' (not implemented yet)';
@@ -85,7 +85,7 @@ export async function runCli(args: string[]): Promise<void> {
   const rest = COMMANDS[twoWord] ? args.slice(2) : args.slice(1);
 
   if (!entry) {
-    process.stderr.write(`Unknown command: ${first}\n\nRun \`mcp-mailman --help\` for the full command list.\n`);
+    process.stderr.write(`Unknown command: ${first}\n\nRun \`mailman --help\` for the full command list.\n`);
     process.exitCode = 1;
     return;
   }

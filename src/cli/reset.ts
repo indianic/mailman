@@ -4,7 +4,7 @@ import { getConfigDir } from '../config/paths.js';
 import { getServiceName } from '../config/keychain.js';
 
 /**
- * `mcp-mailman reset` — wipes the entire config directory and removes the
+ * `mailman reset` — wipes the entire config directory and removes the
  * keytar master-key entry, for a clean re-setup. Destructive; requires
  * explicit `--yes`, no default-confirm bypass. See docs/CLI.md.
  */
@@ -27,5 +27,5 @@ export async function runReset(args: string[]): Promise<void> {
     // best-effort — a missing/unreachable keyring entry isn't a failure here
   }
 
-  outro(`Wiped ${configDir} and removed the master key. Run \`mcp-mailman init\` to set up again.`);
+  outro(`Wiped ${configDir} and removed the master key. Run \`mailman init\` to set up again.`);
 }

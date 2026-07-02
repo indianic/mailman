@@ -19,15 +19,15 @@ branch on `code` (e.g. re-ask the user on `AMBIGUOUS_ACCOUNT`, back off and
 retry on `RATE_LIMITED`) instead of pattern-matching the message text.
 
 **Not exposed as MCP tools, deliberately**: key rotation
-(`mcp-mailman auth rotate-key`), the scheduled-send ticker's dispatch
-target (`mcp-mailman send-scheduled`), and attachment-content download are
+(`mailman auth rotate-key`), the scheduled-send ticker's dispatch
+target (`mailman send-scheduled`), and attachment-content download are
 CLI-only/CLI-only/unbuilt respectively — see docs/PLAN.md's Data integrity
 and Scheduled sends sections for why.
 
 ## Terminal output convention
 
 The tools above return plain JSON — this section is about the *other*
-half of mailman, the human-facing `mcp-mailman <command>` CLI (full list
+half of mailman, the human-facing `mailman <command>` CLI (full list
 in [docs/CLI.md](CLI.md)). Every one of those commands renders through
 the same shared tree vocabulary (`src/cli/tree.ts`, built on
 `@clack/prompts`), so `status`, `account list`, `settings get`, `doctor`,
@@ -147,7 +147,7 @@ Lists pending (and recently resolved) scheduled sends.
 
 - **Input**: `{ account?: string }`
 - **Output**: `{ scheduled: [{ scheduledId, to, subject, sendAt, status: "pending" | "sent" | "failed", attempts }] }`
-- **Notes**: also available as a CLI command (`mcp-mailman scheduled list`)
+- **Notes**: also available as a CLI command (`mailman scheduled list`)
   since it's read-only.
 
 ## `cancel_scheduled`
@@ -293,7 +293,7 @@ Searches a folder (or all mail) by query.
 
 ## `get_status`
 
-Returns the same structured data the `mcp-mailman status` CLI command
+Returns the same structured data the `mailman status` CLI command
 renders as a tree — accounts (alias, method, default, read-access),
 security state (master key found/missing, encryption in place), MCP
 registration, and recent activity counts.

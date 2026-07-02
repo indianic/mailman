@@ -2,7 +2,7 @@ import { intro, outro, log } from '@clack/prompts';
 import { listContacts, addContact, removeContact } from '../contacts.js';
 import { section, detail } from './tree.js';
 
-/** `mcp-mailman contacts list` */
+/** `mailman contacts list` */
 export async function runContactsList(_args: string[]): Promise<void> {
   intro('mailman — contacts');
   const contacts = await listContacts();
@@ -19,7 +19,7 @@ export async function runContactsList(_args: string[]): Promise<void> {
   outro(`${contacts.length} contact(s)`);
 }
 
-/** `mcp-mailman contacts add <email> [--name "..."]` */
+/** `mailman contacts add <email> [--name "..."]` */
 export async function runContactsAdd(args: string[]): Promise<void> {
   const email = args.find((a) => !a.startsWith('--'));
   const nameIndex = args.indexOf('--name');
@@ -28,7 +28,7 @@ export async function runContactsAdd(args: string[]): Promise<void> {
   intro('mailman — add contact');
 
   if (!email) {
-    log.error('Usage: mcp-mailman contacts add <email> [--name "..."]');
+    log.error('Usage: mailman contacts add <email> [--name "..."]');
     process.exit(1);
   }
 
@@ -36,14 +36,14 @@ export async function runContactsAdd(args: string[]): Promise<void> {
   outro(`Added ${email}${name ? ` (${name})` : ''}.`);
 }
 
-/** `mcp-mailman contacts remove <email>` */
+/** `mailman contacts remove <email>` */
 export async function runContactsRemove(args: string[]): Promise<void> {
   const email = args[0];
 
   intro('mailman — remove contact');
 
   if (!email) {
-    log.error('Usage: mcp-mailman contacts remove <email>');
+    log.error('Usage: mailman contacts remove <email>');
     process.exit(1);
   }
   await removeContact(email);

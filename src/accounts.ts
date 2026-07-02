@@ -52,7 +52,7 @@ export async function resolveAccount(alias?: string): Promise<Account> {
   if (accounts.length === 0) {
     throw new AccountResolutionError(
       ErrorCodes.ACCOUNT_NOT_FOUND,
-      'No accounts configured yet — run `mcp-mailman init`',
+      'No accounts configured yet — run `mailman init`',
     );
   }
   if (accounts.length === 1) {
@@ -68,7 +68,7 @@ export async function resolveAccount(alias?: string): Promise<Account> {
   throw new AccountResolutionError(
     ErrorCodes.AMBIGUOUS_ACCOUNT,
     `Multiple accounts configured (${accounts.map((a) => a.alias).join(', ')}) and no default set — ` +
-      'pass an explicit account alias or run `mcp-mailman account set-default <alias>`',
+      'pass an explicit account alias or run `mailman account set-default <alias>`',
   );
 }
 

@@ -50,7 +50,7 @@ still pending.
 | Branch | `dev-kalpesh` (all work happens here; `master` is the empty initial branch) |
 | Remote | none configured — commits are local-only until explicitly told to push |
 | Package name | `mcp-mailman` (npm, unpublished) |
-| Bin name | `mcp-mailman` — deliberately *not* a bare `mailman`, since GNU Mailman already owns that binary name on many Linux servers |
+| Bin name | `mailman` (primary), with `mcp-mailman` kept as an alias to the same binary — the alias exists for hosts where GNU Mailman already owns `/usr/bin/mailman` and the bare name would collide |
 
 ## The decisions that shape everything else
 

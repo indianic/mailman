@@ -54,7 +54,7 @@ export const configureAccountTool: Tool = {
   definition: {
     name: 'configure_account',
     description:
-      'Add or update a Gmail account. The first account ever added becomes the default automatically. For oauth2, the refresh token must already exist — get one via the `mcp-mailman auth login`/`account add` CLI commands, which drive the browser consent flow this tool itself cannot.',
+      'Add or update a Gmail account. The first account ever added becomes the default automatically. For oauth2, the refresh token must already exist — get one via the `mailman auth login`/`account add` CLI commands, which drive the browser consent flow this tool itself cannot.',
     inputSchema: {
       type: 'object',
       properties: {

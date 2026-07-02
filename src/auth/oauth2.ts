@@ -104,7 +104,7 @@ export async function withOAuth2Retry<T>(
         continue;
       }
       if (classification === 'auth') {
-        throw new OAuth2AuthError('OAuth2 authentication failed even after refreshing the access token — run `mcp-mailman auth login` again.');
+        throw new OAuth2AuthError('OAuth2 authentication failed even after refreshing the access token — run `mailman auth login` again.');
       }
       if (classification === 'transient') {
         throw new OAuth2RateLimitError(

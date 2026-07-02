@@ -70,14 +70,14 @@ export async function authorizeOAuth2Account(
   }
 }
 
-/** `mcp-mailman auth login <alias> [--no-browser]` */
+/** `mailman auth login <alias> [--no-browser]` */
 export async function runAuthLogin(args: string[]): Promise<void> {
   const alias = args.find((a) => !a.startsWith('--'));
   const noBrowser = args.includes('--no-browser');
 
   intro('mailman — OAuth2 login');
   if (!alias) {
-    log.error('Usage: mcp-mailman auth login <alias> [--no-browser]');
+    log.error('Usage: mailman auth login <alias> [--no-browser]');
     process.exit(1);
   }
 

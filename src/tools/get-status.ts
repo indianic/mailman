@@ -15,7 +15,7 @@ export const getStatusTool: Tool = {
   definition: {
     name: 'get_status',
     description:
-      'Return the same structured data the `mcp-mailman status` CLI command renders as a tree — accounts, security state, and recent activity counts.',
+      'Return the same structured data the `mailman status` CLI command renders as a tree — accounts, security state, and recent activity counts.',
     inputSchema: { type: 'object', properties: {} },
   },
   handler,

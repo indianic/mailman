@@ -3,7 +3,7 @@ import { getSettings, updateSettings } from '../settings.js';
 import { listAccounts } from '../accounts.js';
 import { section, detail } from './tree.js';
 
-/** `mcp-mailman settings get` */
+/** `mailman settings get` */
 export async function runSettingsGet(_args: string[]): Promise<void> {
   intro('mailman — settings');
   const settings = await getSettings();
@@ -18,12 +18,12 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
 
 const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'defaultBodyType'] as const;
 
-/** `mcp-mailman settings set <key> <value>` */
+/** `mailman settings set <key> <value>` */
 export async function runSettingsSet(args: string[]): Promise<void> {
   const [key, value] = args;
   intro('mailman — settings set');
   if (!key || value === undefined) {
-    log.error(`Usage: mcp-mailman settings set <key> <value>\nKeys: ${SETTABLE_KEYS.join(', ')}`);
+    log.error(`Usage: mailman settings set <key> <value>\nKeys: ${SETTABLE_KEYS.join(', ')}`);
     process.exit(1);
   }
   if (!SETTABLE_KEYS.includes(key as (typeof SETTABLE_KEYS)[number])) {

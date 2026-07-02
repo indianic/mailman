@@ -85,7 +85,7 @@ export interface DispatchSummary {
   retryPending: number;
 }
 
-/** The ticker's actual dispatch target (`mcp-mailman send-scheduled --due`) — see docs/CLI.md. */
+/** The ticker's actual dispatch target (`mailman send-scheduled --due`) — see docs/CLI.md. */
 export async function dispatchDueEntries(now: Date = new Date()): Promise<DispatchSummary> {
   const entries = await listScheduled();
   const due = entries.filter((e) => isDue(e, now));

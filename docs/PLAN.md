@@ -101,7 +101,7 @@ function toolError(code: string, message: string): ToolResponse {
   same choice the sibling `mcp-server` already made; mailman follows it for
   consistency across this developer's MCP projects, not just as an isolated
   decision.
-- The one exception is `mcp-mailman status`, the **CLI** command (not an
+- The one exception is `mailman status`, the **CLI** command (not an
   MCP tool) — that's the only place a host-specific pretty tree render is
   appropriate, because it's a human looking at a terminal directly, not an
   AI host parsing a tool result. `get_status` (the MCP tool) returns the
@@ -156,7 +156,7 @@ uses OAuth2" switch:
   "email": "you@gmail.com",
   "method": "app-password" | "oauth2",
   // app-password: smtp.gmail.com:465, user + 16-char app password
-  // oauth2: clientId, clientSecret, refreshToken (from `mcp-mailman auth login`)
+  // oauth2: clientId, clientSecret, refreshToken (from `mailman auth login`)
   "displayName": "Kalpesh Gamit", // optional — "From Name" shown to recipients
   "signature": "-- Kalpesh"       // optional — appended to every draft from this account
 }
@@ -165,7 +165,7 @@ uses OAuth2" switch:
 - **App Password**: `nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })`.
   Fast setup (2-Step Verification + generated app password), no Google Cloud
   project needed.
-- **OAuth2**: one-time `mcp-mailman auth login <alias>`, stores a refresh
+- **OAuth2**: one-time `mailman auth login <alias>`, stores a refresh
   token; at send-time it's exchanged for a short-lived access token
   (XOAUTH2). Required if a Workspace admin disables app passwords, and
   needed anyway for Google Contacts access (see Recipient suggestions
@@ -321,7 +321,7 @@ demand of any small persistent store:
   lines / 5 MB, whichever comes first, rotating the current file to
   `activity.log.1` and starting fresh (single rotation, not a logrotate-style
   chain).
-- **Key rotation is CLI-only, never an MCP tool.** `mcp-mailman auth
+- **Key rotation is CLI-only, never an MCP tool.** `mailman auth
   rotate-key` generates a new master key, decrypts every account's secrets
   with the old key, re-encrypts with the new one, stores the new key via
   keytar, and atomically swaps `accounts.json`. Deliberately *not* exposed
@@ -423,7 +423,7 @@ subject, body, bodyType, attachments, sendAt, status: "pending" | "sent" |
 | Linux | `crontab` entry |
 | Windows | Task Scheduler task |
 
-Each tick runs `mcp-mailman send-scheduled --due` — a **CLI-only** command,
+Each tick runs `mailman send-scheduled --due` — a **CLI-only** command,
 never an MCP tool (it's an OS-triggered background mechanism, not a
 conversational action; same exclusion logic as `auth rotate-key`). It reads
 `scheduled.json`, dispatches everything with `sendAt <= now` and
@@ -460,7 +460,7 @@ mail," just deferred, so it stays behind Claude's conversational
 confirm-first flow rather than becoming a bare CLI escape hatch (same
 reasoning docs/CLI.md already gives for why `draft_email`/`confirm_send`
 aren't CLI commands). `list_scheduled` is read-only and safe either way, so
-it gets both an MCP tool and a CLI mirror (`mcp-mailman scheduled list`).
+it gets both an MCP tool and a CLI mirror (`mailman scheduled list`).
 
 ## Concurrency, resilience & idempotency
 
@@ -599,7 +599,7 @@ don't need to know which backend served a given account.
 
 ## CLI status output
 
-One human-facing diagnostic command, `mcp-mailman status`, rendered as a
+One human-facing diagnostic command, `mailman status`, rendered as a
 `@clack/prompts`-style tree (the ◆/◇/│/└ diamond format) rather than a wall
 of plain text — useful for confirming setup worked without digging through
 `accounts.json` by hand:

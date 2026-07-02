@@ -14,11 +14,11 @@ language ("mailman, send this," "list my last 10 emails"); there's nothing
 project-specific to wire up per repo.
 
 > **Package vs. command names.** The npm package is **`@indianic/mailman`**
-> (that's what you `npx` / `npm install` / register with Claude). The CLI
-> binary it installs is **`mcp-mailman`** — deliberately not a bare
-> `mailman`, since GNU Mailman already owns that name on many Linux servers.
-> So you run `mcp-mailman init`, `mcp-mailman doctor`, etc., but register
-> `npx -y @indianic/mailman`.
+> (that's what you `npx` / `npm install` / register with Claude). It installs
+> a CLI you run as **`mailman`** (`mailman init`, `mailman doctor`, …). A
+> second alias, **`mcp-mailman`**, points at the same binary — use it only on
+> a host that also has GNU Mailman's `/usr/bin/mailman`, where the bare
+> `mailman` name would otherwise collide.
 
 ## Examples
 
@@ -105,12 +105,12 @@ just updates the entry in place. Restart the tool afterward and say
 Already have an account and just want to (re)register more tools:
 
 ```bash
-mcp-mailman register --tools claude,cursor        # non-interactive
-mcp-mailman register -i                            # interactive picker
-mcp-mailman register                               # just print the `claude mcp add …` line
+mailman register --tools claude,cursor        # non-interactive
+mailman register -i                            # interactive picker
+mailman register                               # just print the `claude mcp add …` line
 ```
 
-`mcp-mailman doctor` checks Node version, OS keyring reachability,
+`mailman doctor` checks Node version, OS keyring reachability,
 SMTP/IMAP network reachability, and scheduled-send ticker status — run it
 first if something's off. Every terminal command (accounts, contacts,
 settings, scheduled sends) is in [docs/CLI.md](docs/CLI.md).
@@ -157,12 +157,12 @@ not in editor config:
 - **Cursor** — add the block to `~/.cursor/mcp.json` (or project `./.cursor/mcp.json`).
 - **Windsurf / Gemini CLI / Codex** — add the same block to that tool's MCP config file.
 
-Accounts are configured once via `mcp-mailman init` (above) and shared across
+Accounts are configured once via `mailman init` (above) and shared across
 every editor, since they live in one global config dir, not per-tool.
 
 ## OAuth2 setup (optional — App Password is faster)
 
-App Password (`mcp-mailman init`, choosing App Password) needs nothing
+App Password (`mailman init`, choosing App Password) needs nothing
 beyond 2-Step Verification and a generated 16-character password — start
 there unless you specifically need OAuth2 (a Workspace admin disabling
 app passwords, or you want Google Contacts–backed recipient suggestions).
@@ -181,7 +181,7 @@ themselves:
 4. **APIs & Services → Credentials → Create Credentials → OAuth client
    ID**: application type **Desktop app**. Copy the generated **Client
    ID** and **Client Secret**.
-5. Run `mcp-mailman auth login <alias>` (or `account add`, choosing
+5. Run `mailman auth login <alias>` (or `account add`, choosing
    OAuth2) and paste in the Client ID/Secret when prompted. A browser
    opens automatically to Google's consent screen — approve, and mailman
    captures the redirect and stores the refresh token (encrypted) for you.
