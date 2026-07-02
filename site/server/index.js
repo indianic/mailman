@@ -80,11 +80,10 @@ app.get(/^(?!\/api).*/, (_req, res) => {
   });
 });
 
+// Start listening regardless of DB state so the site is always up. DB-backed
+// endpoints (/api/content, /api/subscribe) degrade gracefully and the frontend
+// falls back to its in-code content if the DB is unavailable.
+app.listen(PORT, HOST, () => console.log(`mailman-site server on http://${HOST}:${PORT}`));
 initDb()
-  .then(() => {
-    app.listen(PORT, HOST, () => console.log(`mailman-site server on http://${HOST}:${PORT}`));
-  })
-  .catch((err) => {
-    console.error('DB init failed:', err.message);
-    process.exit(1);
-  });
+  .then(() => console.log('DB ready'))
+  .catch((err) => console.error('DB init failed (serving without DB):', err.message));
