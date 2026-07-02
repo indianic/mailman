@@ -1,0 +1,30 @@
+stages:
+  - deploy
+
+variables:
+  GIT_STRATEGY: none
+
+# Shell-runner deploy (matches the server7_development convention): the runner
+# SSHes into the provisioned ISPConfig shell user and runs the server-side
+# deploy script (git pull + npm install + build + pm2 restart) for the app in
+# site/. Auth via the SERVER_ACCESS deploy key + SERVER_USER/SERVER_IP CI vars.
+deploy_production:
+  stage: deploy
+  tags:
+    - node
+    - server7
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev-kalpesh"
+  before_script:
+    - command -v ssh-agent >/dev/null || (apt-get update -qq && apt-get install -qq openssh-client)
+    - eval $(ssh-agent -s)
+    - echo "$SERVER_ACCESS" | base64 -d > /tmp/mailman_deploy_key
+    - chmod 600 /tmp/mailman_deploy_key
+    - ssh-add /tmp/mailman_deploy_key
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  script:
+    - ssh -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_IP" "bash -lc 'bash ~/deploy.sh'"
+    - echo "Deployed mailman to $SERVER_IP (pm2)"
+  after_script:
+    - rm -f /tmp/mailman_deploy_key
