@@ -3,6 +3,7 @@ import WhatIsIt from '../components/WhatIsIt.jsx';
 import Features from '../components/Features.jsx';
 import Compatibility from '../components/Compatibility.jsx';
 import HowItWorks from '../components/HowItWorks.jsx';
+import HowToUse from '../components/HowToUse.jsx';
 import Faq from '../components/Faq.jsx';
 import Install from '../components/Install.jsx';
 
@@ -14,8 +15,9 @@ export default function Home() {
       <Features />
       <Compatibility />
       <HowItWorks />
-      <Faq />
+      <HowToUse />
       <Install />
+      <Faq />
     </>
   );
 }

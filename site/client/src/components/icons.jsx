@@ -191,3 +191,19 @@ export const Code = ({ className = 'h-5 w-5' }) => (
     <path d="m8 6-6 6 6 6M16 6l6 6-6 6" />
   </svg>
 );
+
+// Simplified hexagon-knot mark (OpenAI-adjacent, not the trademarked logo).
+export const OpenAI = ({ className = 'h-5 w-5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M12 2.6 20.1 7v10L12 21.4 3.9 17V7z" />
+    <path d="M12 7v5l4.3 2.5M12 12l-4.3 2.5" />
+  </svg>
+);
+
+// Robot/brain mark for the generic "your AI assistant" idea.
+export const Spark = ({ className = 'h-5 w-5' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <path d="M12 2c.4 3.6 1.6 4.8 5.2 5.2-3.6.4-4.8 1.6-5.2 5.2-.4-3.6-1.6-4.8-5.2-5.2C10.4 6.8 11.6 5.6 12 2z" />
+    <path d="M18.5 13c.2 1.8.8 2.4 2.6 2.6-1.8.2-2.4.8-2.6 2.6-.2-1.8-.8-2.4-2.6-2.6 1.8-.2 2.4-.8 2.6-2.6z" />
+  </svg>
+);

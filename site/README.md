@@ -69,8 +69,21 @@ A wrapper that runs the production server in the background:
 
 PID is tracked in `.server.pid`; output goes to `server.log`.
 
-## Subscribers
+## Subscribers & welcome emails
+
+When someone subscribes via the footer, the server stores them in `subscribers`
+and sends a **welcome email rendered from a DB template** (`email_templates`,
+seeded with a `welcome` row using `{{brand}}` / `{{email}}` / `{{year}}`
+placeholders). The same `sendTemplate(name, email)` pipeline serves leads too.
+
+Sending uses **SendGrid** when `SENDGRID_API_KEY` is set in `server/.env`;
+otherwise it runs in **dry-run** mode (renders + logs the email, no network
+send) so local dev works without a key. `SENDGRID_FROM` must be a verified
+sender/domain in the SendGrid account.
 
 ```sql
-SELECT email, created_at FROM subscribers ORDER BY created_at DESC;
+SELECT email, created_at, welcomed_at FROM subscribers ORDER BY created_at DESC;
+SELECT name, subject FROM email_templates;         -- edit templates here
 ```
+
+`/api/health` reports the active mailer mode: `{"mailer":"sendgrid"|"dry-run"}`.

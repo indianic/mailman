@@ -49,3 +49,18 @@ body {
 .text-gradient {
   @apply bg-gradient-to-r from-brand-500 via-violet-500 to-fuchsia-500 bg-clip-text text-transparent;
 }
+
+/* Faint grid backdrop, radially masked so it fades at the edges. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(100, 116, 139, 0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 116, 139, 0.10) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+.dark .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+}

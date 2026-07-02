@@ -1,12 +1,13 @@
 import Reveal from './Reveal.jsx';
-import { Sparkle, Cursor, Wave, Code, Apple, Linux, Windows } from './icons.jsx';
+import { Sparkle, Cursor, Wave, Code, OpenAI, Apple, Linux, Windows } from './icons.jsx';
 
 const AI_TOOLS = [
-  { name: 'Claude Code', Icon: Sparkle, color: 'text-orange-500' },
+  { name: 'Claude', Icon: Sparkle, color: 'text-orange-500' },
+  { name: 'Gemini', Icon: Sparkle, color: 'text-blue-500' },
+  { name: 'OpenAI', Icon: OpenAI, color: 'text-emerald-600 dark:text-emerald-400' },
   { name: 'Cursor', Icon: Cursor, color: 'text-slate-700 dark:text-slate-200' },
-  { name: 'Gemini CLI', Icon: Sparkle, color: 'text-blue-500' },
   { name: 'Windsurf', Icon: Wave, color: 'text-teal-500' },
-  { name: 'Codex', Icon: Code, color: 'text-emerald-500' },
+  { name: 'Codex', Icon: Code, color: 'text-violet-500' },
 ];
 
 const PLATFORMS = [

@@ -4,8 +4,9 @@ import { NPM_URL } from '../config.js';
 export default function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* ambient glow */}
+      {/* ambient grid + glow */}
       <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="bg-grid absolute inset-0" />
         <div className="absolute left-1/2 top-[-10rem] h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-brand-400/25 blur-3xl dark:bg-brand-600/20" />
         <div className="absolute right-[-6rem] top-40 h-72 w-72 rounded-full bg-fuchsia-400/20 blur-3xl dark:bg-fuchsia-700/20" />
       </div>

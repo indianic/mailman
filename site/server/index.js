@@ -4,6 +4,7 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pool, initDb } from './db.js';
+import { sendTemplate, mailerMode } from './mailer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -28,10 +29,19 @@ app.post('/api/subscribe', async (req, res) => {
        ON CONFLICT (email) DO NOTHING`,
       [email],
     );
+
+    // New subscriber → send the welcome email from the DB template.
+    if (rowCount > 0) {
+      const result = await sendTemplate('welcome', email);
+      if (result.sent) {
+        await pool.query('UPDATE subscribers SET welcomed_at = now() WHERE email = $1', [email]);
+      }
+    }
+
     return res.json({
       ok: true,
       alreadySubscribed: rowCount === 0,
-      message: rowCount === 0 ? "You're already on the list." : 'Thanks — you\'re subscribed!',
+      message: rowCount === 0 ? "You're already on the list." : 'Thanks — check your inbox for a welcome email!',
     });
   } catch (err) {
     console.error('subscribe failed:', err.message);
@@ -42,9 +52,9 @@ app.post('/api/subscribe', async (req, res) => {
 app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ ok: true, db: 'up' });
+    res.json({ ok: true, db: 'up', mailer: mailerMode });
   } catch {
-    res.status(503).json({ ok: false, db: 'down' });
+    res.status(503).json({ ok: false, db: 'down', mailer: mailerMode });
   }
 });
 

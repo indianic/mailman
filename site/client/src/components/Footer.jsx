@@ -92,7 +92,7 @@ export default function Footer() {
                 <li><a href="/#what" className="transition hover:text-brand-600 dark:hover:text-brand-300">What is it</a></li>
                 <li><a href="/#features" className="transition hover:text-brand-600 dark:hover:text-brand-300">Features</a></li>
                 <li><a href="/#works-with" className="transition hover:text-brand-600 dark:hover:text-brand-300">Works with</a></li>
-                <li><a href="/#faq" className="transition hover:text-brand-600 dark:hover:text-brand-300">FAQ</a></li>
+                <li><a href="/#how-to-use" className="transition hover:text-brand-600 dark:hover:text-brand-300">How to use</a></li>
                 <li><a href="/#install" className="transition hover:text-brand-600 dark:hover:text-brand-300">Install</a></li>
               </ul>
             </div>
