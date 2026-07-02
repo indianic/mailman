@@ -82,10 +82,10 @@ that wrote `~/.claude.json`).
 ## Known risks / backlog
 
 - **keytar is unmaintained upstream** (the Atom project sunset it; repo
-  archived). It still works — N-API prebuilds keep it viable across Node
-  releases — but it gets no fixes. Backlog: evaluate migrating to a
-  maintained equivalent (e.g. `@napi-rs/keyring`) behind the existing
-  `keychain.ts` seam, which is the only file that touches it.
+  archived). **Evaluated 2026-07-02 → migrate to `@napi-rs/keyring`**:
+  cross-read of the real keytar-written entry verified in both directions
+  on macOS (zero-migration swap), musl/Alpine prebuilds included. Full
+  findings + phased plan: [KEYTAR-MIGRATION.md](KEYTAR-MIGRATION.md).
 - **musl/Alpine**: no prebuild → source build needs libsecret headers +
   toolchain; document or ship a prebuild if container use becomes real.
 - **WSL**: behaves like headless Linux. If demand appears, document the
