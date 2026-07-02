@@ -3,7 +3,6 @@ import Hero from '../components/Hero.jsx';
 import WhatIsIt from '../components/WhatIsIt.jsx';
 import Features from '../components/Features.jsx';
 import Workbench from '../components/Workbench.jsx';
-import Constellation from '../components/Constellation.jsx';
 import Compatibility from '../components/Compatibility.jsx';
 import HowItWorks from '../components/HowItWorks.jsx';
 import HowToUse from '../components/HowToUse.jsx';
@@ -23,7 +22,6 @@ export default function Home() {
       <WhatIsIt />
       <Workbench />
       <Features />
-      <Constellation />
       <Compatibility />
       <HowItWorks />
       <HowToUse />
