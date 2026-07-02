@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.0] - 2026-07-02
+
+- New 'mailman update' self-update command (alias: upgrade); typo suggestions on unknown commands; bare 'mailman' at a terminal now shows help instead of silently starting the stdio server.
+
 ## [0.3.3] - 2026-07-02
 
 - New 'mailman help [command]' and 'mailman examples' subcommands — people type these as commands, not flags.
