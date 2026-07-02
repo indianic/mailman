@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.2.0] - 2026-07-02
+
+- init now auto-writes MCP config into your AI tools (Claude Code, Cursor, Gemini CLI, Windsurf, Codex) with a multi-select + scope prompt, ContextBrain-style; new register --tools/-i for scripted or interactive re-registration.
+
 ## [0.1.2] - 2026-07-02
 
 - Fix all package references to @indianic/mailman (the old mcp-mailman name 404s) — critically the scheduled-send ticker's npx command, which would have silently failed every scheduled send. README setup overhauled with quick-start wizard, private-registry install, and per-editor MCP config sections.
