@@ -4,6 +4,13 @@ Phased build order. Each phase should be usable/testable on its own before
 moving to the next. See [docs/PLAN.md](PLAN.md) for the full rationale behind
 each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 
+> **Status — 2026-07-02: complete & closed.** All phases 0–9 implemented;
+> verified end-to-end on **macOS** and **Linux** (Docker). Three originally
+> pending items were **descoped by decision**: OAuth2 real-delivery
+> verification (App Password is the supported auth path), Windows hardware
+> verification (accepted as-is), and a public `mcp-mailman` npm release
+> (distribution is `@indianic/mailman` on the IndiaNIC private registry).
+
 ## Phase 0 — Project setup
 
 - [x] Create project directory + git repo
@@ -69,7 +76,7 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] Retry policy: one retry on `401` after token refresh; up to two more retries on `429`/`5xx` with exponential backoff (~500ms/1500ms), then surface `RATE_LIMITED`/`AUTH_EXPIRED`
 - [x] `configure_account` supports `method: "oauth2"`
 - [x] `mailman account add` — wire in the OAuth2 path (same browser flow as `auth login`)
-- [ ] Manual end-to-end test: configure one OAuth2 account, draft, confirm, verify real delivery — **pending user action** (needs a real Google Cloud OAuth client; smoke-tested the full pipeline against Google's real token endpoint with fake credentials and got a clean `AUTH_EXPIRED`)
+- [x] Manual end-to-end test: configure one OAuth2 account, draft, confirm, verify real delivery — **descoped 2026-07-02** (user decision: OAuth2 not needed; App Password is the supported auth path). The full pipeline stays smoke-tested against Google's real token endpoint with fake credentials (clean `AUTH_EXPIRED`); real-delivery validation is intentionally not pursued.
 
 ## Phase 5 — Multi-account + settings
 
@@ -105,7 +112,7 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `search_emails` tool (`folder: "inbox" | "sent" | "all"`) — same `limit`/`nextPageToken` behavior
 - [x] `read_email` tool — headers + body + attachment metadata only (no attachment download); `bodyText`/`bodyHtml` capped at ~20,000 chars with a `truncated` flag
 - [x] `list_accounts` output includes `canRead: true/false` per account so it's visible which accounts have read access granted (already true since Phase 5, hardcoded `true` per the "expected to always be true today" note)
-- [x] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account — **App Password: done for real** (real account, real send, `list_recent_emails`/`read_email`/`search_emails` all verified against the live inbox — this is what surfaced and got fixed the quoted-printable decoding bug). **OAuth2: still pending user action** — smoke-tested against Google's real endpoints with fake credentials (clean `AUTH_EXPIRED`), but success-path validation needs a real Google Cloud OAuth client
+- [x] Manual test: "last 10 emails," "last 10 sent," a search query, and reading one specific email — for both an App Password and an OAuth2 account — **App Password: done for real** (real account, real send, `list_recent_emails`/`read_email`/`search_emails` all verified against the live inbox — this is what surfaced and got fixed the quoted-printable decoding bug). **OAuth2: descoped 2026-07-02** (OAuth2 not needed per user decision) — smoke-tested against Google's real endpoints with fake credentials (clean `AUTH_EXPIRED`); success-path validation intentionally not pursued
 
 ## Phase 8 — Scheduled sends
 
@@ -132,6 +139,6 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
 - [x] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked IMAP-shaped fixtures against the real parsing logic, mocked `fetch` standing in for the Gmail API (mailman uses raw REST via fetch, not the `googleapis` SDK, for Gmail/People calls — same "no real Gmail" testing intent, different mocking boundary) — automatically wired into CI via the existing `npm test` glob
 - [x] Finalize README (install, both auth setups, usage examples, config paths table, read-access scope disclosure)
-- [ ] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, keychain backend, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy) — **pending user action**: no Linux/Windows machine available; macOS fully verified (including a real end-to-end `mailman init` wizard run). The detailed per-OS support matrix and 9-step verification checklist now live in [docs/CROSS-OS.md](CROSS-OS.md)
-- [ ] `npm publish` as `mcp-mailman` — **pending explicit user confirmation**: a real, public, hard-to-reverse action
+- [x] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, keychain backend, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy) — **wrapped 2026-07-02**: macOS fully verified (incl. a real end-to-end `mailman init` wizard run); **Linux verified via Docker** (see the `docker/` harness, task #94 — surfaced the keytar↔keyring cross-read note); Windows implemented but hardware verification not pursued (accepted as-is). Per-OS support matrix + verification checklist in [docs/CROSS-OS.md](CROSS-OS.md)
+- [x] ~~`npm publish` as `mcp-mailman`~~ — **descoped 2026-07-02** (user decision): distribution is via the IndiaNIC private registry as `@indianic/mailman`; a public `mcp-mailman` release is not needed.
 - [x] Document `claude mcp add mailman -- npx -y @indianic/mailman` as the standard install step

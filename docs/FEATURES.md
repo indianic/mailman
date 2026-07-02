@@ -276,17 +276,17 @@ flowchart TD
 
 ## 8. Status — what’s built and verified
 
+**Complete & closed (2026-07-02).**
+
 - **All 10 build phases (0–9) implemented**, plus post-launch additions
   (`get_mailbox_overview`, From Name/signature, Message-ID branding, desktop
   notifications, passive update notice).
 - **Verified against a live Gmail account** (App Password): send, list, read,
-  and search all confirmed end-to-end on macOS.
-- **Cross-OS:** macOS and Linux (Docker) verified; Windows implemented,
-  hardware verification pending.
-- **Still yours to do:** OAuth2 real-delivery verification (needs your own
-  Google Cloud client) and a public `npm` release (needs an interactive 2FA
-  step). Published today to the IndiaNIC private registry as
-  `@indianic/mailman`.
+  and search all confirmed end-to-end on **macOS** and **Linux** (Docker).
+- **Descoped by decision** (not open gaps): OAuth2 real-delivery verification
+  (App Password is the supported path; OAuth2 stays smoke-tested), Windows
+  hardware verification (accepted as-is), and a public `npm` release
+  (distribution is `@indianic/mailman` on the IndiaNIC private registry).
 
 *See also: [README.md](../README.md) · [PLAN.md](PLAN.md) (architecture) ·
 [SKILLS.md](SKILLS.md) (tool specs) · [CLI.md](CLI.md) (commands) ·

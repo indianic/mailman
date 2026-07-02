@@ -53,31 +53,32 @@ Claude: Scheduled. It'll go out even if this Claude session is closed by then.
 
 ## Status
 
-All 10 phases (0–9) implemented — see [docs/PLAN.md](docs/PLAN.md) for the
-architecture and [docs/CHECKLIST.md](docs/CHECKLIST.md) for the phase-by-
-phase build order and what's been manually verified vs. still pending.
+**Complete & closed (2026-07-02).** All 10 phases (0–9) implemented — see
+[docs/PLAN.md](docs/PLAN.md) for the architecture and
+[docs/CHECKLIST.md](docs/CHECKLIST.md) for the phase-by-phase build order.
 
-**Verified for real**, registered globally via `claude mcp add` on this
-machine, with a real Gmail App Password account: send, `list_recent_emails`,
-`read_email`, and `search_emails` all confirmed against a live inbox. This
-real test caught and fixed a bug fake-credential smoke tests couldn't
-have (IMAP wasn't decoding quoted-printable body content).
+**Verified for real**, registered globally via `claude mcp add`, with a real
+Gmail App Password account: send, `list_recent_emails`, `read_email`, and
+`search_emails` all confirmed against a live inbox on **macOS** and
+**Linux** (Docker). This real test caught and fixed a bug fake-credential
+smoke tests couldn't have (IMAP wasn't decoding quoted-printable body
+content).
 
-Still deliberately left for you rather than done automatically:
+Intentionally **descoped by decision** (not gaps to close):
 
-- **OAuth2 real-delivery verification** — smoke-tested against Google's
-  real endpoints with fake credentials (clean `AUTH_EXPIRED`), but needs
-  your own Google Cloud OAuth client to confirm an actual send/read.
-- **Cross-OS smoke test** (Linux/Windows) — only macOS was available;
-  the per-OS keychain support matrix and verification checklist are in
-  [docs/CROSS-OS.md](docs/CROSS-OS.md).
-- **Public `npm publish`** — mailman is published to the IndiaNIC private
-  registry as `@indianic/mailman`, but a public `registry.npmjs.org`
-  release is still pending (needs an interactive 2FA/OTP step).
-- **The scheduled-send OS ticker** (`launchd`/`crontab`/Task Scheduler) —
-  registering it mutates real system state outside this repo and persists
-  across reboots, so it's not installed automatically; `schedule_send`
-  installs it the first time you actually use it.
+- **OAuth2 real-delivery verification** — App Password is the supported auth
+  path; OAuth2 stays smoke-tested against Google's real endpoints with fake
+  credentials (clean `AUTH_EXPIRED`), but real-delivery validation isn't
+  pursued.
+- **Windows hardware verification** — accepted as-is; macOS and Linux are
+  verified. Per-OS support matrix: [docs/CROSS-OS.md](docs/CROSS-OS.md).
+- **Public `npm publish`** — distribution is the IndiaNIC private registry as
+  `@indianic/mailman`; a public `registry.npmjs.org` release isn't needed.
+
+One thing installs on demand rather than up front: **the scheduled-send OS
+ticker** (`launchd`/`crontab`/Task Scheduler) mutates real system state and
+persists across reboots, so `schedule_send` installs it the first time you
+actually use it.
 
 ## Docs
 
