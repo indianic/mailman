@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.6] - 2026-07-02
+
+- compact draft preview (token savings), desktopNotifications settable via MCP tools, FEATURES.md + docs close-out
+
 ## [0.5.5] - 2026-07-02
 
 - change: desktop notifications now on by default (disable via settings); simplified to reliable osascript path; toggle added to 'mailman examples'
