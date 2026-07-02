@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.2] - 2026-07-02
+
+- Sent messages are now branded for easy tracking: Message-ID local part is mcp-mailman.<uuid> and an X-Mailer: mcp-mailman header is set on every send (both App Password and OAuth2).
+
 ## [0.5.1] - 2026-07-02
 
 - init/account add no longer ask App Password vs OAuth2 — they go straight into the simple email + App Password flow. OAuth2 stays available via 'mailman auth login <alias>' for Workspace/contacts cases.
