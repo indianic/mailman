@@ -80,7 +80,7 @@ done
 
 echo ""
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BOLD}  IndiaNIC NPM Release — mcp-mailman${NC}"
+echo -e "${BOLD}  IndiaNIC NPM Release — @indianic/mailman${NC}"
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -279,11 +279,14 @@ PUBLISH_OUTPUT=$(npm publish --registry="$REGISTRY" 2>&1) || {
 ok "Published successfully!"
 
 # ─── Verify ──────────────────────────────────────────────────────────────────
-# Metadata check first (always safe), then a real scoped install into a
-# throwaway dir — @indianic/mailman's scope means this resolves correctly
-# via ~/.npmrc without forcing --registry across mailman's own public
-# dependencies (nodemailer, zod, imapflow, ...), unlike the unscoped
-# mcp-mailman name this package started as.
+# Metadata-only check (npm view) — deliberately NOT a real `npm install`
+# into a throwaway dir. An earlier version of this script did that and it
+# corrupted THIS project's own package.json with a circular self-dependency
+# (@indianic/mailman ended up inside its own "dependencies"), even from
+# inside a `cd`'d subshell pointed at a genuinely unrelated /tmp path —
+# something about npm's own directory-walking/workspace resolution reached
+# back to this repo regardless. Not worth re-risking for a nice-to-have
+# extra check; `npm view` alone is sufficient proof the publish succeeded.
 
 log "Verifying publish..."
 sleep 2
@@ -293,19 +296,6 @@ if [ "$VERIFIED" = "$NEW_VERSION" ]; then
 else
     warn "Could not verify via npm view — check manually: npm info $PKG_NAME --registry=$REGISTRY"
 fi
-
-VERIFY_DIR=$(mktemp -d)
-(
-    cd "$VERIFY_DIR"
-    npm init -y --silent > /dev/null 2>&1
-    if npm install "$PKG_NAME@$NEW_VERSION" > /dev/null 2>&1; then
-        INSTALLED_VER=$(node -e "console.log(require('$PKG_NAME/package.json').version)" 2>/dev/null)
-        echo -e "${GREEN}  ✓ Verified: $PKG_NAME@$INSTALLED_VER installs correctly (no --registry needed, scope routing handled it)${NC}"
-    else
-        echo -e "${YELLOW}  ⚠ Scoped install check failed — verify manually: npm install $PKG_NAME@$NEW_VERSION${NC}"
-    fi
-)
-rm -rf "$VERIFY_DIR"
 
 # ─── Done ────────────────────────────────────────────────────────────────────
 
