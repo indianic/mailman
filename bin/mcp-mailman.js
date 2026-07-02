@@ -23,11 +23,23 @@ if (nodeMajor < MIN_NODE_MAJOR) {
 async function main() {
   const args = process.argv.slice(2);
 
-  // No CLI subcommand/flag → this is the MCP host launching the stdio
-  // server (e.g. `claude mcp add mailman -- npx -y @indianic/mailman`).
-  // Anything else is a human running a terminal command — see docs/CLI.md.
+  // No CLI subcommand/flag → normally this is the MCP host launching the
+  // stdio server (e.g. `claude mcp add mailman -- npx -y @indianic/mailman`).
+  // But a HUMAN typing bare `mailman` in a terminal used to get a silently
+  // hanging JSON-RPC server waiting on stdin (a real user hit this). MCP
+  // hosts always launch over pipes, never a TTY — so stdin+stdout being a
+  // TTY reliably means "person at a prompt": show the CLI help instead.
   if (args.length === 0) {
-    await import('../dist/index.js');
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      process.stderr.write(
+        'Bare `mailman` starts the MCP stdio server — that is what your AI tool launches, not a terminal command.\n' +
+          'Showing the CLI instead (try `mailman examples` for a quick start):\n\n',
+      );
+      const { runCli } = await import('../dist/cli/main.js');
+      await runCli(['help']);
+    } else {
+      await import('../dist/index.js');
+    }
   } else {
     const { runCli } = await import('../dist/cli/main.js');
     await runCli(args);

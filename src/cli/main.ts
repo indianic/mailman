@@ -11,6 +11,7 @@ import { runSendScheduled } from './send-scheduled.js';
 import { runScheduledList } from './scheduled.js';
 import { runRegister } from './register.js';
 import { runReset } from './reset.js';
+import { runUpdate } from './update.js';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -45,6 +46,8 @@ const COMMANDS: Record<string, CommandEntry> = {
   'scheduled list': { handler: runScheduledList, summary: 'List pending/sent/failed scheduled sends' },
   'send-scheduled': { handler: runSendScheduled, summary: "Scheduler ticker's dispatch target (--due)" },
   status: { handler: runStatus, summary: 'Show configured state as a tree' },
+  update: { handler: runUpdate, summary: 'Self-update the global install to the latest version' },
+  upgrade: { handler: runUpdate, summary: 'Alias of `update`' },
   reset: { handler: runReset, summary: 'Wipe the global config directory (--yes required)' },
   // `help`/`examples` exist because people type them as subcommands (verified
   // by a real user doing exactly that) — not just as --flags.
@@ -112,6 +115,40 @@ terminal command: docs/CLI.md (or \`mailman help\`).
 `);
 }
 
+// Plain dynamic-programming edit distance — small alphabet of ~25 command
+// names, so no need for anything cleverer.
+function levenshtein(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = tmp;
+    }
+  }
+  return prev[b.length];
+}
+
+/**
+ * Nearest known command within edit distance 2 (typo range — a real user
+ * typed `upgarde`), or null when nothing is plausibly close. Exported for
+ * unit tests.
+ */
+export function suggestCommand(input: string, names: string[] = Object.keys(COMMANDS)): string | null {
+  let best: string | null = null;
+  let bestDist = 3;
+  for (const name of names) {
+    const d = levenshtein(input.toLowerCase(), name);
+    if (d < bestDist) {
+      bestDist = d;
+      best = name;
+    }
+  }
+  return best;
+}
+
 export async function runCli(args: string[]): Promise<void> {
   const [first, second] = args;
 
@@ -131,7 +168,12 @@ export async function runCli(args: string[]): Promise<void> {
   const rest = COMMANDS[twoWord] ? args.slice(2) : args.slice(1);
 
   if (!entry) {
-    process.stderr.write(`Unknown command: ${first}\n\nRun \`mailman --help\` for the full command list.\n`);
+    const hint = suggestCommand(first);
+    process.stderr.write(
+      `Unknown command: ${first}\n` +
+        (hint ? `Did you mean \`mailman ${hint}\`?\n` : '') +
+        `\nRun \`mailman --help\` for the full command list.\n`,
+    );
     process.exitCode = 1;
     return;
   }

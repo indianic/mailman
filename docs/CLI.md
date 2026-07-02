@@ -15,6 +15,13 @@ binary on some Linux servers. On such a box, either that server's
 `mcp-mailman` there to be unambiguous. Everywhere else, `mailman` is the
 name to use.
 
+Bare `mailman` with no arguments behaves differently by context: launched
+over pipes (how every MCP host runs it), it starts the stdio MCP server;
+typed by a person at a TTY, it shows the command list instead — a bare
+JSON-RPC server silently waiting on stdin is never what a human wanted.
+Unknown commands suggest the nearest real one (`upgarde` → did you mean
+`upgrade`?).
+
 ## Command list
 
 | Command | Purpose |
@@ -36,6 +43,7 @@ name to use.
 | `mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |
 | `mailman send-scheduled --due` | The scheduled-send ticker's actual dispatch target — invoked by the OS scheduler (launchd/cron/Task Scheduler), never run manually or by an LLM. Reads `scheduled.json`, sends everything due through the same path `confirm_send` uses, marks each `sent`/`failed`. |
 | `mailman status` | The `@clack/prompts` tree view — accounts, security, MCP registration, activity, pending-scheduled count. Already specced in docs/PLAN.md. |
+| `mailman update` (alias: `upgrade`) | Self-update: checks npm.indianic.in for a newer `@indianic/mailman` and updates the global install in place (no-op with a clear message when already current). |
 | `mailman reset` | Wipes the global config directory (`accounts.json`, `contacts.json`, `settings.json`, `activity.log`) **and** removes the keytar master-key entry, for a clean re-setup. Destructive — requires explicit `--yes`, no default-confirm bypass. |
 | `mailman help [command]` | The command list (same as `--help`), or one command's summary — exists as a real subcommand because people type `mailman help`, not just `--help`. |
 | `mailman examples` | Usage examples: the one-time terminal setup plus what to actually say inside your AI tool. Plain text, copy-paste friendly. |
