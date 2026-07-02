@@ -57,6 +57,7 @@ async function handler(rawArgs: Record<string, unknown>) {
   const settings = await getSettings();
   const bodyType = input.bodyType ?? settings.defaultBodyType;
   const body = appendSignature(input.body, account.signature, bodyType);
+  const signatureAppended = Boolean(account.signature) && body !== input.body;
 
   const draft = createDraft({
     account: account.alias,
@@ -81,7 +82,12 @@ async function handler(rawArgs: Record<string, unknown>) {
       cc: draft.cc,
       bcc: draft.bcc,
       subject: draft.subject,
-      bodyPreview: draft.body.slice(0, 500),
+      // Preview the composed body only (pre-signature), truncated. The
+      // account signature is appended to the actual send but deliberately
+      // NOT echoed here — re-emitting the full signature HTML on every draft
+      // is pure token overhead; `signatureAppended` flags it instead.
+      bodyPreview: input.body.length > 280 ? `${input.body.slice(0, 280)}…` : input.body,
+      ...(signatureAppended ? { signatureAppended: true } : {}),
       attachments: draft.attachments.map((a) => ({ name: a.name, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
     },
     next_steps: ['Show this preview to the user and get explicit confirmation before calling confirm_send.'],
