@@ -15,6 +15,7 @@
   "files": [
     "dist",
     "bin",
+    "assets/mailman.icns",
     "README.md"
   ],
   "scripts": {
