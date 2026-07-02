@@ -29,7 +29,26 @@ export function getPlatformMechanism(): TickerMechanism {
 
 // --- launchd (macOS) ---------------------------------------------------
 
-export function buildLaunchdPlist(pollIntervalSeconds: number = POLL_INTERVAL_SECONDS): string {
+// launchd agents and cron jobs do NOT inherit the user's shell PATH — they
+// get a bare /usr/bin:/bin(:...), which excludes every place node actually
+// gets installed (Homebrew's /opt/homebrew/bin, nvm's ~/.nvm/.../bin). The
+// node that's running THIS install code knows where its own bin dir is
+// (process.execPath), and npx ships in that same dir — so we bake that dir
+// into the job's PATH at install time. Caught live: the very first real
+// ticker-fire test on macOS would have died every tick with
+// "env: npx: No such file or directory" without this.
+function tickerPath(nodeBinDir: string): string {
+  // /opt/homebrew/bin is included explicitly: on Apple Silicon,
+  // process.execPath resolves through the symlink to a VERSIONED Cellar dir
+  // (…/Cellar/node/26.4.0/bin) that disappears on `brew upgrade node` — the
+  // stable symlink dir keeps the ticker alive across upgrades.
+  return `${nodeBinDir}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`;
+}
+
+export function buildLaunchdPlist(
+  pollIntervalSeconds: number = POLL_INTERVAL_SECONDS,
+  nodeBinDir: string = path.dirname(process.execPath),
+): string {
   const logPath = path.join(os.homedir(), 'Library', 'Logs', 'mcp-mailman-ticker.log');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -45,6 +64,10 @@ export function buildLaunchdPlist(pollIntervalSeconds: number = POLL_INTERVAL_SE
     <string>send-scheduled</string>
     <string>--due</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>${tickerPath(nodeBinDir)}</string>
+  </dict>
   <key>StartInterval</key><integer>${pollIntervalSeconds}</integer>
   <key>RunAtLoad</key><false/>
   <key>StandardOutPath</key><string>${logPath}</string>
@@ -76,8 +99,10 @@ async function installLaunchd(): Promise<void> {
 
 // --- crontab (Linux) -----------------------------------------------------
 
-export function buildCronLine(pollIntervalMinutes = 3): string {
-  return `*/${pollIntervalMinutes} * * * * npx -y ${NPM_PACKAGE} send-scheduled --due >> ~/.mcp-mailman-ticker.log 2>&1 ${CRON_MARKER}`;
+export function buildCronLine(pollIntervalMinutes = 3, nodeBinDir: string = path.dirname(process.execPath)): string {
+  // Inline PATH= assignment — cron's default PATH is /usr/bin:/bin, which
+  // misses nvm/Homebrew node installs (same trap as launchd above).
+  return `*/${pollIntervalMinutes} * * * * PATH=${tickerPath(nodeBinDir)} npx -y ${NPM_PACKAGE} send-scheduled --due >> ~/.mcp-mailman-ticker.log 2>&1 ${CRON_MARKER}`;
 }
 
 export function isCronInstalled(currentCrontab: string): boolean {

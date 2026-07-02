@@ -18,6 +18,16 @@ test('buildLaunchdPlist embeds the send-scheduled --due command and a poll inter
   assert.match(plist, /@indianic\/mailman/);
 });
 
+test('buildLaunchdPlist bakes the node bin dir into PATH — launchd default PATH lacks Homebrew/nvm', () => {
+  const plist = buildLaunchdPlist(120, '/opt/fake/node/bin');
+  assert.match(plist, /<key>EnvironmentVariables<\/key>/);
+  assert.match(plist, /<key>PATH<\/key><string>\/opt\/fake\/node\/bin:.*\/usr\/bin:\/bin<\/string>/);
+});
+
+test('buildCronLine sets PATH inline so cron (default /usr/bin:/bin) finds npx', () => {
+  assert.match(buildCronLine(3, '/opt/fake/node/bin'), /PATH=\/opt\/fake\/node\/bin:\S* npx -y @indianic\/mailman/);
+});
+
 test('isCronInstalled detects the mailman marker line', () => {
   assert.equal(isCronInstalled('* * * * * echo hi\n'), false);
   assert.equal(isCronInstalled(`${buildCronLine()}\n`), true);
