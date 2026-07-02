@@ -7,6 +7,7 @@ import { getDraft, markSent } from '../drafts.js';
 import { getProvider } from '../mail/get-provider.js';
 import { OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
 import { upsertRecipient } from '../contacts.js';
+import { notifyDesktop, summarizeRecipients } from '../notify.js';
 import { debugLog } from '../logging.js';
 import type { Tool } from './types.js';
 
@@ -77,6 +78,11 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const sentAt = new Date().toISOString();
   markSent(draftId, { messageId, sentAt });
+
+  // Opt-in native desktop notification (off by default). Fire-and-forget:
+  // the mail already went out, so a notification hiccup must never affect
+  // the response.
+  void notifyDesktop('mailman — email sent', `To ${summarizeRecipients(draft.to)} · ${draft.subject}`);
 
   // Best-effort: the mail already went out, so a contacts-bookkeeping
   // failure shouldn't turn a successful send into an error response.

@@ -37,8 +37,8 @@ Unknown commands suggest the nearest real one (`upgarde` → did you mean
 | `mailman contacts list` | Print the local address book. |
 | `mailman contacts add <email> [--name "..."]` | Manually add a contact. |
 | `mailman contacts remove <email>` | Remove a contact. |
-| `mailman settings get` | Print current global settings (`defaultAccount`, `draftTtlMinutes`, `alwaysConfirm`, `defaultBodyType`). |
-| `mailman settings set <key> <value>` | Update one setting. `defaultBodyType` accepts `text` or `html` — what `draft_email` falls back to when a call omits `bodyType`. |
+| `mailman settings get` | Print current global settings (`defaultAccount`, `draftTtlMinutes`, `alwaysConfirm`, `defaultBodyType`, `desktopNotifications`). |
+| `mailman settings set <key> <value>` | Update one setting. `defaultBodyType` accepts `text` or `html` — what `draft_email` falls back to when a call omits `bodyType`. `desktopNotifications` accepts `true`/`false` (default `false`) — when on, a native OS notification (macOS Notification Center / Linux `notify-send` / Windows toast) fires after each successful send, including scheduled sends. |
 | `mailman register` | Register mailman with your AI editors. `register --tools <a,b,…\|all> [--scope global\|project]` writes/merges each tool's MCP config directly (Claude Code, Cursor, Gemini CLI, Windsurf, Codex — the same engine `init` uses; idempotent). `register -i` runs the interactive picker. Bare `register` just prints the copy-pasteable `claude mcp add mailman -- npx -y @indianic/mailman` line without writing anything. User-level-only tools (Gemini/Windsurf/Codex) always write their user config regardless of `--scope`. |
 | `mailman doctor` | Environment pre-flight checks, distinct from `status` (which reports *configured* state): is a keyring backend actually reachable right now (catches the headless-Linux-no-keyring case before `account add` fails confusingly), Node version ≥18, DNS/TCP reachability to `smtp.gmail.com:465` and `imap.gmail.com:993`. |
 | `mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |

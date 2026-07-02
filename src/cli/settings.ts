@@ -9,14 +9,16 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
   const settings = await getSettings();
 
   section('settings');
-  detail(`defaultAccount    ${settings.defaultAccount ?? 'none'}`);
-  detail(`draftTtlMinutes   ${settings.draftTtlMinutes}`);
-  detail(`alwaysConfirm     ${settings.alwaysConfirm}`);
-  detail(`defaultBodyType   ${settings.defaultBodyType}`);
+  const row = (k: string, v: unknown): void => detail(`${k.padEnd(20)} ${String(v)}`);
+  row('defaultAccount', settings.defaultAccount ?? 'none');
+  row('draftTtlMinutes', settings.draftTtlMinutes);
+  row('alwaysConfirm', settings.alwaysConfirm);
+  row('defaultBodyType', settings.defaultBodyType);
+  row('desktopNotifications', settings.desktopNotifications);
   outro('settings');
 }
 
-const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'defaultBodyType'] as const;
+const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'defaultBodyType', 'desktopNotifications'] as const;
 
 /** `mailman settings set <key> <value>` */
 export async function runSettingsSet(args: string[]): Promise<void> {
@@ -53,6 +55,12 @@ export async function runSettingsSet(args: string[]): Promise<void> {
       process.exit(1);
     }
     await updateSettings((current) => ({ ...current, alwaysConfirm: value === 'true' }));
+  } else if (key === 'desktopNotifications') {
+    if (value !== 'true' && value !== 'false') {
+      fail('desktopNotifications must be "true" or "false"');
+      process.exit(1);
+    }
+    await updateSettings((current) => ({ ...current, desktopNotifications: value === 'true' }));
   } else {
     if (value !== 'text' && value !== 'html') {
       fail('defaultBodyType must be "text" or "html"');

@@ -3,6 +3,7 @@ import { resolveAccount } from '../accounts.js';
 import { getProvider } from '../mail/get-provider.js';
 import { resolveAttachments } from '../tools/resolve-attachments.js';
 import { upsertRecipient } from '../contacts.js';
+import { notifyDesktop, summarizeRecipients } from '../notify.js';
 import { debugLog } from '../logging.js';
 import type { ScheduledEntry } from '../config/schema.js';
 
@@ -60,6 +61,10 @@ export async function dispatchOne(entry: ScheduledEntry): Promise<DispatchOutcom
       attempts: e.attempts + 1,
       result: { messageId, sentAt },
     }));
+
+    // Opt-in native notification — especially useful here, since a scheduled
+    // send fires unattended in the background ticker.
+    void notifyDesktop('mailman — scheduled email sent', `To ${summarizeRecipients(content.to)} · ${content.subject}`);
 
     try {
       await Promise.all([...content.to, ...content.cc, ...content.bcc].map((email) => upsertRecipient(email)));

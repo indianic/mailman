@@ -54,6 +54,11 @@ export const SettingsFileSchema = z.object({
   // .default() rather than a bare required field — settings.json files
   // written before this field existed shouldn't fail to load.
   defaultBodyType: z.enum(['text', 'html']).default('text'),
+  // Opt-in native desktop notification (macOS Notification Center /
+  // Linux notify-send / Windows toast) after a successful send. Off by
+  // default — no surprise pop-ups. .default(false) so settings.json files
+  // written before this field existed still load.
+  desktopNotifications: z.boolean().default(false),
 });
 
 export type Account = z.infer<typeof AccountSchema>;
@@ -68,6 +73,7 @@ export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   draftTtlMinutes: 10,
   alwaysConfirm: true,
   defaultBodyType: 'text',
+  desktopNotifications: false,
 };
 
 // "google-contacts" is never stored here — it's fetched live from the
