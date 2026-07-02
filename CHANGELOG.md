@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.4] - 2026-07-02
+
+- Tight spacing everywhere: doctor restructured under one ◆ checks section, and all remaining error/info/warning messages (usage errors, update failures, OAuth guidance) now render tight tree rows instead of padded clack log output.
+
 ## [0.4.3] - 2026-07-02
 
 - Tightened diamond-tree spacing: rows attach directly (no more double-spacing), blank connector only before each section header — matching the reference design.
