@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.4] - 2026-07-02
+
+- feat: opt-in native desktop notifications on send (macOS/Linux/Windows), with a branded macOS notification icon via a generated mailman.app bundle
+
 ## [0.5.3] - 2026-07-02
 
 - feat(cli): passive 'update available' notifier — cached, non-blocking, TTY-only notice shown before command output when a newer version is published
