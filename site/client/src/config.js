@@ -5,3 +5,7 @@ export const BRAND = 'MailMan';
 export const PACKAGE = '@indianic/mailman';
 export const VERSION = '0.5.6';
 export const NPM_URL = 'https://npm.indianic.in/#/packages';
+
+// Public site origin — used for canonical URLs, Open Graph and the sitemap.
+// Change this to the real deployment domain.
+export const SITE_URL = 'https://mailman.indianic.in';

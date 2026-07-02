@@ -1,22 +1,26 @@
 import Reveal from './Reveal.jsx';
-import { Sparkle, Cursor, Wave, Code, OpenAI, Apple, Linux, Windows } from './icons.jsx';
+import { ICONS } from './icons.jsx';
+import { useContent } from '../ContentContext.jsx';
 
-const AI_TOOLS = [
-  { name: 'Claude', Icon: Sparkle, color: 'text-orange-500' },
-  { name: 'Gemini', Icon: Sparkle, color: 'text-blue-500' },
-  { name: 'OpenAI', Icon: OpenAI, color: 'text-emerald-600 dark:text-emerald-400' },
-  { name: 'Cursor', Icon: Cursor, color: 'text-slate-700 dark:text-slate-200' },
-  { name: 'Windsurf', Icon: Wave, color: 'text-teal-500' },
-  { name: 'Codex', Icon: Code, color: 'text-violet-500' },
+// DB-backed (site_content.aiTools / .platforms); these are fallbacks only.
+const AI_FALLBACK = [
+  { name: 'Claude', icon: 'sparkle', color: 'text-orange-500' },
+  { name: 'Gemini', icon: 'sparkle', color: 'text-blue-500' },
+  { name: 'OpenAI', icon: 'openai', color: 'text-emerald-600 dark:text-emerald-400' },
+  { name: 'Cursor', icon: 'cursor', color: 'text-slate-700 dark:text-slate-200' },
+  { name: 'Windsurf', icon: 'wave', color: 'text-teal-500' },
+  { name: 'Codex', icon: 'code', color: 'text-violet-500' },
 ];
 
-const PLATFORMS = [
-  { name: 'macOS', Icon: Apple, note: 'Verified end-to-end', color: 'text-slate-800 dark:text-slate-100' },
-  { name: 'Linux', Icon: Linux, note: 'Verified (Docker)', color: 'text-slate-800 dark:text-slate-100' },
-  { name: 'Windows', Icon: Windows, note: 'Supported, pure Node', color: 'text-sky-500' },
+const PLATFORM_FALLBACK = [
+  { name: 'macOS', icon: 'apple', note: 'Verified end-to-end', color: 'text-slate-800 dark:text-slate-100' },
+  { name: 'Linux', icon: 'linux', note: 'Verified (Docker)', color: 'text-slate-800 dark:text-slate-100' },
+  { name: 'Windows', icon: 'windows', note: 'Supported, pure Node', color: 'text-sky-500' },
 ];
 
 export default function Compatibility() {
+  const aiTools = useContent('aiTools', AI_FALLBACK);
+  const platforms = useContent('platforms', PLATFORM_FALLBACK);
   return (
     <section
       id="works-with"
@@ -39,15 +43,18 @@ export default function Compatibility() {
             Supported AI tools
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-            {AI_TOOLS.map((t) => (
-              <div
-                key={t.name}
-                className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
-              >
-                <t.Icon className={`h-5 w-5 ${t.color}`} />
-                {t.name}
-              </div>
-            ))}
+            {aiTools.map((t) => {
+              const Icon = ICONS[t.icon] || ICONS.sparkle;
+              return (
+                <div
+                  key={t.name}
+                  className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <Icon className={`h-5 w-5 ${t.color}`} />
+                  {t.name}
+                </div>
+              );
+            })}
           </div>
         </Reveal>
 
@@ -57,18 +64,21 @@ export default function Compatibility() {
             Runs natively on
           </p>
           <div className="mx-auto mt-6 grid max-w-3xl gap-4 sm:grid-cols-3">
-            {PLATFORMS.map((p) => (
-              <div
-                key={p.name}
-                className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
-              >
-                <div className="flex justify-center">
-                  <p.Icon className={`h-9 w-9 ${p.color}`} />
+            {platforms.map((p) => {
+              const Icon = ICONS[p.icon] || ICONS.laptop;
+              return (
+                <div
+                  key={p.name}
+                  className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <div className="flex justify-center">
+                    <Icon className={`h-9 w-9 ${p.color}`} />
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold">{p.name}</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{p.note}</p>
                 </div>
-                <h3 className="mt-3 text-lg font-semibold">{p.name}</h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{p.note}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <p className="mx-auto mt-8 max-w-xl text-center text-sm text-slate-500 dark:text-slate-400">
             Same behavior everywhere — it’s pure Node.js. Credentials are stored in each

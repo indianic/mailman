@@ -9,6 +9,7 @@ const NAV = [
   { label: 'Features', href: '/#features' },
   { label: 'Works with', href: '/#works-with' },
   { label: 'How to use', href: '/#how-to-use' },
+  { label: 'Examples', href: '/#examples' },
   { label: 'Install', href: '/#install' },
 ];
 
@@ -39,7 +40,7 @@ export default function Navbar() {
           <span className="text-gradient">MailMan</span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 lg:flex">
           {NAV.map((n) => (
             <a
               key={n.label}

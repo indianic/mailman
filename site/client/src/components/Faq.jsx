@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Reveal from './Reveal.jsx';
 import { Plus } from './icons.jsx';
+import { useContent } from '../ContentContext.jsx';
 
-const FAQS = [
+const FALLBACK = [
   {
     q: 'Do I need to be technical to use it?',
     a: 'No. A developer (or the setup wizard) installs it once. After that you just talk to your AI assistant in plain English — “email this to Sana,” “what did I get from finance today?”',
@@ -64,6 +65,7 @@ function Item({ q, a, open, onToggle }) {
 }
 
 export default function Faq() {
+  const FAQS = useContent('faqs', FALLBACK);
   const [open, setOpen] = useState(0);
   return (
     <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-5 py-20">

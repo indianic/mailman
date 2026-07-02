@@ -1,5 +1,18 @@
 import { motion } from 'framer-motion';
 import { NPM_URL } from '../config.js';
+import TerminalCard from './TerminalCard.jsx';
+import FlipWords from './FlipWords.jsx';
+
+const HERO_LINES = [
+  { role: 'prompt', text: 'MailMan, send the Q3 report to sandeep@indianic.com' },
+  { role: 'treetop' },
+  { role: 'section', text: 'draft — preview' },
+  { role: 'rail', text: 'to · sandeep@indianic.com' },
+  { role: 'rail', text: 'subject · Q3 Report' },
+  { role: 'rail', text: 'Q3-report.pdf (84 KB) · signature appended' },
+  { role: 'status', text: 'send it' },
+  { role: 'treeend', text: 'sent · desktop notification shown' },
+];
 
 export default function Hero() {
   return (
@@ -36,7 +49,8 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl"
           >
-            Email for your <span className="text-gradient">AI assistant</span>
+            Email from your{' '}
+            <FlipWords words={['terminal', 'editor', 'AI chat', 'workflow', 'flow']} />
           </motion.h1>
 
           <motion.p
@@ -46,8 +60,27 @@ export default function Hero() {
             className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 dark:text-slate-300"
           >
             Send and read Gmail just by asking — <em>“send those docs to Kalpesh,”</em>{' '}
-            <em>“show my last 10 emails.”</em> MailMan plugs into Claude Code, Cursor,
-            Gemini CLI and more. Nothing sends without your OK.
+            <em>“show my last 10 emails.”</em> Nothing sends without your OK.
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.16 }}
+            className="mt-5 text-base font-medium text-slate-500 dark:text-slate-400"
+          >
+            Runs with{' '}
+            <FlipWords
+              words={['Claude', 'Gemini', 'OpenAI', 'Cursor', 'Windsurf', 'VS Code']}
+              interval={1900}
+              colorClass="font-semibold text-brand-600 dark:text-brand-400"
+            />{' '}
+            on{' '}
+            <FlipWords
+              words={['macOS', 'Windows', 'Linux']}
+              interval={2600}
+              colorClass="font-semibold text-fuchsia-600 dark:text-fuchsia-400"
+            />
           </motion.p>
 
           <motion.div
@@ -74,26 +107,9 @@ export default function Hero() {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.28 }}
-            className="mx-auto mt-14 max-w-2xl"
+            className="mx-auto mt-14 max-w-2xl text-left"
           >
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 text-left shadow-2xl dark:border-slate-800">
-              <div className="flex items-center gap-2 border-b border-slate-700/60 px-4 py-3">
-                <span className="h-3 w-3 rounded-full bg-red-400" />
-                <span className="h-3 w-3 rounded-full bg-yellow-400" />
-                <span className="h-3 w-3 rounded-full bg-green-400" />
-                <span className="ml-2 font-mono text-xs text-slate-400">claude · MailMan</span>
-              </div>
-              <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed text-slate-300">
-<span className="text-brand-300">you ›</span> MailMan, send the Q3 report to sandeep@indianic.com
-<span className="text-slate-500">
-  📝 Draft ready — preview:
-     To:      sandeep@indianic.com
-     Subject: Q3 Report
-     ✓ signature appended</span>
-<span className="text-brand-300">you ›</span> send it
-<span className="text-green-400">  ✅ Sent · desktop notification shown</span>
-              </pre>
-            </div>
+            <TerminalCard title="claude · MailMan" lines={HERO_LINES} />
           </motion.div>
         </div>
       </div>

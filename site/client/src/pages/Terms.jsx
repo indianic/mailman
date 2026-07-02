@@ -1,8 +1,14 @@
 import LegalLayout from './LegalLayout.jsx';
+import Seo from '../components/Seo.jsx';
 
 export default function Terms() {
   return (
     <LegalLayout title="Terms of Service" updated="2 July 2026">
+      <Seo
+        title="Terms of Service — MailMan"
+        description="Terms governing use of the MailMan website and the @indianic/mailman software."
+        path="/terms"
+      />
       <p>
         These terms govern your use of the MailMan website and the{' '}
         <code>@indianic/mailman</code> software. By using either, you agree to them.

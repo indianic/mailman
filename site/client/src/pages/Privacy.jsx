@@ -1,8 +1,14 @@
 import LegalLayout from './LegalLayout.jsx';
+import Seo from '../components/Seo.jsx';
 
 export default function Privacy() {
   return (
     <LegalLayout title="Privacy Policy" updated="2 July 2026">
+      <Seo
+        title="Privacy Policy — MailMan"
+        description="How the MailMan website handles data. Newsletter emails only; your Gmail credentials are encrypted on your own machine and never uploaded."
+        path="/privacy"
+      />
       <p>
         This policy explains what this website collects. It covers the MailMan
         marketing site only — the MailMan tool itself stores your email

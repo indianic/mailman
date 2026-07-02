@@ -49,6 +49,18 @@ app.post('/api/subscribe', async (req, res) => {
   }
 });
 
+// All editable site content as { key: data, ... }.
+app.get('/api/content', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT key, data FROM site_content');
+    const content = Object.fromEntries(rows.map((r) => [r.key, r.data]));
+    res.json(content);
+  } catch (err) {
+    console.error('content fetch failed:', err.message);
+    res.status(500).json({ error: 'content unavailable' });
+  }
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');

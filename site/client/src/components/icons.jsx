@@ -207,3 +207,25 @@ export const Spark = ({ className = 'h-5 w-5' }) => (
     <path d="M18.5 13c.2 1.8.8 2.4 2.6 2.6-1.8.2-2.4.8-2.6 2.6-.2-1.8-.8-2.4-2.6-2.6 1.8-.2 2.4-.8 2.6-2.6z" />
   </svg>
 );
+
+// String-key → component registry, so DB-stored content can reference icons.
+export const ICONS = {
+  messageSquare: MessageSquare,
+  shieldCheck: ShieldCheck,
+  paperclip: Paperclip,
+  clock: Clock,
+  inbox: Inbox,
+  users: Users,
+  bell: Bell,
+  lock: Lock,
+  laptop: Laptop,
+  mail: Mail,
+  sparkle: Sparkle,
+  cursor: Cursor,
+  wave: Wave,
+  code: Code,
+  openai: OpenAI,
+  apple: Apple,
+  linux: Linux,
+  windows: Windows,
+};

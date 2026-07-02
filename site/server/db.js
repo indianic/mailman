@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { SEED } from './seed-content.js';
 
 // Local Postgres — user "kalpesh", empty password. An empty PGPASSWORD is
 // intentional; pg treats "" as "no password", which is what a trust/peer
@@ -31,7 +32,23 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+    -- Editable site content: one row per section, value as JSON.
+    CREATE TABLE IF NOT EXISTS site_content (
+      key        TEXT PRIMARY KEY,
+      data       JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
+
+  // Seed each content section if it isn't there yet (won't clobber later edits).
+  for (const [key, data] of Object.entries(SEED)) {
+    await pool.query(
+      `INSERT INTO site_content (key, data) VALUES ($1, $2)
+       ON CONFLICT (key) DO NOTHING`,
+      [key, JSON.stringify(data)],
+    );
+  }
 
   // Back-fill the column on pre-existing subscribers tables.
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS welcomed_at TIMESTAMPTZ;`);

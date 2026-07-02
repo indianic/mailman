@@ -1,16 +1,11 @@
-import { motion } from 'framer-motion';
-
-// Small wrapper: fade + rise into view once, respecting reduced motion.
+// Fade + rise entrance — CSS only (no JS/observer), so content is guaranteed to
+// end visible. The .reveal keyframe animates opacity/transform on mount; if
+// animations are disabled (reduced motion) the element simply shows at its
+// natural opacity. delay staggers siblings.
 export default function Reveal({ children, delay = 0, className = '' }) {
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.5, delay, ease: 'easeOut' }}
-    >
+    <div className={`reveal ${className}`} style={{ animationDelay: `${delay}s` }}>
       {children}
-    </motion.div>
+    </div>
   );
 }

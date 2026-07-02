@@ -64,3 +64,50 @@ body {
     linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
 }
+
+/* Flow-diagram "data moving" marching-ants on the dashed connectors. */
+.flow-line {
+  stroke-dasharray: 5 9;
+  animation: dash 1s linear infinite;
+}
+.flow-line-slow {
+  stroke-dasharray: 4 10;
+  animation: dash 2.4s linear infinite;
+}
+@keyframes dash {
+  to { stroke-dashoffset: -28; }
+}
+
+/* Soft breathing ring around the hub. */
+.hub-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hubpulse 3s ease-in-out infinite;
+}
+@keyframes hubpulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.15; transform: scale(1.06); }
+}
+
+/* Scroll/entrance reveal — CSS only so content always ends visible. */
+.reveal {
+  animation: reveal-up 0.6s ease-out both;
+}
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* macOS-style notification pop-in (CSS only → always ends visible). */
+.notif {
+  animation: notif-in 0.5s 0.5s ease-out both;
+}
+@keyframes notif-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-line, .flow-line-slow, .hub-pulse, .animate-float { animation: none; }
+  .reveal, .notif { animation: none; }
+}
