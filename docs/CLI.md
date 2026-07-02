@@ -44,10 +44,10 @@ Unknown commands suggest the nearest real one (`upgarde` → did you mean
 | `mailman scheduled list` | Read-only mirror of the `list_scheduled` MCP tool — pending/sent/failed scheduled sends. |
 | `mailman send-scheduled --due` | The scheduled-send ticker's actual dispatch target — invoked by the OS scheduler (launchd/cron/Task Scheduler), never run manually or by an LLM. Reads `scheduled.json`, sends everything due through the same path `confirm_send` uses, marks each `sent`/`failed`. |
 | `mailman status` | The `@clack/prompts` tree view — accounts, security, MCP registration, activity, pending-scheduled count. Already specced in docs/PLAN.md. |
-| `mailman update` (alias: `upgrade`) | Self-update: checks npm.indianic.in for a newer `@indianic/mailman` and updates the global install in place (no-op with a clear message when already current). |
+| `mailman update` (alias: `upgrade`) | Self-update: checks npm.indianic.in for a newer `@indianic/mailman` and updates the global install in place (no-op with a clear message when already current). Separately, *any* interactive command prints a passive "update available" notice above its own output when a newer version has been published — checked at most once a day from a cached result, in a detached background process, so it never slows a command down (suppressed on pipes/CI and via `NO_UPDATE_NOTIFIER`). |
 | `mailman reset` | Wipes the global config directory (`accounts.json`, `contacts.json`, `settings.json`, `activity.log`) **and** removes the keytar master-key entry, for a clean re-setup. Destructive — requires explicit `--yes`, no default-confirm bypass. |
 | `mailman help [command]` | The command list (same as `--help`), or one command's summary — exists as a real subcommand because people type `mailman help`, not just `--help`. |
-| `mailman examples` | Usage examples: the one-time terminal setup plus what to actually say inside your AI tool. Rendered in the same diamond tree as every other command. |
+| `mailman examples` | Usage examples: the one-time terminal setup, the From Name/signature and desktop-notification toggles, plus what to actually say inside your AI tool. Rendered in the same diamond tree as every other command. |
 | `mailman --version` / `--help` | Standard. |
 
 ## Deliberately not CLI commands

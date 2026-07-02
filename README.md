@@ -244,6 +244,55 @@ per-OS-user directory — never inside a project folder or `cwd`:
 | Linux | `~/.config/mcp-mailman/` |
 | Windows | `%APPDATA%\mcp-mailman\` |
 
+## Desktop notifications
+
+After each successful send — interactive **and** scheduled — mailman fires a
+native desktop notification ("mailman — email sent · To …"), so you get
+confirmation even when the send happened in the background. It uses the OS's
+built-in mechanism, no extra dependencies:
+
+| OS | Mechanism |
+|---|---|
+| macOS | Notification Center (via `osascript`) |
+| Linux | `notify-send` (libnotify) |
+| Windows | native toast (PowerShell) |
+
+It's **on by default**. Turn it off (or back on) any time:
+
+```bash
+mailman settings set desktopNotifications false
+mailman settings set desktopNotifications true
+```
+
+It's best-effort by design: it never blocks or fails a send, and silently
+no-ops where notifications aren't available (a headless server with no D-Bus
+session, notifications disabled, etc.).
+
+> **macOS note:** notifications are posted via `osascript`, so they appear
+> under **Script Editor**'s identity. If nothing shows up, check
+> **System Settings → Notifications → Script Editor** and make sure
+> "Allow Notifications" is on (and that a Focus/Do-Not-Disturb mode isn't
+> suppressing banners).
+
+> Since sends run inside the MCP server your AI tool launched, a notification
+> reflects the mailman version that server is running — restart the tool
+> after upgrading so a running server picks up changes.
+
+## Staying up to date
+
+Any interactive `mailman` command prints a one-line "update available" notice
+before its own output when a newer `@indianic/mailman` has been published
+(checked at most once a day, from cache, so it never slows a command down).
+To upgrade in place:
+
+```bash
+mailman update        # or: mailman upgrade
+```
+
+This checks `npm.indianic.in` and updates the global install (a no-op with a
+clear message when you're already current). Restart your AI tools afterward so
+their MCP server picks up the new version.
+
 ## License
 
 MIT

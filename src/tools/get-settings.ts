@@ -9,6 +9,7 @@ async function handler() {
     draftTtlMinutes: settings.draftTtlMinutes,
     alwaysConfirm: settings.alwaysConfirm,
     defaultBodyType: settings.defaultBodyType,
+    desktopNotifications: settings.desktopNotifications,
   });
 }
 

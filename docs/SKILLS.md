@@ -129,7 +129,10 @@ Dispatches the exact draft produced by `draft_email`.
   `draft_email` preview first. **Idempotent**: calling it again with the
   same `draftId` after a successful send returns the original result
   (`DRAFT_ALREADY_SENT` internally, surfaced as success) instead of
-  resending — safe to retry on an ambiguous prior response.
+  resending — safe to retry on an ambiguous prior response. On a successful
+  send it also fires a best-effort native desktop notification when the
+  `desktopNotifications` setting is on (default) — never affects the tool
+  result either way.
 
 ## `cancel_draft`
 
@@ -242,16 +245,19 @@ Deletes a configured account.
 Returns current global settings.
 
 - **Input**: `{}`
-- **Output**: `{ defaultAccount: string | null, draftTtlMinutes: number, alwaysConfirm: boolean, defaultBodyType: "text" | "html" }`
+- **Output**: `{ defaultAccount: string | null, draftTtlMinutes: number, alwaysConfirm: boolean, defaultBodyType: "text" | "html", desktopNotifications: boolean }`
 
 ## `update_settings`
 
 Updates one or more global settings.
 
-- **Input**: `{ defaultAccount?: string, draftTtlMinutes?: number, alwaysConfirm?: boolean, defaultBodyType?: "text" | "html" }`
+- **Input**: `{ defaultAccount?: string, draftTtlMinutes?: number, alwaysConfirm?: boolean, defaultBodyType?: "text" | "html", desktopNotifications?: boolean }`
 - **Output**: the full updated settings object.
 - **Notes**: `defaultBodyType` is what `draft_email` falls back to when a
   call doesn't pass `bodyType` explicitly. Defaults to `"text"`.
+  `desktopNotifications` toggles the native "email sent" desktop
+  notification fired after each successful send (`confirm_send` and
+  scheduled dispatch). Defaults to `true`.
 
 ## `add_contact` / `remove_contact`
 
