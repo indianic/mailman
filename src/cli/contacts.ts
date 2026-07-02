@@ -1,6 +1,6 @@
-import { intro, outro, log } from '@clack/prompts';
+import { intro, outro } from '@clack/prompts';
 import { listContacts, addContact, removeContact } from '../contacts.js';
-import { section, detail } from './tree.js';
+import { section, detail, fail } from './tree.js';
 
 /** `mailman contacts list` */
 export async function runContactsList(_args: string[]): Promise<void> {
@@ -28,7 +28,7 @@ export async function runContactsAdd(args: string[]): Promise<void> {
   intro('mailman — add contact');
 
   if (!email) {
-    log.error('Usage: mailman contacts add <email> [--name "..."]');
+    fail('Usage: mailman contacts add <email> [--name "..."]');
     process.exit(1);
   }
 
@@ -43,7 +43,7 @@ export async function runContactsRemove(args: string[]): Promise<void> {
   intro('mailman — remove contact');
 
   if (!email) {
-    log.error('Usage: mailman contacts remove <email>');
+    fail('Usage: mailman contacts remove <email>');
     process.exit(1);
   }
   await removeContact(email);

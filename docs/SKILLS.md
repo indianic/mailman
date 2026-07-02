@@ -29,44 +29,53 @@ and Scheduled sends sections for why.
 The tools above return plain JSON — this section is about the *other*
 half of mailman, the human-facing `mailman <command>` CLI (full list
 in [docs/CLI.md](CLI.md)). Every one of those commands renders through
-the same shared tree vocabulary (`src/cli/tree.ts`, built on
-`@clack/prompts`), so `status`, `account list`, `settings get`, `doctor`,
-etc. all look like one tool instead of a grab-bag of `console.table()`,
-raw `JSON.stringify()`, and ad hoc `process.stdout.write()` calls — which
-is what they were before this convention existed. The design matches the
-reference terminal tool the user pointed to (`ContextBrain`'s own CLI
-`status` output): a bold title, then a strict two-tier diamond hierarchy
-with plain data lines underneath, closed by an outro line.
+the same shared tree vocabulary (`src/cli/tree.ts`), so `status`,
+`account list`, `settings get`, `doctor`, `help`, etc. all look like one
+tool instead of a grab-bag of `console.table()`, raw `JSON.stringify()`,
+and ad hoc `process.stdout.write()` calls — which is what they were
+before this convention existed. The design matches the reference terminal
+tool the user pointed to (`ContextBrain`'s own CLI `status` output): a
+title, then a strict two-tier diamond hierarchy with plain data lines
+underneath, closed by an outro line.
+
+**Spacing is part of the design.** Rows attach tightly to each other; the
+single blank rail line belongs to each `◆` section header, nowhere else.
+tree.ts writes rows directly rather than through `@clack/prompts`' `log.*`
+helpers, which pad a spacer `│` before every message — that padding
+double-spaced every list until a real user flagged it against the
+reference. Only `intro()`/`outro()` (`┌`/`└`) remain clack's.
 
 ```
 ┌  mailman — status
 │
 ◆  accounts
-│
 │  mailman   app-password   default   read: yes
 │
 ◆  security
-│
 ◇  master key found
-│
 ◇  accounts.json encrypted (AES-256-GCM)
 │
 └  status
 ```
 
-- **`◆` (filled diamond, `section()`)** — a top-level section header, or a
-  flat top-level pass/fail result when nothing wraps it (`doctor`'s
-  checks — see `result()`).
+- **`◆` (filled diamond, `section()`)** — a section header; carries the
+  one leading blank rail line.
 - **`◇` (hollow diamond, `check()`)** — a single confirmatory fact nested
-  under a section (e.g. "master key found"), the same role as
-  `ContextBrain`'s "running (pid ...)" line under "dev server". Turns
-  into a red `■` automatically when the fact is false — never a
-  standalone "failure" glyph you pick manually.
+  under a section (e.g. "master key found", or `doctor`'s rows under its
+  `◆ checks` header), the same role as `ContextBrain`'s "running
+  (pid ...)" line under "dev server". Turns into a red `■` automatically
+  when the fact is false — never a standalone "failure" glyph you pick
+  manually.
+- **`■` (red square, `fail()`)** — an error/usage failure message.
 - **`▲` (triangle, `attention()`)** — worth flagging, not a hard failure.
+- **`●` (circle, `info()`)** — informational guidance mid-flow.
 - **`│` (bar, `detail()`)** — plain data: a table row, a count, a
-  `key: value` pair. No icon, just the tree's continuation line.
+  `key: value` pair. No icon, just the tree's rail.
 - **`┌ title` / `└ closing line`** — `@clack/prompts`' own `intro()`/
   `outro()`, unchanged.
+
+Multi-line messages keep the rail unbroken: continuation lines are
+prefixed `│  `.
 
 **Deliberately exempt** — the convention applies to *everything* a human
 reads, including `help`, `examples`, and usage errors (originally these
@@ -81,10 +90,11 @@ break the output's *function*, not its looks:
 - **`--version`** — a bare value scripts capture (`mailman --version`
   in CI, npm tooling).
 
-Any new CLI command should import `section`/`check`/`result`/`detail`
-from `src/cli/tree.ts` rather than reaching for `console.table()`,
-`JSON.stringify()`, or a bare `process.stdout.write()` — that's how the
-convention stays consistent instead of drifting command by command.
+Any new CLI command should import `section`/`check`/`detail`/`fail`/
+`info`/`attention` from `src/cli/tree.ts` rather than reaching for
+`console.table()`, `JSON.stringify()`, clack's `log.*`, or a bare
+`process.stdout.write()` — that's how the convention (glyphs *and*
+spacing) stays consistent instead of drifting command by command.
 
 ## `draft_email`
 

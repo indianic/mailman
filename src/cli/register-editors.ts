@@ -1,6 +1,6 @@
-import { multiselect, select, isCancel, cancel, log } from '@clack/prompts';
+import { multiselect, select, isCancel, cancel } from '@clack/prompts';
 import { EDITORS, resolveTools, writeEditorConfig, type Scope } from './editor-config.js';
-import { section, detail } from './tree.js';
+import { section, detail, fail } from './tree.js';
 
 /**
  * Interactive editor picker + config writer, shared by `init` and the
@@ -58,7 +58,7 @@ export function writeSelectedEditors(toolIds: string[], scope: Scope): string[] 
       detail(`${result.label}: ${result.action} ${result.file}`);
       written.push(id);
     } catch (err) {
-      log.error(`${editor.label}: ${err instanceof Error ? err.message : String(err)}`);
+      fail(`${editor.label}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   return written;

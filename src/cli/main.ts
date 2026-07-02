@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { intro, outro, log } from '@clack/prompts';
-import { section, detail } from './tree.js';
+import { intro, outro } from '@clack/prompts';
+import { section, detail, fail } from './tree.js';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
 import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault } from './account.js';
@@ -83,7 +83,7 @@ function printHelp(commandName?: string): void {
       outro('`mailman help` — the full list');
       return;
     }
-    log.error(`Unknown command: ${commandName} — showing the full list.`);
+    fail(`Unknown command: ${commandName} — showing the full list.`);
   }
 
   section('commands   (usage: mailman <command> [...args])');
@@ -175,14 +175,14 @@ export async function runCli(args: string[]): Promise<void> {
   if (!entry) {
     const hint = suggestCommand(first);
     intro('mailman');
-    log.error(`Unknown command: ${first}${hint ? `\nDid you mean \`mailman ${hint}\`?` : ''}`);
+    fail(`Unknown command: ${first}${hint ? `\nDid you mean \`mailman ${hint}\`?` : ''}`);
     outro('Run `mailman help` for the full command list.');
     process.exitCode = 1;
     return;
   }
   if (!entry.handler) {
     intro('mailman');
-    log.error(`\`${twoWord in COMMANDS ? twoWord : first}\` is planned but not implemented yet.`);
+    fail(`\`${twoWord in COMMANDS ? twoWord : first}\` is planned but not implemented yet.`);
     outro('Run `mailman help` for the full command list.');
     process.exitCode = 1;
     return;

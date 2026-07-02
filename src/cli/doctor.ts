@@ -1,7 +1,7 @@
 import net from 'node:net';
 import { intro, outro } from '@clack/prompts';
 import { getTickerStatus } from '../scheduler/ticker-install.js';
-import { result } from './tree.js';
+import { section, check } from './tree.js';
 
 interface CheckResult {
   name: string;
@@ -76,8 +76,9 @@ export async function runDoctor(_args: string[]): Promise<void> {
     await checkTcpReachable('IMAP reachability', 'imap.gmail.com', 993),
   ];
 
+  section('checks');
   for (const r of results) {
-    result(r.ok, `${r.name}: ${r.detail}`);
+    check(r.ok, `${r.name}: ${r.detail}`);
   }
 
   const allOk = results.every((r) => r.ok);

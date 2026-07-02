@@ -42,19 +42,19 @@ export function check(ok: boolean, text: string): void {
   writeRow(ok ? pc.green('◇') : pc.red('■'), text);
 }
 
-/**
- * A flat, top-level pass/fail result with no wrapping section — `doctor`'s
- * checks are the whole content of that command, so each carries section
- * weight: same leading blank rail + filled ◆ (or red ■ on failure).
- */
-export function result(ok: boolean, text: string): void {
-  process.stdout.write(`${BAR}\n`);
-  writeRow(ok ? pc.green('◆') : pc.red('■'), text);
-}
-
 /** A fact worth flagging without being a hard failure — yellow ▲, tight. */
 export function attention(text: string): void {
   writeRow(pc.yellow('▲'), text);
+}
+
+/** An error/usage failure — red ■, tight. Replaces clack's log.error (which pads a spacer rail before every message). */
+export function fail(text: string): void {
+  writeRow(pc.red('■'), text);
+}
+
+/** Informational guidance mid-flow — blue ●, tight. Replaces clack's log.info. */
+export function info(text: string): void {
+  writeRow(pc.blue('●'), text);
 }
 
 /** Plain data/detail line — no icon, just the rail. Tight: consecutive details touch. */

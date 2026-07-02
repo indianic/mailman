@@ -1,4 +1,4 @@
-import { log } from '@clack/prompts';
+import { fail } from './tree.js';
 
 /** True when a human can actually answer prompts — both stdin and stdout are real TTYs. */
 export function isInteractiveTerminal(): boolean {
@@ -13,7 +13,7 @@ export function isInteractiveTerminal(): boolean {
  */
 export function requireTty(what: string, alternative?: string): void {
   if (isInteractiveTerminal()) return;
-  log.error(
+  fail(
     `${what} is interactive — it needs a real terminal.\n` +
       `This shell isn't one (AI-tool command runners, pipes, and CI are not TTYs).\n` +
       `Open your terminal app and run it there directly.${alternative ? `\n${alternative}` : ''}`,

@@ -1,17 +1,18 @@
-import { intro, outro, log, text, password, isCancel, cancel } from '@clack/prompts';
+import { intro, outro, text, password, isCancel, cancel } from '@clack/prompts';
 import { configureAccount } from '../accounts.js';
 import { runOAuthLogin, type OAuthClientConfig } from '../auth/oauth2-login.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { requireTty } from './interactive.js';
+import { fail, info, attention } from './tree.js';
 import type { Account } from '../config/schema.js';
 
 async function promptClientCredentials(): Promise<OAuthClientConfig> {
-  log.info(
+  info(
     'Needs a Google Cloud OAuth client ("Desktop app" type) — see the README for setup steps if you ' +
       "haven't created one yet.",
   );
-  log.warn(
+  attention(
     'This grants full-mailbox read access (gmail.readonly), not just send — mailman will be able to ' +
       'list, search, and read your inbox and sent mail, not only send new messages.',
   );
@@ -45,10 +46,10 @@ export async function authorizeOAuth2Account(
 ): Promise<{ account: Account; isDefault: boolean }> {
   const client = await promptClientCredentials();
 
-  log.info('Opening the consent screen...');
+  info('Opening the consent screen...');
   const { refreshToken } = await runOAuthLogin(client, {
     noBrowser: opts.noBrowser,
-    onInstructions: (message) => log.info(message),
+    onInstructions: (message) => info(message),
   });
   const { displayName, signature } = await promptProfileDetails();
 
@@ -64,7 +65,7 @@ export async function authorizeOAuth2Account(
     });
   } catch (err) {
     if (err instanceof KeyringUnavailableError) {
-      log.error(err.message);
+      fail(err.message);
       process.exit(1);
     }
     throw err;
@@ -79,7 +80,7 @@ export async function runAuthLogin(args: string[]): Promise<void> {
   intro('mailman — OAuth2 login');
   requireTty('`mailman auth login`');
   if (!alias) {
-    log.error('Usage: mailman auth login <alias> [--no-browser]');
+    fail('Usage: mailman auth login <alias> [--no-browser]');
     process.exit(1);
   }
 

@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
-import { intro, outro, log } from '@clack/prompts';
+import { intro, outro } from '@clack/prompts';
+import { fail } from './tree.js';
 import { getConfigDir } from '../config/paths.js';
 import { getServiceName } from '../config/keychain.js';
 
@@ -12,7 +13,7 @@ export async function runReset(args: string[]): Promise<void> {
   intro('mailman — reset');
 
   if (!args.includes('--yes')) {
-    log.error('This wipes all accounts, contacts, settings, and activity history. Re-run with --yes to confirm.');
+    fail('This wipes all accounts, contacts, settings, and activity history. Re-run with --yes to confirm.');
     process.exitCode = 1;
     return;
   }

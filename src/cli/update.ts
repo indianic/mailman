@@ -2,8 +2,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { intro, outro, log } from '@clack/prompts';
-import { section, detail } from './tree.js';
+import { intro, outro } from '@clack/prompts';
+import { section, detail, fail } from './tree.js';
 
 const execFileAsync = promisify(execFile);
 const PKG = '@indianic/mailman';
@@ -28,7 +28,7 @@ export async function runUpdate(_args: string[]): Promise<void> {
     const { stdout } = await execFileAsync('npm', ['view', PKG, 'version']);
     latest = stdout.trim().split('\n').pop()!.trim();
   } catch (err) {
-    log.error(`Couldn't reach the registry to check for updates: ${err instanceof Error ? err.message : String(err)}`);
+    fail(`Couldn't reach the registry to check for updates: ${err instanceof Error ? err.message : String(err)}`);
     process.exitCode = 1;
     return;
   }
@@ -45,7 +45,7 @@ export async function runUpdate(_args: string[]): Promise<void> {
   try {
     await execFileAsync('npm', ['install', '-g', `${PKG}@${latest}`]);
   } catch (err) {
-    log.error(`npm install -g failed: ${err instanceof Error ? err.message : String(err)}`);
+    fail(`npm install -g failed: ${err instanceof Error ? err.message : String(err)}`);
     outro(`Update failed — try manually: npm install -g ${PKG}@latest`);
     process.exitCode = 1;
     return;

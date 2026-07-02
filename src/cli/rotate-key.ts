@@ -1,10 +1,11 @@
-import { intro, outro, log, confirm, isCancel, cancel } from '@clack/prompts';
+import { intro, outro, confirm, isCancel, cancel } from '@clack/prompts';
 import { getAccountsPath } from '../config/paths.js';
 import { readJsonFile, writeJsonFile } from '../config/store.js';
 import { AccountsFileSchema, DEFAULT_ACCOUNTS_FILE } from '../config/schema.js';
 import { encrypt, decrypt } from '../config/crypto.js';
 import { getMasterKeyOrThrow, generateMasterKey, setMasterKey, NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
 import { requireTty } from './interactive.js';
+import { fail } from './tree.js';
 
 /**
  * CLI-only, never an MCP tool — re-keying every stored credential is a
@@ -27,7 +28,7 @@ export async function runRotateKey(_args: string[]): Promise<void> {
     oldKey = await getMasterKeyOrThrow();
   } catch (err) {
     if (err instanceof NoMasterKeyError || err instanceof KeyringUnavailableError) {
-      log.error(err.message);
+      fail(err.message);
       process.exit(1);
     }
     throw err;

@@ -1,4 +1,4 @@
-import { intro, outro, text, password, select, confirm, log, isCancel, cancel } from '@clack/prompts';
+import { intro, outro, text, password, select, confirm, isCancel, cancel } from '@clack/prompts';
 import {
   configureAccount,
   listAccounts,
@@ -13,7 +13,7 @@ import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
-import { section, detail } from './tree.js';
+import { section, detail, fail } from './tree.js';
 
 interface AppPasswordDetails {
   alias: string;
@@ -85,7 +85,7 @@ async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: b
     });
   } catch (err) {
     if (err instanceof KeyringUnavailableError) {
-      log.error(err.message);
+      fail(err.message);
       process.exit(1);
     }
     throw err;
@@ -175,7 +175,7 @@ export async function runAccountRemove(args: string[]): Promise<void> {
   intro('mailman — remove account');
 
   if (!alias) {
-    log.error('Usage: mailman account remove <alias> [--yes]');
+    fail('Usage: mailman account remove <alias> [--yes]');
     process.exit(1);
   }
 
@@ -185,7 +185,7 @@ export async function runAccountRemove(args: string[]): Promise<void> {
   } catch (err) {
     if (err instanceof AccountRemovalConfirmationError) {
       if (!isInteractiveTerminal()) {
-        log.error(`${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Re-run with --yes to confirm non-interactively.`);
+        fail(`${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Re-run with --yes to confirm non-interactively.`);
         process.exit(1);
       }
       const proceed = await confirm({ message: `${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Remove anyway?` });
@@ -198,7 +198,7 @@ export async function runAccountRemove(args: string[]): Promise<void> {
       return;
     }
     if (err instanceof AccountResolutionError) {
-      log.error(err.message);
+      fail(err.message);
       process.exit(1);
     }
     throw err;
@@ -212,13 +212,13 @@ export async function runAccountSetDefault(args: string[]): Promise<void> {
   intro('mailman — set default account');
 
   if (!alias) {
-    log.error('Usage: mailman account set-default <alias>');
+    fail('Usage: mailman account set-default <alias>');
     process.exit(1);
   }
 
   const accounts = await listAccounts();
   if (!accounts.some((a) => a.alias === alias)) {
-    log.error(`No configured account with alias "${alias}"`);
+    fail(`No configured account with alias "${alias}"`);
     process.exit(1);
   }
 
