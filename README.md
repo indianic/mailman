@@ -81,6 +81,7 @@ Still deliberately left for you rather than done automatically:
 
 ## Docs
 
+- [docs/FEATURES.md](docs/FEATURES.md) — plain-English + technical feature tour: every feature, the flows, and how it works
 - [CONTEXT.md](CONTEXT.md) — start here: condensed overview, status, key decisions
 - [docs/PLAN.md](docs/PLAN.md) — full architecture: auth, storage, tools, flows
 - [docs/SKILLS.md](docs/SKILLS.md) — the MCP tools this server exposes ("skills"), called by Claude
