@@ -68,14 +68,18 @@ with plain data lines underneath, closed by an outro line.
 - **`┌ title` / `└ closing line`** — `@clack/prompts`' own `intro()`/
   `outro()`, unchanged.
 
-**Deliberately exempt** — three cases where the tree convention would
-actively hurt usability, so they stay plain text:
-- **`register`** — prints one copy-pasteable shell command. Tree glyphs/
-  indentation would corrupt a copy-paste.
+**Deliberately exempt** — the convention applies to *everything* a human
+reads, including `help`, `examples`, and usage errors (originally these
+were plain text; the user explicitly asked for the diamond trail
+everywhere). Only three outputs stay plain, each because glyphs would
+break the output's *function*, not its looks:
+- **bare `register`** — prints one copy-pasteable shell command. Tree
+  glyphs/indentation would corrupt the paste. (`register --tools`/`-i`,
+  which write configs, do render the tree.)
 - **`send-scheduled --due`** — the OS ticker's dispatch target, read by a
   log file grep, never a human watching a terminal. Stays raw JSON.
-- **`help` / `--help` / `examples` / usage-error text** — reference text
-  meant to be scanned and copy-pasted, not a command *result*.
+- **`--version`** — a bare value scripts capture (`mailman --version`
+  in CI, npm tooling).
 
 Any new CLI command should import `section`/`check`/`result`/`detail`
 from `src/cli/tree.ts` rather than reaching for `console.table()`,

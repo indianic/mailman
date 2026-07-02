@@ -46,7 +46,7 @@ Unknown commands suggest the nearest real one (`upgarde` → did you mean
 | `mailman update` (alias: `upgrade`) | Self-update: checks npm.indianic.in for a newer `@indianic/mailman` and updates the global install in place (no-op with a clear message when already current). |
 | `mailman reset` | Wipes the global config directory (`accounts.json`, `contacts.json`, `settings.json`, `activity.log`) **and** removes the keytar master-key entry, for a clean re-setup. Destructive — requires explicit `--yes`, no default-confirm bypass. |
 | `mailman help [command]` | The command list (same as `--help`), or one command's summary — exists as a real subcommand because people type `mailman help`, not just `--help`. |
-| `mailman examples` | Usage examples: the one-time terminal setup plus what to actually say inside your AI tool. Plain text, copy-paste friendly. |
+| `mailman examples` | Usage examples: the one-time terminal setup plus what to actually say inside your AI tool. Rendered in the same diamond tree as every other command. |
 | `mailman --version` / `--help` | Standard. |
 
 ## Deliberately not CLI commands

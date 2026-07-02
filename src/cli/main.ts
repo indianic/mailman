@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { intro, outro, log } from '@clack/prompts';
+import { section, detail } from './tree.js';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
 import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault } from './account.js';
@@ -61,58 +63,61 @@ function getVersion(): string {
   return pkg.version;
 }
 
+// Tree-rendered like every other command (per the user's explicit call:
+// the diamond trail applies to help/examples too, not just data commands).
+// The only outputs still exempt are `--version` (bare value for scripts)
+// and bare `register` (a single line whose whole purpose is pasting) —
+// see docs/SKILLS.md's "Terminal output convention".
 function printHelp(commandName?: string): void {
-  // `mailman help <command>` — print just that command's line (matching the
-  // single- or two-word form), falling back to the full list if unknown.
+  intro('mailman — help');
+
+  // `mailman help <command>` — just that command's line(s), matching the
+  // single- or two-word form, falling back to the full list if unknown.
   if (commandName) {
     const matches = Object.entries(COMMANDS).filter(([name]) => name === commandName || name.startsWith(`${commandName} `));
     if (matches.length > 0) {
+      section(commandName);
       for (const [name, entry] of matches) {
-        process.stdout.write(`  mailman ${name.padEnd(20)} ${entry.summary}\n`);
+        detail(`mailman ${name.padEnd(22)} ${entry.summary}`);
       }
+      outro('`mailman help` — the full list');
       return;
     }
-    process.stdout.write(`Unknown command: ${commandName} — full list:\n\n`);
+    log.error(`Unknown command: ${commandName} — showing the full list.`);
   }
 
-  process.stdout.write('mailman — MCP server + CLI for sending and reading Gmail\n\n');
-  process.stdout.write('Usage: mailman <command> [...args]\n\n');
-  process.stdout.write('Commands:\n');
+  section('commands   (usage: mailman <command> [...args])');
   for (const [name, entry] of Object.entries(COMMANDS)) {
     const tag = entry.handler ? '' : ' (not implemented yet)';
-    process.stdout.write(`  ${name.padEnd(20)} ${entry.summary}${tag}\n`);
+    detail(`${name.padEnd(22)} ${entry.summary}${tag}`);
   }
-  process.stdout.write('\n  --version            Print the installed version\n');
-  process.stdout.write('  --help               Print this message\n');
-  process.stdout.write('\nNew here? `mailman examples` shows setup + what to say in your AI tool.\n');
+  section('flags');
+  detail('--version               Print the installed version');
+  detail('--help                  This list');
+  outro('New here? `mailman examples` shows setup + what to say in your AI tool.');
 }
 
-// Plain text on purpose (like --help): reference material meant to be read
-// and copy-pasted, not a command *result* — see docs/SKILLS.md's "Terminal
-// output convention" exemptions.
 function printExamples(): void {
-  process.stdout.write(`mailman — examples
+  intro('mailman — examples');
 
-Terminal setup (once):
+  section('terminal setup (once)');
+  detail('mailman init                              add your first Gmail account + register your AI tools');
+  detail('mailman register --tools claude,cursor    (re)write editor MCP configs without re-adding an account');
+  detail("mailman status                            what's configured right now");
+  detail('mailman doctor                            environment pre-flight checks');
 
-  mailman init                              add your first Gmail account + register your AI tools
-  mailman register --tools claude,cursor    (re)write editor MCP configs without re-adding an account
-  mailman status                            what's configured right now
-  mailman doctor                            environment pre-flight checks
+  section('inside your AI tool (Claude Code, Cursor, ...), in plain English');
+  detail('"mailman, send those docs to kalpesh@example.com"');
+  detail('"mailman, list my last 10 emails"');
+  detail('"search my inbox for invoices from last month"');
+  detail('"read the latest email from AWS"');
+  detail('"mailman, send this tomorrow at 9am instead of now"');
+  detail('"get my contacts"');
 
-Everyday use happens INSIDE your AI tool (Claude Code, Cursor, ...), in plain English:
+  section('safety');
+  detail('Every send shows a preview first — nothing leaves the machine until you confirm.');
 
-  "mailman, send those docs to kalpesh@example.com"
-  "mailman, list my last 10 emails"
-  "search my inbox for invoices from last month"
-  "read the latest email from AWS"
-  "mailman, send this tomorrow at 9am instead of now"
-  "get my contacts"
-
-Every send shows you a preview first — nothing leaves the machine until you
-confirm it in the conversation. Full tool reference: docs/SKILLS.md; every
-terminal command: docs/CLI.md (or \`mailman help\`).
-`);
+  outro('Full reference: `mailman help` · docs/SKILLS.md · docs/CLI.md');
 }
 
 // Plain dynamic-programming edit distance — small alphabet of ~25 command
@@ -169,16 +174,16 @@ export async function runCli(args: string[]): Promise<void> {
 
   if (!entry) {
     const hint = suggestCommand(first);
-    process.stderr.write(
-      `Unknown command: ${first}\n` +
-        (hint ? `Did you mean \`mailman ${hint}\`?\n` : '') +
-        `\nRun \`mailman --help\` for the full command list.\n`,
-    );
+    intro('mailman');
+    log.error(`Unknown command: ${first}${hint ? `\nDid you mean \`mailman ${hint}\`?` : ''}`);
+    outro('Run `mailman help` for the full command list.');
     process.exitCode = 1;
     return;
   }
   if (!entry.handler) {
-    process.stderr.write(`\`${twoWord in COMMANDS ? twoWord : first}\` is planned but not implemented yet.\n`);
+    intro('mailman');
+    log.error(`\`${twoWord in COMMANDS ? twoWord : first}\` is planned but not implemented yet.`);
+    outro('Run `mailman help` for the full command list.');
     process.exitCode = 1;
     return;
   }
