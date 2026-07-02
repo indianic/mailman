@@ -11,6 +11,7 @@ import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
+import { section, detail } from './tree.js';
 
 interface AppPasswordDetails {
   alias: string;
@@ -133,28 +134,29 @@ export async function runAccountAdd(args: string[]): Promise<void> {
   outro(`Added "${account.alias}"${isDefault ? ' (default)' : ''}.`);
 }
 
-/** `mcp-mailman account list` — plain table (alias, method, default, read-access). */
+/** `mcp-mailman account list` — accounts (alias, method, default, read-access). */
 export async function runAccountList(_args: string[]): Promise<void> {
+  intro('mailman — accounts');
   const [accounts, defaultAlias] = await Promise.all([listAccounts(), getDefaultAlias()]);
   if (accounts.length === 0) {
-    process.stdout.write('No accounts configured — run `mcp-mailman init`.\n');
+    outro('No accounts configured — run `mcp-mailman init`.');
     return;
   }
-  console.table(
-    accounts.map((a) => ({
-      alias: a.alias,
-      email: a.email,
-      method: a.method,
-      default: a.alias === defaultAlias,
-      canRead: true,
-    })),
-  );
+
+  section('accounts');
+  for (const a of accounts) {
+    const flags = [a.method, a.alias === defaultAlias ? 'default' : null, 'read: yes'].filter(Boolean).join('   ');
+    detail(`${a.alias}   ${a.email}   ${flags}`);
+  }
+  outro(`${accounts.length} account(s)`);
 }
 
 /** `mcp-mailman account remove <alias> [--yes]` — mirrors remove_account's confirmRemoval gate. */
 export async function runAccountRemove(args: string[]): Promise<void> {
   const alias = args.find((a) => !a.startsWith('--'));
   const yes = args.includes('--yes');
+
+  intro('mailman — remove account');
 
   if (!alias) {
     log.error('Usage: mcp-mailman account remove <alias> [--yes]');
@@ -163,7 +165,7 @@ export async function runAccountRemove(args: string[]): Promise<void> {
 
   try {
     await removeAccount(alias, yes);
-    process.stdout.write(`Removed "${alias}".\n`);
+    outro(`Removed "${alias}".`);
   } catch (err) {
     if (err instanceof AccountRemovalConfirmationError) {
       const proceed = await confirm({ message: `${err.message.replace(' — pass confirmRemoval: true to remove it anyway.', '')} Remove anyway?` });
@@ -172,7 +174,7 @@ export async function runAccountRemove(args: string[]): Promise<void> {
         return;
       }
       await removeAccount(alias, true);
-      process.stdout.write(`Removed "${alias}".\n`);
+      outro(`Removed "${alias}".`);
       return;
     }
     if (err instanceof AccountResolutionError) {
@@ -186,6 +188,9 @@ export async function runAccountRemove(args: string[]): Promise<void> {
 /** `mcp-mailman account set-default <alias>` */
 export async function runAccountSetDefault(args: string[]): Promise<void> {
   const alias = args[0];
+
+  intro('mailman — set default account');
+
   if (!alias) {
     log.error('Usage: mcp-mailman account set-default <alias>');
     process.exit(1);
@@ -198,5 +203,5 @@ export async function runAccountSetDefault(args: string[]): Promise<void> {
   }
 
   await updateSettings((current) => ({ ...current, defaultAccount: alias }));
-  process.stdout.write(`"${alias}" is now the default account.\n`);
+  outro(`"${alias}" is now the default account.`);
 }

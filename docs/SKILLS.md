@@ -24,6 +24,64 @@ target (`mcp-mailman send-scheduled`), and attachment-content download are
 CLI-only/CLI-only/unbuilt respectively — see docs/PLAN.md's Data integrity
 and Scheduled sends sections for why.
 
+## Terminal output convention
+
+The tools above return plain JSON — this section is about the *other*
+half of mailman, the human-facing `mcp-mailman <command>` CLI (full list
+in [docs/CLI.md](CLI.md)). Every one of those commands renders through
+the same shared tree vocabulary (`src/cli/tree.ts`, built on
+`@clack/prompts`), so `status`, `account list`, `settings get`, `doctor`,
+etc. all look like one tool instead of a grab-bag of `console.table()`,
+raw `JSON.stringify()`, and ad hoc `process.stdout.write()` calls — which
+is what they were before this convention existed. The design matches the
+reference terminal tool the user pointed to (`ContextBrain`'s own CLI
+`status` output): a bold title, then a strict two-tier diamond hierarchy
+with plain data lines underneath, closed by an outro line.
+
+```
+┌  mailman — status
+│
+◆  accounts
+│
+│  mailman   app-password   default   read: yes
+│
+◆  security
+│
+◇  master key found
+│
+◇  accounts.json encrypted (AES-256-GCM)
+│
+└  status
+```
+
+- **`◆` (filled diamond, `section()`)** — a top-level section header, or a
+  flat top-level pass/fail result when nothing wraps it (`doctor`'s
+  checks — see `result()`).
+- **`◇` (hollow diamond, `check()`)** — a single confirmatory fact nested
+  under a section (e.g. "master key found"), the same role as
+  `ContextBrain`'s "running (pid ...)" line under "dev server". Turns
+  into a red `■` automatically when the fact is false — never a
+  standalone "failure" glyph you pick manually.
+- **`▲` (triangle, `attention()`)** — worth flagging, not a hard failure.
+- **`│` (bar, `detail()`)** — plain data: a table row, a count, a
+  `key: value` pair. No icon, just the tree's continuation line.
+- **`┌ title` / `└ closing line`** — `@clack/prompts`' own `intro()`/
+  `outro()`, unchanged.
+
+**Deliberately exempt** — three cases where the tree convention would
+actively hurt usability, so they stay plain text:
+- **`register`** — prints one copy-pasteable shell command. Tree glyphs/
+  indentation would corrupt a copy-paste.
+- **`send-scheduled --due`** — the OS ticker's dispatch target, read by a
+  log file grep, never a human watching a terminal. Stays raw JSON.
+- **`--help` / usage-error text** — reference text meant to be scanned,
+  not a command *result*.
+
+Any new CLI command should import `section`/`check`/`result`/`detail`
+from `src/cli/tree.ts` rather than reaching for `console.table()`,
+`JSON.stringify()`, or a bare `process.stdout.write()` — that's how the
+convention stays consistent instead of drifting command by command.
+
 ## `draft_email`
 
 Resolves recipients/attachments/account and returns a preview. **Does not

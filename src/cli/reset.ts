@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { log } from '@clack/prompts';
+import { intro, outro, log } from '@clack/prompts';
 import { getConfigDir } from '../config/paths.js';
 import { getServiceName } from '../config/keychain.js';
 
@@ -9,6 +9,8 @@ import { getServiceName } from '../config/keychain.js';
  * explicit `--yes`, no default-confirm bypass. See docs/CLI.md.
  */
 export async function runReset(args: string[]): Promise<void> {
+  intro('mailman — reset');
+
   if (!args.includes('--yes')) {
     log.error('This wipes all accounts, contacts, settings, and activity history. Re-run with --yes to confirm.');
     process.exitCode = 1;
@@ -25,5 +27,5 @@ export async function runReset(args: string[]): Promise<void> {
     // best-effort — a missing/unreachable keyring entry isn't a failure here
   }
 
-  process.stdout.write(`Wiped ${configDir} and removed the master key. Run \`mcp-mailman init\` to set up again.\n`);
+  outro(`Wiped ${configDir} and removed the master key. Run \`mcp-mailman init\` to set up again.`);
 }

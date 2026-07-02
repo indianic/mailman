@@ -1,25 +1,20 @@
+import { intro, outro } from '@clack/prompts';
 import { listScheduled, decryptContent } from '../scheduler/store.js';
+import { section, detail } from './tree.js';
 
 /** `mcp-mailman scheduled list` — read-only mirror of the list_scheduled MCP tool. */
 export async function runScheduledList(_args: string[]): Promise<void> {
+  intro('mailman — scheduled');
   const entries = await listScheduled();
   if (entries.length === 0) {
-    process.stdout.write('No scheduled sends.\n');
+    outro('No scheduled sends.');
     return;
   }
 
-  const rows = await Promise.all(
-    entries.map(async (e) => {
-      const content = await decryptContent(e);
-      return {
-        scheduledId: e.scheduledId,
-        to: content.to.join(', '),
-        subject: content.subject,
-        sendAt: e.sendAt,
-        status: e.status,
-        attempts: e.attempts,
-      };
-    }),
-  );
-  console.table(rows);
+  section('scheduled');
+  for (const e of entries) {
+    const content = await decryptContent(e);
+    detail(`${e.scheduledId}   ${content.to.join(', ')}   "${content.subject}"   ${e.sendAt}   ${e.status}   attempts: ${e.attempts}`);
+  }
+  outro(`${entries.length} scheduled send(s)`);
 }

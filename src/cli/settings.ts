@@ -1,22 +1,19 @@
-import { log } from '@clack/prompts';
+import { intro, outro, log } from '@clack/prompts';
 import { getSettings, updateSettings } from '../settings.js';
 import { listAccounts } from '../accounts.js';
+import { section, detail } from './tree.js';
 
 /** `mcp-mailman settings get` */
 export async function runSettingsGet(_args: string[]): Promise<void> {
+  intro('mailman — settings');
   const settings = await getSettings();
-  process.stdout.write(
-    `${JSON.stringify(
-      {
-        defaultAccount: settings.defaultAccount,
-        draftTtlMinutes: settings.draftTtlMinutes,
-        alwaysConfirm: settings.alwaysConfirm,
-        defaultBodyType: settings.defaultBodyType,
-      },
-      null,
-      2,
-    )}\n`,
-  );
+
+  section('settings');
+  detail(`defaultAccount    ${settings.defaultAccount ?? 'none'}`);
+  detail(`draftTtlMinutes   ${settings.draftTtlMinutes}`);
+  detail(`alwaysConfirm     ${settings.alwaysConfirm}`);
+  detail(`defaultBodyType   ${settings.defaultBodyType}`);
+  outro('settings');
 }
 
 const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'defaultBodyType'] as const;
@@ -24,6 +21,7 @@ const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'de
 /** `mcp-mailman settings set <key> <value>` */
 export async function runSettingsSet(args: string[]): Promise<void> {
   const [key, value] = args;
+  intro('mailman — settings set');
   if (!key || value === undefined) {
     log.error(`Usage: mcp-mailman settings set <key> <value>\nKeys: ${SETTABLE_KEYS.join(', ')}`);
     process.exit(1);
@@ -63,5 +61,5 @@ export async function runSettingsSet(args: string[]): Promise<void> {
     await updateSettings((current) => ({ ...current, defaultBodyType: value }));
   }
 
-  process.stdout.write(`Set ${key} = ${value}\n`);
+  outro(`Set ${key} = ${value}`);
 }
