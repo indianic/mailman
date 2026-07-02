@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { formatFromAddress } from '../mail/compose.js';
+import { formatFromAddress, buildMessageId, mailmanHeaders } from '../mail/compose.js';
 import type { OutboundMessage } from '../mail/provider.js';
 
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -132,6 +132,9 @@ export async function sendViaOAuth2(
       subject: message.subject,
       text: message.bodyType === 'html' ? undefined : message.body,
       html: message.bodyType === 'html' ? message.body : undefined,
+      // Same mcp-mailman.* Message-ID + X-Mailer branding as the App Password path.
+      messageId: buildMessageId(fromEmail),
+      headers: mailmanHeaders(),
       attachments: message.attachments?.map((a) => ({
         filename: a.name,
         path: a.path,

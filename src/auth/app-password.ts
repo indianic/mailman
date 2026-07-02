@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { formatFromAddress } from '../mail/compose.js';
+import { formatFromAddress, buildMessageId, mailmanHeaders } from '../mail/compose.js';
 import type { OutboundMessage } from '../mail/provider.js';
 
 export interface AppPasswordCredentials {
@@ -29,6 +29,10 @@ export function buildMailOptions(credentials: AppPasswordCredentials, message: O
     subject: message.subject,
     text: message.bodyType === 'html' ? undefined : message.body,
     html: message.bodyType === 'html' ? message.body : undefined,
+    // Brand the Message-ID (local part `mcp-mailman.*`) + X-Mailer header so
+    // mailman's sends are identifiable in an inbox / by a filter.
+    messageId: buildMessageId(credentials.user),
+    headers: mailmanHeaders(),
     attachments: message.attachments?.map((a) => ({
       filename: a.name,
       path: a.path,

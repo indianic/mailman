@@ -34,6 +34,9 @@ test('buildMailOptions produces a message nodemailer\'s JSON transport accepts a
   assert.equal(sent.subject, 'Hello');
   assert.equal(sent.text, 'Plain text body');
   assert.equal(sent.html, undefined);
+  // mailman branding actually reaches the wire, not just the options object.
+  assert.match(sent.messageId, /^<mcp-mailman\..*@example\.com>$/);
+  assert.equal(sent.headers['x-mailer'] ?? sent.headers['X-Mailer'], 'mcp-mailman');
 });
 
 test('buildMailOptions sets a "Name <email>" From when fromDisplayName is set', async () => {
