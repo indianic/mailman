@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.0] - 2026-07-02
+
+- New 'mailman account profile' command: view/set/clear your From Name and email signature from the terminal (--name, --signature with \n support, --clear-*); account list now shows the From Name; help/examples document it.
+
 ## [0.4.5] - 2026-07-02
 
 - Scheduled-send ticker fix: launchd/cron jobs now carry a PATH that includes node's bin dir — without it every tick failed to find npx (launchd/cron don't inherit the shell PATH).
