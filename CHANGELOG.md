@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+- feat: **message templates** — new `list_templates` tool (182 templates across ~20 categories, filterable by `category`/`search`; core set by default) and an optional `template` param on `draft_email`. Most templates are a subject prefix + a structural hint Claude composes from (mailman stays dumb); `fwd`/`reply` are mechanical and build a real Gmail-style quoted block from `forwarded*` fields.
+- feat: **subject improvement** — template prefixes are applied de-duplicated (never `FYI: FYI:` / `Re: Re:`).
+- feat: **polished email theme** — opt-in `settings.emailTheme` (`plain`|`polished`) + per-call `theme` param wraps HTML bodies in a clean, minimal shell. Default stays `plain` (no change to existing calls).
+
 ## [0.5.6] - 2026-07-02
 
 - compact draft preview (token savings), desktopNotifications settable via MCP tools, FEATURES.md + docs close-out

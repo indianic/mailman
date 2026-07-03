@@ -5,7 +5,8 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
 import { resolveAttachments } from './resolve-attachments.js';
-import { formatFromAddress, appendSignature } from '../mail/compose.js';
+import { formatFromAddress, appendSignature, wrapPolished } from '../mail/compose.js';
+import { getTemplate, applySubjectPrefix, buildForwardedBody } from '../mail/templates.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({
@@ -18,6 +19,16 @@ const InputSchema = z.object({
   attachments: z.array(z.string()).optional(),
   recursive: z.boolean().optional(),
   account: z.string().optional(),
+  // Message template — a subject prefix + structural hint (see list_templates).
+  template: z.string().optional(),
+  // Per-call override of the HTML visual treatment (settings.emailTheme).
+  theme: z.enum(['plain', 'polished']).optional(),
+  // Fields for the mechanical 'fwd'/'reply' templates.
+  forwardedFrom: z.string().optional(),
+  forwardedDate: z.string().optional(),
+  forwardedSubject: z.string().optional(),
+  forwardedTo: z.string().optional(),
+  forwardedBody: z.string().optional(),
 });
 
 function defaultSubject(attachments: DraftAttachment[]): string {
@@ -52,12 +63,49 @@ async function handler(rawArgs: Record<string, unknown>) {
     );
   }
 
+  // Resolve the template up front so an unknown key fails fast.
+  const template = input.template ? getTemplate(input.template) : undefined;
+  if (input.template && !template) {
+    return toolError('INVALID_INPUT', `Unknown template "${input.template}". Call list_templates to see available keys.`);
+  }
+
   const to = Array.isArray(input.to) ? input.to : [input.to];
-  const subject = input.subject ?? defaultSubject(resolved.files);
   const settings = await getSettings();
   const bodyType = input.bodyType ?? settings.defaultBodyType;
-  const body = appendSignature(input.body, account.signature, bodyType);
-  const signatureAppended = Boolean(account.signature) && body !== input.body;
+
+  // Subject: apply the template prefix (de-duplicated — never "FYI: FYI:"),
+  // falling back to a minimal default when nothing usable is left.
+  let subject = template
+    ? applySubjectPrefix(template.subjectPrefix, input.subject ?? '')
+    : (input.subject ?? '').trim();
+  if (!subject) subject = defaultSubject(resolved.files);
+
+  // Body: mechanical templates (fwd/reply) build a real quoted block.
+  let composed = input.body;
+  if (
+    template?.kind === 'mechanical' &&
+    (input.forwardedBody || input.forwardedFrom || input.forwardedSubject)
+  ) {
+    composed = buildForwardedBody(
+      input.body,
+      {
+        forwardedFrom: input.forwardedFrom,
+        forwardedDate: input.forwardedDate,
+        forwardedSubject: input.forwardedSubject,
+        forwardedTo: input.forwardedTo,
+        forwardedBody: input.forwardedBody,
+      },
+      bodyType,
+    );
+  }
+
+  let body = appendSignature(composed, account.signature, bodyType);
+  const signatureAppended = Boolean(account.signature) && body !== composed;
+
+  // Polished theme — opt-in, HTML only. Wraps the whole body in a clean shell.
+  const theme = input.theme ?? settings.emailTheme;
+  const polished = bodyType === 'html' && theme === 'polished';
+  if (polished) body = wrapPolished(body);
 
   const draft = createDraft({
     account: account.alias,
@@ -88,6 +136,8 @@ async function handler(rawArgs: Record<string, unknown>) {
       // is pure token overhead; `signatureAppended` flags it instead.
       bodyPreview: input.body.length > 280 ? `${input.body.slice(0, 280)}…` : input.body,
       ...(signatureAppended ? { signatureAppended: true } : {}),
+      ...(template ? { template: template.key } : {}),
+      ...(polished ? { theme: 'polished' } : {}),
       attachments: draft.attachments.map((a) => ({ name: a.name, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
     },
     next_steps: ['Show this preview to the user and get explicit confirmation before calling confirm_send.'],
@@ -115,6 +165,21 @@ export const draftEmailTool: Tool = {
         },
         recursive: { type: 'boolean', description: 'Expand directory attachments recursively (default: top-level only)' },
         account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
+        template: {
+          type: 'string',
+          description:
+            'Optional message template key (see list_templates). Applies a subject prefix (de-duplicated) and a structural hint you should follow when composing. Use "fwd"/"reply" with the forwarded* fields for real quoted-block forwarding/replies.',
+        },
+        theme: {
+          type: 'string',
+          enum: ['plain', 'polished'],
+          description: 'HTML visual treatment. "polished" wraps the body in a clean shell. Defaults to settings.emailTheme.',
+        },
+        forwardedFrom: { type: 'string', description: 'fwd/reply: original sender' },
+        forwardedDate: { type: 'string', description: 'fwd/reply: original date' },
+        forwardedSubject: { type: 'string', description: 'fwd/reply: original subject' },
+        forwardedTo: { type: 'string', description: 'fwd/reply: original recipients' },
+        forwardedBody: { type: 'string', description: 'fwd/reply: original body to quote' },
       },
       required: ['to', 'body'],
     },

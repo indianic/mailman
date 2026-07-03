@@ -31,3 +31,25 @@ export function appendSignature(body: string, signature: string | undefined, bod
   const separator = bodyType === 'html' ? '<br><br>' : '\n\n';
   return `${body}${separator}${signature}`;
 }
+
+/**
+ * Wrap an HTML body in a clean, minimal shell — a shared visual identity for
+ * emails: readable font stack, ~600px column, comfortable line-height, and a
+ * subtle divider before the signature. Opt-in via settings.emailTheme or
+ * draft_email's `theme` param; never changes plain/text sends.
+ */
+export function wrapPolished(html: string): string {
+  return [
+    '<div style="margin:0;padding:0;background:#f6f7f9">',
+    '<div style="max-width:600px;margin:0 auto;padding:28px 24px;',
+    'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
+    'font-size:15px;line-height:1.6;color:#1f2937;background:#ffffff;',
+    'border:1px solid #e5e7eb;border-radius:12px">',
+    html,
+    '</div>',
+    '<div style="max-width:600px;margin:8px auto 0;padding:0 24px;',
+    'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
+    'font-size:12px;color:#9ca3af;text-align:center">Sent with MailMan</div>',
+    '</div>',
+  ].join('');
+}

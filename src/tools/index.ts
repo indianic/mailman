@@ -20,10 +20,12 @@ import { listScheduledTool } from './list-scheduled.js';
 import { cancelScheduledTool } from './cancel-scheduled.js';
 import { getStatusTool } from './get-status.js';
 import { getMailboxOverviewTool } from './get-mailbox-overview.js';
+import { listTemplatesTool } from './list-templates.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
   draftEmailTool,
+  listTemplatesTool,
   confirmSendTool,
   cancelDraftTool,
   configureAccountTool,

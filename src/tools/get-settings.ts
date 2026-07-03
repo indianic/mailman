@@ -10,6 +10,7 @@ async function handler() {
     alwaysConfirm: settings.alwaysConfirm,
     defaultBodyType: settings.defaultBodyType,
     desktopNotifications: settings.desktopNotifications,
+    emailTheme: settings.emailTheme,
   });
 }
 

@@ -239,7 +239,8 @@ flowchart TD
 
 | Tool | Purpose |
 |---|---|
-| `draft_email` | Prepare a send + preview (does not send) |
+| `draft_email` | Prepare a send + preview (does not send); supports `template`, `theme`, and `fwd`/`reply` quoting |
+| `list_templates` | Browse message templates (subject prefix + composition hint); `category`/`search`/`all` |
 | `confirm_send` | Send the drafted email (only tool that sends) |
 | `cancel_draft` | Discard a pending draft |
 | `schedule_send` | Send a draft at a future time |
