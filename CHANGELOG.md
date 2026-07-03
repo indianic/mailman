@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.8.0] - 2026-07-03
+
+- feat: verify credentials in configure_account before storing; live per-account login check in doctor
+
 ## [0.7.0] - 2026-07-03
 
 - feat: verify Gmail credentials at init/account add with retry loop; npm+pnpm-aware update
