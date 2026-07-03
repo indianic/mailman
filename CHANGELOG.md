@@ -3,14 +3,11 @@
 All notable changes to this project will be documented in this file.
 ## [0.6.0] - 2026-07-03
 
-- Message templates: list_templates tool + 182 templates, fwd/reply quoting, polished email theme; HTML now the default body type (23 tools total)
-
-## [Unreleased]
-
-- change: **HTML is now the default body type** (`defaultBodyType: 'html'`) for new installs / configs without the field set. Existing configs that explicitly stored `text` are untouched — flip with `mailman settings set defaultBodyType html`.
 - feat: **message templates** — new `list_templates` tool (182 templates across ~20 categories, filterable by `category`/`search`; core set by default) and an optional `template` param on `draft_email`. Most templates are a subject prefix + a structural hint Claude composes from (mailman stays dumb); `fwd`/`reply` are mechanical and build a real Gmail-style quoted block from `forwarded*` fields.
 - feat: **subject improvement** — template prefixes are applied de-duplicated (never `FYI: FYI:` / `Re: Re:`).
-- feat: **polished email theme** — opt-in `settings.emailTheme` (`plain`|`polished`) + per-call `theme` param wraps HTML bodies in a clean, minimal shell. Default stays `plain` (no change to existing calls).
+- feat: **polished email theme** — opt-in `settings.emailTheme` (`plain`|`polished`) + per-call `theme` param wraps HTML bodies in a clean, minimal shell.
+- change: **HTML is now the default body type** for new installs / configs without the field set. Existing configs that explicitly stored `text` are untouched — flip with `mailman settings set defaultBodyType html`.
+- Total MCP tools: **23** (added `list_templates`).
 
 ## [0.5.6] - 2026-07-02
 
