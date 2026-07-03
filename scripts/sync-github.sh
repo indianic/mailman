@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Regenerate the package-only tree and push it to GitHub (indianic/mailman),
+# then (optionally) create a stable-v* tag to trigger the GitHub Release.
+#
+# GitLab (origin) remains the full source of truth — site/, docker/ and
+# scripts/ are internal-only and are stripped from the GitHub mirror. This
+# script never disturbs your working tree: it builds the filtered commit in a
+# throwaway git worktree.
+#
+# Usage:
+#   ./scripts/sync-github.sh                 # mirror main -> github:main only
+#   ./scripts/sync-github.sh stable-v1.0.0   # mirror + push that stable tag (triggers the Release workflow)
+#   SRC_BRANCH=main ./scripts/sync-github.sh stable-v1.2.0
+#
+set -euo pipefail
+
+TAG="${1:-}"
+SRC_BRANCH="${SRC_BRANCH:-main}"
+GITHUB_REMOTE="${GITHUB_REMOTE:-github}"
+GITHUB_URL="${GITHUB_URL:-https://github.com/indianic/mailman.git}"
+EXCLUDE=(site docker scripts)
+
+# Ensure the github remote exists.
+if ! git remote get-url "$GITHUB_REMOTE" >/dev/null 2>&1; then
+  git remote add "$GITHUB_REMOTE" "$GITHUB_URL"
+fi
+
+# Build the filtered commit in an isolated worktree so the caller's checkout
+# and working tree are never touched.
+WT="$(mktemp -d)"
+cleanup() { git worktree remove --force "$WT" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+git worktree add --quiet --detach "$WT" "$SRC_BRANCH"
+(
+  cd "$WT"
+  git rm -r --quiet "${EXCLUDE[@]}" 2>/dev/null || true
+  git commit -q -m "build: package-only tree for GitHub (exclude ${EXCLUDE[*]})"
+  git push -f "$GITHUB_REMOTE" HEAD:main
+  if [ -n "$TAG" ]; then
+    git tag -f "$TAG"
+    git push -f "$GITHUB_REMOTE" "$TAG"
+  fi
+)
+
+echo "Synced package-only tree to $GITHUB_REMOTE:main${TAG:+ and pushed tag $TAG}"
