@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { NPM_URL } from '../config.js';
+import { NPM_URL, VERSION, PACKAGE } from '../config.js';
 import TerminalCard from './TerminalCard.jsx';
 import FlipWords from './FlipWords.jsx';
 
@@ -40,7 +40,7 @@ export default function Hero() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
             </span>
-            v0.5.6 · @indianic/mailman
+            v{VERSION} · {PACKAGE}
             <span aria-hidden="true">↗</span>
           </motion.a>
 

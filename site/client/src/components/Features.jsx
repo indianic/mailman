@@ -6,7 +6,8 @@ import { useContent } from '../ContentContext.jsx';
 // source of truth and editable there.
 const FALLBACK = [
   { icon: 'messageSquare', title: 'Natural-language send', desc: 'Ask in plain English. MailMan composes the subject and body and shows you a preview first.' },
-  { icon: 'shieldCheck', title: 'Draft → preview → confirm', desc: 'Nothing leaves your machine until you say “yes.” confirm_send is the only tool that dispatches — and it’s idempotent.' },
+  { icon: 'sparkle', title: '182 message templates', desc: 'FYI, follow-up, meeting, status, forward/reply and 175+ more — each a subject prefix + a hint your AI composes from. Browse with list_templates.' },
+  { icon: 'shieldCheck', title: 'Draft → preview → confirm', desc: 'Nothing leaves your machine until you approve it. confirm_send won’t dispatch without an explicit confirmation — and it’s idempotent.' },
   { icon: 'paperclip', title: 'Attachments & globs', desc: 'Attach files, whole folders, or wildcard patterns like *.pdf — with a 25 MB size guard and a preview of what attaches.' },
   { icon: 'clock', title: 'Scheduled sends', desc: '“Send tomorrow at 9am.” An OS-level timer fires it even if your AI tool is closed.' },
   { icon: 'inbox', title: 'Read & search inbox', desc: 'List recent mail, read full messages, and search by sender, subject, date or has:attachment.' },
