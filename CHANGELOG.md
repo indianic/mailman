@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.12.1] - 2026-07-03
+
+- fix: interactive signature prompt now accepts multi-line input / paste-from-anywhere
+
 ## [0.12.0] - 2026-07-03
 
 - feat: inline App Password setup guide + self-describing settings get/set (valid values + descriptions)
