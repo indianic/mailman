@@ -28,18 +28,55 @@ interface AppPasswordDetails {
   signature?: string;
 }
 
-/** Shared by both auth methods — a short local nickname for the account. */
+/** Shared by both auth methods — a short local nickname for the account.
+ * Spaces are rejected: an alias is a CLI identifier, and a spaced alias
+ * (e.g. "kalpa gamit") breaks unquoted `account remove`/`set-default`. */
 async function promptAlias(): Promise<string> {
   const alias = await text({
     message: 'Account alias (a short nickname, e.g. "personal-gmail")',
     placeholder: 'personal-gmail',
-    validate: (v) => (v.trim().length > 0 ? undefined : 'Alias is required'),
+    validate: (v) => {
+      const t = v.trim();
+      if (t.length === 0) return 'Alias is required';
+      if (/\s/.test(t)) return 'No spaces — use a hyphen instead, e.g. "kalpa-gamit"';
+      return undefined;
+    },
   });
   if (isCancel(alias)) {
     cancel('Cancelled.');
     process.exit(1);
   }
-  return String(alias);
+  return String(alias).trim();
+}
+
+/** Diamond-trail picker: list configured accounts and return the chosen alias.
+ * The answer to spaced/awkward aliases — pick from a list instead of typing. */
+async function pickAccount(message: string): Promise<string> {
+  const [accounts, defaultAlias] = await Promise.all([listAccounts(), getDefaultAlias()]);
+  if (accounts.length === 0) {
+    fail('No accounts configured — run `mailman init`.');
+    process.exit(1);
+  }
+  const chosen = await select({
+    message,
+    options: accounts.map((a) => ({
+      value: a.alias,
+      label: `${a.alias} — ${a.email}${a.alias === defaultAlias ? '  (default)' : ''}`,
+    })),
+  });
+  if (isCancel(chosen)) {
+    cancel('Cancelled.');
+    process.exit(1);
+  }
+  return chosen as string;
+}
+
+/** "Available: "a", "b"" — appended to not-found errors so the user sees valid aliases. */
+async function aliasListHint(): Promise<string> {
+  const accounts = await listAccounts();
+  return accounts.length
+    ? `Available: ${accounts.map((a) => `"${a.alias}"`).join(', ')}`
+    : 'No accounts configured.';
 }
 
 /**
@@ -307,14 +344,21 @@ export async function runAccountList(_args: string[]): Promise<void> {
 
 /** `mailman account remove <alias> [--yes]` — mirrors remove_account's confirmRemoval gate. */
 export async function runAccountRemove(args: string[]): Promise<void> {
-  const alias = args.find((a) => !a.startsWith('--'));
   const yes = args.includes('--yes');
+  // Join all non-flag tokens so a multi-word alias works even unquoted —
+  // `account remove kalpa gamit` → "kalpa gamit" (a real user hit "kalpa not found").
+  let alias = args.filter((a) => !a.startsWith('--')).join(' ').trim();
 
   intro('mailman — remove account');
 
+  // No alias given → show the diamond-trail picker instead of erroring. This is
+  // the recommended path: pick from the list, no typing (or quoting) required.
   if (!alias) {
-    fail('Usage: mailman account remove <alias> [--yes]');
-    process.exit(1);
+    if (!isInteractiveTerminal()) {
+      fail('Usage: mailman account remove <alias> [--yes]\nOr run it in a terminal with no alias to pick from a list.');
+      process.exit(1);
+    }
+    alias = await pickAccount('Which account do you want to remove?');
   }
 
   try {
@@ -336,27 +380,31 @@ export async function runAccountRemove(args: string[]): Promise<void> {
       return;
     }
     if (err instanceof AccountResolutionError) {
-      fail(err.message);
+      fail(`${err.message}\n${await aliasListHint()}`);
       process.exit(1);
     }
     throw err;
   }
 }
 
-/** `mailman account set-default <alias>` */
+/** `mailman account set-default [alias]` — no alias → diamond-trail picker. */
 export async function runAccountSetDefault(args: string[]): Promise<void> {
-  const alias = args[0];
+  // Join non-flag tokens so an unquoted multi-word alias resolves too.
+  let alias = args.filter((a) => !a.startsWith('--')).join(' ').trim();
 
   intro('mailman — set default account');
 
   if (!alias) {
-    fail('Usage: mailman account set-default <alias>');
-    process.exit(1);
+    if (!isInteractiveTerminal()) {
+      fail('Usage: mailman account set-default <alias>\nOr run it in a terminal with no alias to pick from a list.');
+      process.exit(1);
+    }
+    alias = await pickAccount('Which account should be the default?');
   }
 
   const accounts = await listAccounts();
   if (!accounts.some((a) => a.alias === alias)) {
-    fail(`No configured account with alias "${alias}"`);
+    fail(`No configured account with alias "${alias}"\n${await aliasListHint()}`);
     process.exit(1);
   }
 
