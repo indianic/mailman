@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.10.0] - 2026-07-03
+
+- feat: enforce one email = one account (DUPLICATE_EMAIL) across configure_account, account add, auth login
+
 ## [0.9.2] - 2026-07-03
 
 - fix: OAuth2 redirect_uri_mismatch guidance (Desktop-app requirement) + 5-min consent timeout instead of hang
