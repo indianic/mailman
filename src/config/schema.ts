@@ -51,9 +51,12 @@ export const SettingsFileSchema = z.object({
   draftTtlMinutes: z.number().int().positive(),
   alwaysConfirm: z.boolean(),
   // Used by draft_email when a call doesn't pass bodyType explicitly.
-  // .default() rather than a bare required field — settings.json files
-  // written before this field existed shouldn't fail to load.
-  defaultBodyType: z.enum(['text', 'html']).default('text'),
+  // Defaults to 'html' — modern mail is HTML, and it enables the polished
+  // theme + rich signatures. .default() rather than a bare required field so
+  // settings.json files written before this field existed still load.
+  // (Existing configs that explicitly stored 'text' keep it; flip with
+  //  `mailman settings set defaultBodyType html`.)
+  defaultBodyType: z.enum(['text', 'html']).default('html'),
   // Native desktop notification (macOS Notification Center / Linux
   // notify-send / Windows toast) after a successful send. On by default;
   // disable with `mailman settings set desktopNotifications false`.
@@ -79,7 +82,7 @@ export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   defaultAccount: null,
   draftTtlMinutes: 10,
   alwaysConfirm: true,
-  defaultBodyType: 'text',
+  defaultBodyType: 'html',
   desktopNotifications: true,
   emailTheme: 'plain',
 };
