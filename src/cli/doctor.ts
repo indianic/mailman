@@ -1,7 +1,9 @@
 import net from 'node:net';
 import { intro, outro } from '@clack/prompts';
 import { getTickerStatus } from '../scheduler/ticker-install.js';
-import { section, check } from './tree.js';
+import { listAccounts, getDecryptedCredentials, getDefaultAlias } from '../accounts.js';
+import { verifyCredentials } from '../auth/verify.js';
+import { section, check, detail } from './tree.js';
 
 interface CheckResult {
   name: string;
@@ -65,8 +67,52 @@ function checkTcpReachable(name: string, host: string, port: number, timeoutMs =
   });
 }
 
-export async function runDoctor(_args: string[]): Promise<void> {
+/**
+ * Live per-account credential check — the reason `doctor` is now the "is my
+ * setup actually working?" command, not just an environment pre-flight. For
+ * each configured account it decrypts the stored credentials and performs a
+ * real Gmail login (SMTP verify + IMAP probe, or an OAuth2 token exchange),
+ * so a password revoked/changed after setup shows up here instead of on the
+ * next silent send failure. Skipped with `--offline` to keep doctor network-
+ * free. Zero accounts is reported (not a failure) so first-run `doctor` is
+ * still green.
+ */
+async function checkAccountCredentials(): Promise<CheckResult[]> {
+  const [accounts, defaultAlias] = await Promise.all([listAccounts(), getDefaultAlias()]);
+  if (accounts.length === 0) {
+    return [{ name: 'Accounts', ok: true, detail: 'none configured yet — run `mailman init`' }];
+  }
+
+  const results: CheckResult[] = [];
+  for (const account of accounts) {
+    const label = `Account "${account.alias}" (${account.email}${account.alias === defaultAlias ? ', default' : ''})`;
+    try {
+      const creds = await getDecryptedCredentials(account);
+      const result =
+        account.method === 'app-password'
+          ? await verifyCredentials({ method: 'app-password', credentials: creds as { user: string; pass: string } })
+          : await verifyCredentials({
+              method: 'oauth2',
+              credentials: creds as { clientId: string; clientSecret: string; refreshToken: string },
+            });
+      if (result.ok) {
+        results.push({ name: label, ok: true, detail: `${account.method} — Gmail login OK${result.imapWarning ? ' (IMAP unavailable)' : ''}` });
+        if (result.imapWarning) results.push({ name: `  ↳ ${account.alias} IMAP`, ok: true, detail: result.imapWarning });
+      } else {
+        results.push({ name: label, ok: false, detail: result.error ?? 'credentials rejected' });
+      }
+    } catch (err) {
+      // Decrypt failure = keychain has no matching key (e.g. accounts.json
+      // copied from another machine). Surface it as a failed check.
+      results.push({ name: label, ok: false, detail: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return results;
+}
+
+export async function runDoctor(args: string[]): Promise<void> {
   intro('mailman — doctor');
+  const offline = args.includes('--offline');
 
   const results = [
     checkNodeVersion(),
@@ -81,7 +127,21 @@ export async function runDoctor(_args: string[]): Promise<void> {
     check(r.ok, `${r.name}: ${r.detail}`);
   }
 
-  const allOk = results.every((r) => r.ok);
+  // Live account logins are the slow, network-bound part — run them in their
+  // own section, and let `--offline` skip them for a fast environment-only run.
+  let accountResults: CheckResult[] = [];
+  if (offline) {
+    section('accounts');
+    detail('skipped (--offline)');
+  } else {
+    accountResults = await checkAccountCredentials();
+    section('accounts');
+    for (const r of accountResults) {
+      check(r.ok, `${r.name}: ${r.detail}`);
+    }
+  }
+
+  const allOk = [...results, ...accountResults].every((r) => r.ok);
   outro(allOk ? 'All checks passed' : 'Some checks failed — see above');
   if (!allOk) {
     process.exitCode = 1;

@@ -17,6 +17,7 @@ export const ErrorCodes = {
   NO_MASTER_KEY: 'NO_MASTER_KEY',
   SCHEDULE_NOT_FOUND: 'SCHEDULE_NOT_FOUND',
   CONFIRMATION_REQUIRED: 'CONFIRMATION_REQUIRED',
+  VERIFICATION_FAILED: 'VERIFICATION_FAILED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

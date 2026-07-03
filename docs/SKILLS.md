@@ -207,14 +207,19 @@ Lists configured sender aliases (no secrets returned).
 
 Adds or updates an account.
 
-- **Input**: `{ alias: string, email: string, method: "app-password" | "oauth2", credentials: {...}, setDefault?: boolean, displayName?: string, signature?: string }`
-- **Output**: `{ alias: string, isDefault: boolean }`
-- **Notes**: the first account ever added becomes default automatically.
-  Adding another account leaves the existing default alone unless
-  `setDefault: true` is passed. `displayName` is the "From Name" shown to
-  recipients (e.g. `"Kalpesh Gamit"` for `"Kalpesh Gamit <you@gmail.com>"`);
-  `signature` is appended to every draft sent from this account. Both are
-  optional and plaintext (not secrets).
+- **Input**: `{ alias: string, email: string, method: "app-password" | "oauth2", credentials: {...}, setDefault?: boolean, displayName?: string, signature?: string, skipVerify?: boolean }`
+- **Output**: `{ alias: string, isDefault: boolean, verified: boolean, imapWarning?: string }`
+- **Notes**: the credentials are **verified against Gmail (a live login) before
+  anything is stored** — a wrong App Password or stale OAuth2 refresh token is
+  rejected with `VERIFICATION_FAILED` instead of failing silently on the first
+  send. IMAP being unreachable (App Password accounts) is returned as a soft
+  `imapWarning`, not a failure, since sending still works. `skipVerify: true`
+  stores the credentials without the network check (offline setup only). The
+  first account ever added becomes default automatically. Adding another
+  account leaves the existing default alone unless `setDefault: true` is passed.
+  `displayName` is the "From Name" shown to recipients (e.g. `"Kalpesh Gamit"`
+  for `"Kalpesh Gamit <you@gmail.com>"`); `signature` is appended to every draft
+  sent from this account. Both are optional and plaintext (not secrets).
 
 ## `update_account_profile`
 

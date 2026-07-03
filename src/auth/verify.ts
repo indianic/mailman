@@ -1,4 +1,5 @@
 import { createAppPasswordTransport, type AppPasswordCredentials } from './app-password.js';
+import { getAccessToken, type OAuth2Credentials } from './oauth2.js';
 import { verifyImapConnection } from '../mail/imap-client.js';
 
 /**
@@ -67,4 +68,40 @@ export async function verifyAppPasswordCredentials(creds: AppPasswordCredentials
       imapWarning: `Sending works, but reading (IMAP) couldn't connect: ${describe(err)} Enable IMAP in Gmail settings if you want mailman to list/read/search your inbox.`,
     };
   }
+}
+
+/**
+ * Prove an OAuth2 refresh token still works before we store it: exchange it
+ * for an access token. A successful exchange means the client ID/secret are
+ * right and the refresh token is live (not revoked/expired). Never throws.
+ */
+export async function verifyOAuth2Credentials(creds: OAuth2Credentials): Promise<VerifyResult> {
+  try {
+    await getAccessToken(creds);
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/invalid_grant|invalid_client|unauthorized|400|401|refresh token/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          'Google rejected these OAuth2 credentials — the refresh token may be revoked/expired, or the client ID/secret is wrong. Re-run `mailman auth login <alias>` to get a fresh token.',
+      };
+    }
+    if (/timeout|network|getaddrinfo|econnreset|fetch failed/i.test(msg)) {
+      return { ok: false, error: `Couldn't reach Google's token endpoint — network issue: ${msg}. Check your connection and try again.` };
+    }
+    return { ok: false, error: msg };
+  }
+}
+
+/** Method-dispatching verifier shared by the MCP tool and the doctor check. */
+export function verifyCredentials(
+  input:
+    | { method: 'app-password'; credentials: AppPasswordCredentials }
+    | { method: 'oauth2'; credentials: OAuth2Credentials },
+): Promise<VerifyResult> {
+  return input.method === 'app-password'
+    ? verifyAppPasswordCredentials(input.credentials)
+    : verifyOAuth2Credentials(input.credentials);
 }
