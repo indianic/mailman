@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.13.0] - 2026-07-03
+
+- feat: interactive account picker for remove/set-default + spaced-alias handling
+
 ## [0.12.2] - 2026-07-03
 
 - fix: OAuth2 accounts now send via the Gmail REST API (gmail.send scope) instead of SMTP — resolves 'Cant create new access token for user'
