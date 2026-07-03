@@ -19,7 +19,15 @@ TAG="${1:-}"
 SRC_BRANCH="${SRC_BRANCH:-main}"
 GITHUB_REMOTE="${GITHUB_REMOTE:-github}"
 GITHUB_URL="${GITHUB_URL:-https://github.com/indianic/mailman.git}"
-EXCLUDE=(site docker scripts)
+# site/docker/scripts are internal-only. .github/workflows is excluded too:
+# (1) it needs a token with the `workflow` scope to push, and (2) GitLab CI
+# already runs the full pipeline — GitHub is a code mirror. Add CI back later
+# with a workflow-scoped token if desired. Override via EXTRA_EXCLUDE.
+EXCLUDE=(site docker scripts .github/workflows)
+if [ -n "${EXTRA_EXCLUDE:-}" ]; then
+  # shellcheck disable=SC2206
+  EXCLUDE+=($EXTRA_EXCLUDE)
+fi
 
 # Ensure the github remote exists.
 if ! git remote get-url "$GITHUB_REMOTE" >/dev/null 2>&1; then
