@@ -209,10 +209,13 @@ Adds or updates an account.
 
 - **Input**: `{ alias: string, email: string, method: "app-password" | "oauth2", credentials: {...}, setDefault?: boolean, displayName?: string, signature?: string, skipVerify?: boolean }`
 - **Output**: `{ alias: string, isDefault: boolean, verified: boolean, imapWarning?: string }`
-- **Notes**: the credentials are **verified against Gmail (a live login) before
-  anything is stored** — a wrong App Password or stale OAuth2 refresh token is
-  rejected with `VERIFICATION_FAILED` instead of failing silently on the first
-  send. IMAP being unreachable (App Password accounts) is returned as a soft
+- **Notes**: **one email = one account** — adding an email that's already
+  configured under a *different* alias is rejected with `DUPLICATE_EMAIL`
+  (re-adding the *same* alias updates it; that's the intended edit path). The
+  credentials are then **verified against Gmail (a live login) before anything
+  is stored** — a wrong App Password or stale OAuth2 refresh token is rejected
+  with `VERIFICATION_FAILED` instead of failing silently on the first send.
+  IMAP being unreachable (App Password accounts) is returned as a soft
   `imapWarning`, not a failure, since sending still works. `skipVerify: true`
   stores the credentials without the network check (offline setup only). The
   first account ever added becomes default automatically. Adding another

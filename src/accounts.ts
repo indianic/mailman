@@ -21,6 +21,27 @@ export class AccountResolutionError extends Error {
   }
 }
 
+/** Thrown when adding an account whose email is already configured under a different alias. */
+export class DuplicateEmailError extends Error {
+  code = ErrorCodes.DUPLICATE_EMAIL;
+  constructor(
+    public email: string,
+    public existingAlias: string,
+  ) {
+    super(
+      `${email} is already configured as account "${existingAlias}". Each email can only be added once — ` +
+        `remove it first (\`mailman account remove ${existingAlias}\`), or re-add under that same alias to update it.`,
+    );
+  }
+}
+
+/** Case-insensitive lookup of an account by email, optionally ignoring one alias (the one being updated). */
+export async function findAccountByEmail(email: string, exceptAlias?: string): Promise<Account | undefined> {
+  const accounts = await listAccounts();
+  const target = email.trim().toLowerCase();
+  return accounts.find((a) => a.email.toLowerCase() === target && a.alias !== exceptAlias);
+}
+
 export async function listAccounts(): Promise<Account[]> {
   const file = await readJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE);
   return file.accounts;
@@ -105,6 +126,16 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
 
   let isFirstAccount = false;
   const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    // One email = one account. Re-adding the SAME alias updates it (that's the
+    // documented "add or update" path); a DIFFERENT alias with an already-used
+    // email is rejected rather than silently creating a confusing duplicate.
+    const emailOwner = current.accounts.find(
+      (a) => a.email.toLowerCase() === input.email.trim().toLowerCase() && a.alias !== input.alias,
+    );
+    if (emailOwner) {
+      throw new DuplicateEmailError(input.email, emailOwner.alias);
+    }
+
     isFirstAccount = current.accounts.length === 0;
     const withoutSameAlias = current.accounts.filter((a) => a.alias !== input.alias);
     const newAccount: Account = {

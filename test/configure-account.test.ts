@@ -49,6 +49,49 @@ test('configure_account with skipVerify stores without a network check', async (
   });
 });
 
+test('configure_account rejects a second alias reusing an existing email', async () => {
+  await withIsolatedEnv(async () => {
+    const base = {
+      email: 'me@example.com',
+      method: 'app-password' as const,
+      credentials: { user: 'me@example.com', pass: 'irrelevant-16-chars' },
+      skipVerify: true,
+    };
+    const first = await configureAccountTool.handler({ alias: 'work', ...base });
+    assert.equal(first.isError, undefined);
+
+    // Same email, DIFFERENT alias → rejected.
+    const dup = await configureAccountTool.handler({ alias: 'work2', ...base });
+    assert.equal(dup.isError, true);
+    assert.equal(parse(dup).code, 'DUPLICATE_EMAIL');
+    assert.equal((await listAccounts()).length, 1);
+
+    // Same alias → allowed (this is the update path), no duplicate created.
+    const update = await configureAccountTool.handler({ alias: 'work', ...base, displayName: 'Me' });
+    assert.equal(update.isError, undefined);
+    assert.equal((await listAccounts()).length, 1);
+  });
+});
+
+test('configure_account email match is case-insensitive', async () => {
+  await withIsolatedEnv(async () => {
+    const base = {
+      method: 'app-password' as const,
+      credentials: { user: 'me@example.com', pass: 'irrelevant-16-chars' },
+      skipVerify: true,
+    };
+    await configureAccountTool.handler({ alias: 'a', email: 'Me@Example.com', ...base });
+    const dup = await configureAccountTool.handler({
+      alias: 'b',
+      email: 'me@example.com',
+      method: 'app-password',
+      credentials: { user: 'me@example.com', pass: 'irrelevant-16-chars' },
+      skipVerify: true,
+    });
+    assert.equal(parse(dup).code, 'DUPLICATE_EMAIL');
+  });
+});
+
 test('configure_account rejects malformed input before any verify/store', async () => {
   await withIsolatedEnv(async () => {
     const res = await configureAccountTool.handler({

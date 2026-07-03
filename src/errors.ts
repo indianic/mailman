@@ -18,6 +18,7 @@ export const ErrorCodes = {
   SCHEDULE_NOT_FOUND: 'SCHEDULE_NOT_FOUND',
   CONFIRMATION_REQUIRED: 'CONFIRMATION_REQUIRED',
   VERIFICATION_FAILED: 'VERIFICATION_FAILED',
+  DUPLICATE_EMAIL: 'DUPLICATE_EMAIL',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

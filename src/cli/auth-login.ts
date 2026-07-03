@@ -1,5 +1,5 @@
 import { intro, outro, text, password, isCancel, cancel } from '@clack/prompts';
-import { configureAccount } from '../accounts.js';
+import { configureAccount, findAccountByEmail, DuplicateEmailError } from '../accounts.js';
 import { runOAuthLogin, type OAuthClientConfig } from '../auth/oauth2-login.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { promptProfileDetails } from './prompt-profile.js';
@@ -81,7 +81,7 @@ export async function authorizeOAuth2Account(
       signature,
     });
   } catch (err) {
-    if (err instanceof KeyringUnavailableError) {
+    if (err instanceof DuplicateEmailError || err instanceof KeyringUnavailableError) {
       fail(err.message);
       process.exit(1);
     }
@@ -109,7 +109,19 @@ export async function runAuthLogin(args: string[]): Promise<void> {
     cancel('Cancelled.');
     process.exit(1);
   }
+  const address = String(email).trim();
 
-  const { account, isDefault } = await authorizeOAuth2Account({ alias, email: String(email), noBrowser });
+  // One email = one account (ignoring this alias, so re-authing an existing
+  // account is fine) — check before the browser consent dance.
+  const dupe = await findAccountByEmail(address, alias);
+  if (dupe) {
+    fail(
+      `${address} is already added as "${dupe.alias}". Each email can be added once — ` +
+        `remove it first (\`mailman account remove ${dupe.alias}\`) or re-run with alias "${dupe.alias}" to re-authorize it.`,
+    );
+    process.exit(1);
+  }
+
+  const { account, isDefault } = await authorizeOAuth2Account({ alias, email: address, noBrowser });
   outro(`Authorized "${account.alias}"${isDefault ? ' (default)' : ''} via OAuth2.`);
 }

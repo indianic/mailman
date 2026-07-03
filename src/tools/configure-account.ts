@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { toolResponse, toolError } from '../response.js';
 import { ErrorCodes } from '../errors.js';
-import { configureAccount } from '../accounts.js';
+import { configureAccount, DuplicateEmailError } from '../accounts.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { verifyCredentials } from '../auth/verify.js';
 import type { Tool } from './types.js';
@@ -64,6 +64,9 @@ async function handler(rawArgs: Record<string, unknown>) {
     const { account, isDefault } = await configureAccount(input);
     return toolResponse({ alias: account.alias, isDefault, verified: !skipVerify, ...(imapWarning ? { imapWarning } : {}) });
   } catch (err) {
+    if (err instanceof DuplicateEmailError) {
+      return toolError(ErrorCodes.DUPLICATE_EMAIL, err.message);
+    }
     if (err instanceof KeyringUnavailableError) {
       return toolError(ErrorCodes.NO_MASTER_KEY, err.message);
     }

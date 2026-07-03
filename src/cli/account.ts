@@ -6,8 +6,10 @@ import {
   resolveAccount,
   updateAccountProfile,
   getDefaultAlias,
+  findAccountByEmail,
   AccountResolutionError,
   AccountRemovalConfirmationError,
+  DuplicateEmailError,
 } from '../accounts.js';
 import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
@@ -64,6 +66,17 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
       process.exit(1);
     }
     email = String(emailInput).trim();
+
+    // One email = one account — catch a duplicate before the (slow) verify,
+    // and re-prompt rather than dead-ending.
+    const dupe = await findAccountByEmail(email, alias);
+    if (dupe) {
+      log.error(
+        `${email} is already added as "${dupe.alias}". Each email can be added once — ` +
+          `remove it first (\`mailman account remove ${dupe.alias}\`) or enter a different address.`,
+      );
+      continue;
+    }
 
     const passInput = await password({
       message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
@@ -139,7 +152,7 @@ async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: b
       signature: details.signature,
     });
   } catch (err) {
-    if (err instanceof KeyringUnavailableError) {
+    if (err instanceof DuplicateEmailError || err instanceof KeyringUnavailableError) {
       fail(err.message);
       process.exit(1);
     }
@@ -162,8 +175,20 @@ async function addOAuth2AccountInteractive(setDefault?: boolean) {
     cancel('Cancelled.');
     process.exit(1);
   }
+  const address = String(email).trim();
+
+  // One email = one account — stop before the browser consent dance.
+  const dupe = await findAccountByEmail(address, alias);
+  if (dupe) {
+    fail(
+      `${address} is already added as "${dupe.alias}". Each email can be added once — ` +
+        `remove it first (\`mailman account remove ${dupe.alias}\`) or use a different address.`,
+    );
+    process.exit(1);
+  }
+
   try {
-    return await authorizeOAuth2Account({ alias, email: String(email).trim(), setDefault });
+    return await authorizeOAuth2Account({ alias, email: address, setDefault });
   } catch (err) {
     if (err instanceof KeyringUnavailableError) {
       fail(err.message);
