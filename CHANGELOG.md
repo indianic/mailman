@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.9.1] - 2026-07-03
+
+- fix: OAuth Client ID/Secret now required (no more 'undefined' + empty-credential consent); guard optional profile fields
+
 ## [0.9.0] - 2026-07-03
 
 - feat: init/account add offer browser sign-in (OAuth2) as a choice alongside App Password
