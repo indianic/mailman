@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle.jsx';
-import { Mail, Package } from './icons.jsx';
+import { Package } from './icons.jsx';
+import BrandMark from './BrandMark.jsx';
 import { NPM_URL } from '../config.js';
 
 const NAV = [
@@ -34,9 +35,7 @@ export default function Navbar() {
     >
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-fuchsia-500 text-white shadow-sm">
-            <Mail className="h-[18px] w-[18px]" />
-          </span>
+          <BrandMark className="h-8 w-8" rounded={9} />
           <span className="text-gradient">MailMan</span>
         </Link>
 

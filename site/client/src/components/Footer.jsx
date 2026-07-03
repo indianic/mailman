@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail } from './icons.jsx';
+import BrandMark from './BrandMark.jsx';
 import { NPM_URL, PACKAGE, VERSION } from '../config.js';
 
 export default function Footer() {
@@ -37,9 +37,7 @@ export default function Footer() {
           {/* Brand + subscribe */}
           <div>
             <div className="flex items-center gap-2 text-lg font-bold">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-fuchsia-500 text-white shadow-sm">
-                <Mail className="h-[18px] w-[18px]" />
-              </span>
+              <BrandMark className="h-8 w-8" rounded={9} />
               <span className="text-gradient">MailMan</span>
             </div>
             <p className="mt-3 max-w-sm text-sm text-slate-600 dark:text-slate-400">
