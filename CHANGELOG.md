@@ -1,6 +1,9 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.6.0] - 2026-07-03
+
+- Message templates: list_templates tool + 182 templates, fwd/reply quoting, polished email theme; HTML now the default body type (23 tools total)
 
 ## [Unreleased]
 
