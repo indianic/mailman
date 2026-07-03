@@ -32,15 +32,26 @@ WT="$(mktemp -d)"
 cleanup() { git worktree remove --force "$WT" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
+# When GH_TOKEN is provided, authenticate with it DIRECTLY (bypassing git's
+# credential helpers) — otherwise a cached/keyring credential can shadow the
+# token and cause a spurious 403. The token is used only for these pushes; it's
+# never written to git config.
+PUSH_TARGET="$GITHUB_REMOTE"
+GIT_PUSH=(git)
+if [ -n "${GH_TOKEN:-}" ]; then
+  PUSH_TARGET="https://x-access-token:${GH_TOKEN}@github.com/indianic/mailman.git"
+  GIT_PUSH=(git -c credential.helper= -c "http.https://github.com/.extraheader=")
+fi
+
 git worktree add --quiet --detach "$WT" "$SRC_BRANCH"
 (
   cd "$WT"
   git rm -r --quiet "${EXCLUDE[@]}" 2>/dev/null || true
   git commit -q -m "build: package-only tree for GitHub (exclude ${EXCLUDE[*]})"
-  git push -f "$GITHUB_REMOTE" HEAD:main
+  "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" HEAD:main
   if [ -n "$TAG" ]; then
     git tag -f "$TAG"
-    git push -f "$GITHUB_REMOTE" "$TAG"
+    "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" "$TAG"
   fi
 )
 
