@@ -4,20 +4,43 @@ import { runOAuthLogin, type OAuthClientConfig } from '../auth/oauth2-login.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { requireTty } from './interactive.js';
-import { fail, info, attention } from './tree.js';
+import { fail, info, attention, detail } from './tree.js';
 import type { Account } from '../config/schema.js';
 
-async function promptClientCredentials(): Promise<OAuthClientConfig> {
-  info(
-    'Needs a Google Cloud OAuth client of type "Desktop app" — NOT "Web application". ' +
-      'A Web-application client fails with "Error 400: redirect_uri_mismatch", because mailman signs ' +
-      'in via a loopback redirect (http://127.0.0.1:<port>) that only Desktop-app clients allow. ' +
-      "See the README for the 2-minute setup if you haven't created one yet.",
+/**
+ * Full, click-by-click walkthrough for creating the Google OAuth client —
+ * printed inline before the Client ID/Secret prompts. Most users have never
+ * opened Google Cloud Console and have no idea where these values come from,
+ * so we show every step with its exact URL rather than pointing at the README.
+ */
+function printOAuthClientSetupGuide(): void {
+  info("Don't have a Client ID / Secret yet? Create a Google OAuth client — one-time, ~2 minutes:");
+  detail(
+    '1. Create or pick a Google Cloud project\n' +
+      '     → https://console.cloud.google.com/projectcreate\n' +
+      '2. Enable the Gmail API for that project, then click "Enable"\n' +
+      '     → https://console.cloud.google.com/apis/library/gmail.googleapis.com\n' +
+      '3. Set up the OAuth consent screen\n' +
+      '     → https://console.cloud.google.com/apis/credentials/consent\n' +
+      '     • User type: External  → add an app name + your email  → Save\n' +
+      '     • Under "Test users", add your own Gmail (avoids Google app verification)\n' +
+      '4. Create the client\n' +
+      '     → https://console.cloud.google.com/apis/credentials\n' +
+      '     • Create credentials → OAuth client ID → Application type: Desktop app → Create\n' +
+      '5. A popup shows your Client ID and Client secret — copy both and paste them below',
+  );
+  attention(
+    'Step 4 MUST be "Desktop app", NOT "Web application" — a Web-app client fails with ' +
+      '"Error 400: redirect_uri_mismatch" (mailman uses a loopback redirect that only Desktop apps allow).',
   );
   attention(
     'This grants full-mailbox read access (gmail.readonly), not just send — mailman will be able to ' +
       'list, search, and read your inbox and sent mail, not only send new messages.',
   );
+}
+
+async function promptClientCredentials(): Promise<OAuthClientConfig> {
+  printOAuthClientSetupGuide();
   // Both fields are required. Without a validate, @clack's text() returns
   // `undefined` on an empty submit — which `String()` turned into the literal
   // "undefined" (and a blank placeholder rendered as "undefined" too), so an
