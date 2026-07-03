@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.0.0] - 2026-07-03
+
+- release: 1.0.0 — first stable release
+
 ## [0.14.0] - 2026-07-03
 
 - feat: branded polished email shell by default with always-on IndiaNIC footer; emailTheme now settable
