@@ -1,9 +1,29 @@
-import { withOAuth2Retry, sendViaOAuth2, type OAuth2Credentials } from '../auth/oauth2.js';
+import nodemailer from 'nodemailer';
+import { withOAuth2Retry, type OAuth2Credentials } from '../auth/oauth2.js';
+import { buildMailOptions } from '../auth/app-password.js';
 import { fetchGoogleContacts } from './google-contacts.js';
 import { truncateSnippet, truncateBody } from './normalize.js';
 import type { MailProvider, Folder, Page, EmailSummary, EmailDetail, OutboundMessage, Contact } from './provider.js';
 
 const GMAIL_API_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+
+/**
+ * Build the raw RFC-822 message the Gmail API's messages.send expects,
+ * base64url-encoded. We reuse buildMailOptions (same From/To/Cc/Bcc/Subject/
+ * body/attachments/Message-ID/X-Mailer as the App Password path) and let
+ * nodemailer's streamTransport compile it to bytes WITHOUT sending — no SMTP
+ * connection, no network. Exported for unit testing. The returned messageId is
+ * our own branded Message-ID header, so callers can report it after send.
+ */
+export async function buildRawMessage(
+  fromEmail: string,
+  message: OutboundMessage,
+): Promise<{ raw: string; messageId: string }> {
+  const options = buildMailOptions({ user: fromEmail, pass: '' }, message);
+  const transport = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'unix' });
+  const built = await transport.sendMail(options);
+  return { raw: (built.message as Buffer).toString('base64url'), messageId: String(options.messageId) };
+}
 
 class GmailApiError extends Error {
   constructor(
@@ -102,8 +122,30 @@ export class GmailApiProvider implements MailProvider {
     private fromEmail: string,
   ) {}
 
-  send(message: OutboundMessage): Promise<{ messageId: string }> {
-    return sendViaOAuth2(this.credentials, this.fromEmail, message);
+  /**
+   * Send via the Gmail REST API (messages.send), NOT SMTP. The old SMTP
+   * XOAUTH2 path failed with "Can't create new access token for user" because
+   * SMTP requires the broad `https://mail.google.com/` scope, whereas we
+   * (correctly) request only `gmail.send` — which the REST API honors.
+   */
+  async send(message: OutboundMessage): Promise<{ messageId: string }> {
+    const { raw, messageId } = await buildRawMessage(this.fromEmail, message);
+    return withOAuth2Retry(
+      this.credentials,
+      async (accessToken) => {
+        const response = await fetch(`${GMAIL_API_BASE}/messages/send`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw }),
+        });
+        if (!response.ok) {
+          throw new GmailApiError(`Gmail API send failed: ${await response.text()}`, response.status);
+        }
+        await response.json();
+        return { messageId };
+      },
+      classifyHttpError,
+    );
   }
 
   private async listMessageIds(

@@ -1,7 +1,3 @@
-import nodemailer from 'nodemailer';
-import { formatFromAddress, buildMessageId, mailmanHeaders } from '../mail/compose.js';
-import type { OutboundMessage } from '../mail/provider.js';
-
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const BACKOFF_MS = [500, 1500];
 
@@ -43,15 +39,6 @@ async function refreshAccessToken(credentials: OAuth2Credentials): Promise<strin
   }
   const data = (await response.json()) as { access_token: string };
   return data.access_token;
-}
-
-function createXOAuth2Transport(user: string, accessToken: string) {
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { type: 'OAuth2', user, accessToken },
-  });
 }
 
 type RetryClassification = 'auth' | 'transient' | 'fatal';
@@ -115,32 +102,4 @@ export async function withOAuth2Retry<T>(
       throw err;
     }
   }
-}
-
-export async function sendViaOAuth2(
-  credentials: OAuth2Credentials,
-  fromEmail: string,
-  message: OutboundMessage,
-): Promise<{ messageId: string }> {
-  const info = await withOAuth2Retry(credentials, async (accessToken) => {
-    const transport = createXOAuth2Transport(fromEmail, accessToken);
-    return transport.sendMail({
-      from: formatFromAddress(fromEmail, message.fromDisplayName),
-      to: message.to.join(', '),
-      cc: message.cc?.join(', '),
-      bcc: message.bcc?.join(', '),
-      subject: message.subject,
-      text: message.bodyType === 'html' ? undefined : message.body,
-      html: message.bodyType === 'html' ? message.body : undefined,
-      // Same mcp-mailman.* Message-ID + X-Mailer branding as the App Password path.
-      messageId: buildMessageId(fromEmail),
-      headers: mailmanHeaders(),
-      attachments: message.attachments?.map((a) => ({
-        filename: a.name,
-        path: a.path,
-        contentType: a.mimeType,
-      })),
-    });
-  });
-  return { messageId: info.messageId };
 }
