@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.6.1] - 2026-07-03
+
+- fix: confirm_send now enforces alwaysConfirm — refuses to send unless confirm:true is passed (real confirmation gate; previously the setting was ignored)
+
 ## [0.6.0] - 2026-07-03
 
 - feat: **message templates** — new `list_templates` tool (182 templates across ~20 categories, filterable by `category`/`search`; core set by default) and an optional `template` param on `draft_email`. Most templates are a subject prefix + a structural hint Claude composes from (mailman stays dumb); `fwd`/`reply` are mechanical and build a real Gmail-style quoted block from `forwarded*` fields.
