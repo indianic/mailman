@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.7.0] - 2026-07-03
+
+- feat: verify Gmail credentials at init/account add with retry loop; npm+pnpm-aware update
+
 ## [0.6.2] - 2026-07-03
 
 - docs: restructure README to clean Title/Features/Installation/Usage format
