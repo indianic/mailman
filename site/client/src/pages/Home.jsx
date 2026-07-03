@@ -9,6 +9,7 @@ import HowToUse from '../components/HowToUse.jsx';
 import Examples from '../components/Examples.jsx';
 import Faq from '../components/Faq.jsx';
 import Install from '../components/Install.jsx';
+import Setup from '../components/Setup.jsx';
 
 export default function Home() {
   return (
@@ -27,6 +28,7 @@ export default function Home() {
       <HowToUse />
       <Examples />
       <Install />
+      <Setup />
       <Faq />
     </>
   );

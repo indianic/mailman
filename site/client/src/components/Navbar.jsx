@@ -12,6 +12,7 @@ const NAV = [
   { label: 'How to use', href: '/#how-to-use' },
   { label: 'Examples', href: '/#examples' },
   { label: 'Install', href: '/#install' },
+  { label: 'Setup', href: '/#setup' },
 ];
 
 export default function Navbar() {

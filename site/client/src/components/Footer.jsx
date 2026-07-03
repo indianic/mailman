@@ -92,6 +92,7 @@ export default function Footer() {
                 <li><a href="/#works-with" className="transition hover:text-brand-600 dark:hover:text-brand-300">Works with</a></li>
                 <li><a href="/#how-to-use" className="transition hover:text-brand-600 dark:hover:text-brand-300">How to use</a></li>
                 <li><a href="/#install" className="transition hover:text-brand-600 dark:hover:text-brand-300">Install</a></li>
+                <li><a href="/#setup" className="transition hover:text-brand-600 dark:hover:text-brand-300">Connect Gmail</a></li>
               </ul>
             </div>
             <div>
