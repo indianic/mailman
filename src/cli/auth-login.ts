@@ -16,17 +16,28 @@ async function promptClientCredentials(): Promise<OAuthClientConfig> {
     'This grants full-mailbox read access (gmail.readonly), not just send — mailman will be able to ' +
       'list, search, and read your inbox and sent mail, not only send new messages.',
   );
-  const clientId = await text({ message: 'OAuth Client ID' });
+  // Both fields are required. Without a validate, @clack's text() returns
+  // `undefined` on an empty submit — which `String()` turned into the literal
+  // "undefined" (and a blank placeholder rendered as "undefined" too), so an
+  // empty Client ID/Secret sailed straight through to a doomed consent call.
+  const clientId = await text({
+    message: 'OAuth Client ID',
+    placeholder: 'xxxxxxxx.apps.googleusercontent.com',
+    validate: (v) => (v && v.trim().length > 0 ? undefined : 'Client ID is required'),
+  });
   if (isCancel(clientId)) {
     cancel('Cancelled.');
     process.exit(1);
   }
-  const clientSecret = await password({ message: 'OAuth Client Secret' });
+  const clientSecret = await password({
+    message: 'OAuth Client Secret',
+    validate: (v) => (v && v.trim().length > 0 ? undefined : 'Client Secret is required'),
+  });
   if (isCancel(clientSecret)) {
     cancel('Cancelled.');
     process.exit(1);
   }
-  return { clientId: String(clientId), clientSecret: String(clientSecret) };
+  return { clientId: String(clientId).trim(), clientSecret: String(clientSecret).trim() };
 }
 
 export interface AuthorizeOAuth2AccountOptions {
