@@ -37,7 +37,7 @@ export default function Footer() {
           {/* Brand + subscribe */}
           <div>
             <div className="flex items-center gap-2 text-lg font-bold">
-              <BrandMark className="h-8 w-8" rounded={9} />
+              <BrandMark className="h-8 w-8" />
               <span className="text-gradient">MailMan</span>
             </div>
             <p className="mt-3 max-w-sm text-sm text-slate-600 dark:text-slate-400">

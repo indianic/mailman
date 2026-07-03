@@ -35,7 +35,7 @@ export default function Navbar() {
     >
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <BrandMark className="h-8 w-8" rounded={9} />
+          <BrandMark className="h-8 w-8" />
           <span className="text-gradient">MailMan</span>
         </Link>
 

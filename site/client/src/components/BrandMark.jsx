@@ -1,10 +1,16 @@
-// MailMan brand mark — an open envelope with an "AI" card peeking out, on the
-// site's indigo→fuchsia gradient. Self-contained (its own tile background), so
-// it reads on both light and dark pages. Used in the navbar, footer, and as the
-// favicon (see public/favicon.svg, which mirrors this artwork).
-export default function BrandMark({ className = 'h-8 w-8', rounded = 14 }) {
+// MailMan brand mark — an open envelope with an "AI" card, built on a
+// golden-ratio grid (φ ≈ 1.618) for balanced proportions:
+//   • canvas 100×100, iOS-style squircle radius 22.5 (≈ 100 · (φ−1)/φ)
+//   • envelope is a GOLDEN RECTANGLE — W 64 : H 40 ≈ φ:1
+//   • AI card width 24 ≈ envelope W ÷ φ² (64 / 2.618); card is a golden
+//     rectangle too (24 × 39 ≈ 1 : φ)
+//   • composition optically centered: card top (18) → envelope base (82),
+//     midpoint = 50
+// Self-contained (own gradient tile) so it reads on light AND dark pages.
+// public/favicon.svg mirrors this artwork exactly.
+export default function BrandMark({ className = 'h-8 w-8' }) {
   return (
-    <svg viewBox="0 0 64 64" className={className} role="img" aria-label="MailMan">
+    <svg viewBox="0 0 100 100" className={className} role="img" aria-label="MailMan">
       <defs>
         <linearGradient id="mm-bg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#6366f1" />
@@ -15,31 +21,31 @@ export default function BrandMark({ className = 'h-8 w-8', rounded = 14 }) {
           <stop offset="1" stopColor="#a21caf" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx={rounded} fill="url(#mm-bg)" />
-      {/* AI card peeking out of the envelope */}
-      <rect x="20" y="9" width="24" height="24" rx="4" fill="#ffffff" />
+      <rect width="100" height="100" rx="22.5" fill="url(#mm-bg)" />
+      {/* AI card (golden rect 24×39), centered, peeking above the envelope */}
+      <rect x="38" y="18" width="24" height="39" rx="5" fill="#ffffff" />
       <text
-        x="32"
-        y="26"
+        x="50"
+        y="35"
         textAnchor="middle"
         fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
         fontWeight="800"
-        fontSize="14"
+        fontSize="16"
         fill="url(#mm-ai)"
       >
         AI
       </text>
-      {/* envelope front, covering the base of the card */}
+      {/* envelope front — golden rectangle footprint (W64 : H40 ≈ φ) */}
       <path
-        d="M12 30 L32 44 L52 30 L52 50 a4 4 0 0 1 -4 4 L16 54 a4 4 0 0 1 -4 -4 Z"
+        d="M18 42 L50 60 L82 42 L82 77 a5 5 0 0 1 -5 5 L23 82 a5 5 0 0 1 -5 -5 Z"
         fill="#ffffff"
       />
-      {/* the open-flap fold line */}
+      {/* open-flap fold line */}
       <path
-        d="M12 30 L32 44 L52 30"
+        d="M18 42 L50 60 L82 42"
         fill="none"
         stroke="#c7d2fe"
-        strokeWidth="2"
+        strokeWidth="2.5"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
