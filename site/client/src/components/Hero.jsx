@@ -4,10 +4,10 @@ import TerminalCard from './TerminalCard.jsx';
 import FlipWords from './FlipWords.jsx';
 
 const HERO_LINES = [
-  { role: 'prompt', text: 'MailMan, send the Q3 report to sandeep@indianic.com' },
+  { role: 'prompt', text: 'MailMan, send the Q3 report to kalpesh.gamit@indianic.com' },
   { role: 'treetop' },
   { role: 'section', text: 'draft — preview' },
-  { role: 'rail', text: 'to · sandeep@indianic.com' },
+  { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
   { role: 'rail', text: 'subject · Q3 Report' },
   { role: 'rail', text: 'Q3-report.pdf (84 KB) · signature appended' },
   { role: 'status', text: 'send it' },

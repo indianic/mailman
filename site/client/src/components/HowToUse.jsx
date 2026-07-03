@@ -4,10 +4,10 @@ import { useContent } from '../ContentContext.jsx';
 
 // DB-backed (site_content.howTo); fallback only.
 const FALLBACK = [
-  { icon: 'messageSquare', title: 'Send', examples: ['“Email the Q3 report to sandeep@indianic.com.”', '“Reply to the last email from finance and say I approve.”', '“Send a thank-you note to everyone on yesterday’s call.”'] },
+  { icon: 'messageSquare', title: 'Send', examples: ['“Email the Q3 report to kalpesh.gamit@indianic.com.”', '“Reply to the last email from finance and say I approve.”', '“Send a thank-you note to everyone on yesterday’s call.”'] },
   { icon: 'inbox', title: 'Read & search', examples: ['“Show my last 10 emails.”', '“Any unread mail from Priya this week?”', '“Find the invoice with an attachment from March.”'] },
   { icon: 'clock', title: 'Schedule', examples: ['“Send this tomorrow at 9am.”', '“Schedule the newsletter for Monday morning.”', '“What sends do I have queued?”'] },
-  { icon: 'paperclip', title: 'Attach', examples: ['“Attach all the PDFs in ~/reports and send to the team.”', '“Send the deck folder to Aadil.”', '“What would *.png in this folder attach?”'] },
+  { icon: 'paperclip', title: 'Attach', examples: ['“Attach all the PDFs in ~/reports and send to the team.”', '“Send the deck folder to Kalpesh Gamit.”', '“What would *.png in this folder attach?”'] },
 ];
 
 export default function HowToUse() {

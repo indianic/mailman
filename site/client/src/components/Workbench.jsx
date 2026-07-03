@@ -71,10 +71,10 @@ export default function Workbench() {
           <div>
             {/* transcript — diamond-tree convention */}
             <div className="space-y-1.5 p-5 sm:p-7">
-              <Prompt>MailMan, send the Q3 report to sandeep@indianic.com</Prompt>
+              <Prompt>MailMan, send the Q3 report to kalpesh.gamit@indianic.com</Prompt>
               <Top />
               <Section>draft — preview</Section>
-              <Rail>to · sandeep@indianic.com</Rail>
+              <Rail>to · kalpesh.gamit@indianic.com</Rail>
               <Rail>subject · Q3 Report</Rail>
               <Rail>Q3-report.pdf (84 KB) · signature appended</Rail>
               <Status>send it</Status>
@@ -113,7 +113,7 @@ export default function Workbench() {
                 <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">now</span>
               </div>
               <p className="mt-0.5 text-[13.5px] leading-snug text-slate-700 dark:text-slate-200">
-                Email sent to Sandeep
+                Email sent to Kalpesh Gamit
               </p>
               <p className="text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
                 “Q3 Report” · delivered ✓

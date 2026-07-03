@@ -33,7 +33,7 @@ export const SEED = {
   ],
 
   faqs: [
-    { q: 'Do I need to be technical to use it?', a: 'No. A developer (or the setup wizard) installs it once. After that you just talk to your AI assistant in plain English — “email this to Sana,” “what did I get from finance today?”' },
+    { q: 'Do I need to be technical to use it?', a: 'No. A developer (or the setup wizard) installs it once. After that you just talk to your AI assistant in plain English — “email this to Kalpesh Gamit,” “what did I get from finance today?”' },
     { q: 'Is my email account safe?', a: 'Yes. Your credentials are encrypted with AES-256-GCM and the key lives in your operating system’s keychain — never in a plain file and never uploaded to us. Copying the config to another machine yields useless ciphertext.' },
     { q: 'Will it send an email without my permission?', a: 'Never. Every send follows draft → preview → confirm. MailMan prepares the message, shows you exactly what will go out, and only sends after you say “yes.”' },
     { q: 'Which email providers work?', a: 'Gmail today — via a simple App Password (recommended) or OAuth2 for Workspace setups. Sending uses SMTP; reading and search use IMAP or the Gmail API.' },
@@ -42,27 +42,27 @@ export const SEED = {
   ],
 
   howTo: [
-    { icon: 'messageSquare', title: 'Send', examples: ['“Email the Q3 report to sandeep@indianic.com.”', '“Reply to the last email from finance and say I approve.”', '“Send a thank-you note to everyone on yesterday’s call.”'] },
+    { icon: 'messageSquare', title: 'Send', examples: ['“Email the Q3 report to kalpesh.gamit@indianic.com.”', '“Reply to the last email from finance and say I approve.”', '“Send a thank-you note to everyone on yesterday’s call.”'] },
     { icon: 'inbox', title: 'Read & search', examples: ['“Show my last 10 emails.”', '“Any unread mail from Priya this week?”', '“Find the invoice with an attachment from March.”'] },
     { icon: 'clock', title: 'Schedule', examples: ['“Send this tomorrow at 9am.”', '“Schedule the newsletter for Monday morning.”', '“What sends do I have queued?”'] },
-    { icon: 'paperclip', title: 'Attach', examples: ['“Attach all the PDFs in ~/reports and send to the team.”', '“Send the deck folder to Aadil.”', '“What would *.png in this folder attach?”'] },
+    { icon: 'paperclip', title: 'Attach', examples: ['“Attach all the PDFs in ~/reports and send to the team.”', '“Send the deck folder to Kalpesh Gamit.”', '“What would *.png in this folder attach?”'] },
   ],
 
   examples: [
     { title: 'claude · ship a PR for review', lines: [
-      { role: 'prompt', text: 'email the PR link to sandeep for review' },
+      { role: 'prompt', text: 'email the PR link to Kalpesh Gamit for review' },
       { role: 'treetop' }, { role: 'section', text: 'draft — preview' },
-      { role: 'rail', text: 'to · sandeep@indianic.com' },
+      { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
       { role: 'rail', text: 'subject · Auth refactor ready for review' },
       { role: 'status', text: 'previewed · awaiting confirm' },
       { role: 'treeend', text: 'sent · notification shown' },
     ] },
     { title: 'cursor · send a build artifact', lines: [
-      { role: 'prompt', text: 'attach ./dist/report.html and send to qa@indianic.com' },
+      { role: 'prompt', text: 'attach ./dist/report.html and send to kalpesh.gamit@indianic.com' },
       { role: 'treetop' }, { role: 'section', text: 'attachment' },
       { role: 'rail', text: 'report.html · 84 KB (under 25 MB)' },
       { role: 'section', text: 'draft' },
-      { role: 'rail', text: 'to · qa@indianic.com' },
+      { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
       { role: 'rail', text: 'subject · QA build — please verify' },
       { role: 'treeend', text: 'sent' },
     ] },
@@ -86,8 +86,8 @@ export const SEED = {
     { title: 'zsh · mailman status', lines: [
       { role: 'cmd', text: 'mailman status' },
       { role: 'treetop' }, { role: 'section', text: 'accounts' },
-      { role: 'rail', text: 'default · you@gmail.com (App Password)' },
-      { role: 'rail', text: 'work · you@company.com' },
+      { role: 'rail', text: 'default · kalpesh.gamit@indianic.com (App Password)' },
+      { role: 'rail', text: 'personal · you@gmail.com (App Password)' },
       { role: 'section', text: 'security' },
       { role: 'status', text: 'keychain reachable · AES-256-GCM' },
       { role: 'section', text: 'scheduler' },
@@ -97,9 +97,9 @@ export const SEED = {
       { role: 'treeend', text: 'ready' },
     ] },
     { title: 'windsurf · loop a teammate on an error', lines: [
-      { role: 'prompt', text: 'forward this stack trace to aadil and ask if he’s seen it' },
+      { role: 'prompt', text: 'forward this stack trace to Kalpesh Gamit and ask if he’s seen it' },
       { role: 'treetop' }, { role: 'section', text: 'draft' },
-      { role: 'rail', text: 'to · aadil.a@indianic.com' },
+      { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
       { role: 'rail', text: 'subject · Seen this before?' },
       { role: 'rail', text: 'the trace is quoted inline' },
       { role: 'treeend', text: 'sent · back to your code' },

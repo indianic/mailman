@@ -14,10 +14,10 @@ const FALLBACK = [
   {
     title: 'claude · ship a PR for review',
     lines: [
-      { role: 'prompt', text: 'email the PR link to sandeep for review' },
+      { role: 'prompt', text: 'email the PR link to Kalpesh Gamit for review' },
       { role: 'treetop' },
       { role: 'section', text: 'draft — preview' },
-      { role: 'rail', text: 'to · sandeep@indianic.com' },
+      { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
       { role: 'rail', text: 'subject · Auth refactor ready for review' },
       { role: 'status', text: 'previewed · awaiting confirm' },
       { role: 'treeend', text: 'sent · notification shown' },
@@ -26,12 +26,12 @@ const FALLBACK = [
   {
     title: 'cursor · send a build artifact',
     lines: [
-      { role: 'prompt', text: 'attach ./dist/report.html and send to qa@indianic.com' },
+      { role: 'prompt', text: 'attach ./dist/report.html and send to kalpesh.gamit@indianic.com' },
       { role: 'treetop' },
       { role: 'section', text: 'attachment' },
       { role: 'rail', text: 'report.html · 84 KB (under 25 MB)' },
       { role: 'section', text: 'draft' },
-      { role: 'rail', text: 'to · qa@indianic.com' },
+      { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
       { role: 'rail', text: 'subject · QA build — please verify' },
       { role: 'treeend', text: 'sent' },
     ],
@@ -67,8 +67,8 @@ const FALLBACK = [
       { role: 'cmd', text: 'mailman status' },
       { role: 'treetop' },
       { role: 'section', text: 'accounts' },
-      { role: 'rail', text: 'default · you@gmail.com (App Password)' },
-      { role: 'rail', text: 'work · you@company.com' },
+      { role: 'rail', text: 'default · kalpesh.gamit@indianic.com (App Password)' },
+      { role: 'rail', text: 'personal · you@gmail.com (App Password)' },
       { role: 'section', text: 'security' },
       { role: 'status', text: 'keychain reachable · AES-256-GCM' },
       { role: 'section', text: 'scheduler' },
@@ -81,10 +81,10 @@ const FALLBACK = [
   {
     title: 'windsurf · loop a teammate on an error',
     lines: [
-      { role: 'prompt', text: 'forward this stack trace to aadil and ask if he’s seen it' },
+      { role: 'prompt', text: 'forward this stack trace to Kalpesh Gamit and ask if he’s seen it' },
       { role: 'treetop' },
       { role: 'section', text: 'draft' },
-      { role: 'rail', text: 'to · aadil.a@indianic.com' },
+      { role: 'rail', text: 'to · kalpesh.gamit@indianic.com' },
       { role: 'rail', text: 'subject · Seen this before?' },
       { role: 'rail', text: 'the trace is quoted inline' },
       { role: 'treeend', text: 'sent · back to your code' },

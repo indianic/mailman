@@ -7,7 +7,7 @@ import { useContent } from '../ContentContext.jsx';
 const FALLBACK = [
   {
     q: 'Do I need to be technical to use it?',
-    a: 'No. A developer (or the setup wizard) installs it once. After that you just talk to your AI assistant in plain English — “email this to Sana,” “what did I get from finance today?”',
+    a: 'No. A developer (or the setup wizard) installs it once. After that you just talk to your AI assistant in plain English — “email this to Kalpesh Gamit,” “what did I get from finance today?”',
   },
   {
     q: 'Is my email account safe?',
