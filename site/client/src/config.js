@@ -3,7 +3,7 @@
 // must never change) — keep them distinct on purpose.
 export const BRAND = 'MailMan';
 export const PACKAGE = '@indianic/mailman';
-export const VERSION = '0.8.1';
+export const VERSION = '0.9.0';
 export const NPM_URL = 'https://npm.indianic.in/#/packages';
 
 // Public site origin — used for canonical URLs, Open Graph and the sitemap.
