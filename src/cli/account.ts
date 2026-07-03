@@ -1,4 +1,4 @@
-import { intro, outro, text, password, confirm, isCancel, cancel, spinner, log } from '@clack/prompts';
+import { intro, outro, text, password, confirm, select, isCancel, cancel, spinner, log } from '@clack/prompts';
 import {
   configureAccount,
   listAccounts,
@@ -38,10 +38,12 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
 
   // Ask for the address + App Password and actually log in to Gmail before
   // moving on. A wrong App Password is the #1 setup mistake (and silently
-  // breaks every later send), so we loop here until Gmail accepts the pair —
-  // the next step never runs on a credential we haven't proven works. The
-  // address is pre-filled on retry so only the mistyped password needs fixing;
-  // Ctrl-C still exits.
+  // breaks every later send), so we verify the pair — but a failed verify is
+  // NEVER a dead end: after each rejection the user chooses retry / save-
+  // anyway / cancel. "Save anyway" matters because Google temporarily blocks
+  // sign-in after several failed attempts (so a *correct* password can be
+  // refused for a few minutes), and because verify is best-effort. The address
+  // is pre-filled on retry so only the mistyped password needs fixing.
   let email = '';
   let pass = '';
   for (;;) {
@@ -68,6 +70,17 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     // paste them with spaces constantly, and SMTP rejects the spaces. Strip.
     pass = String(passInput).replace(/\s+/g, '');
 
+    // The single most common mistake this catches: typing a regular account
+    // password (which Google refuses for SMTP/IMAP) instead of a 16-char App
+    // Password. Flag the length mismatch up front, before the slow verify.
+    if (pass.length !== 16) {
+      log.warn(
+        `That's ${pass.length} characters — a Gmail App Password is exactly 16. ` +
+          'Your normal account password will NOT work here (Google blocks it for SMTP/IMAP). ' +
+          'Generate an App Password at https://myaccount.google.com/apppasswords (needs 2-Step Verification on).',
+      );
+    }
+
     const s = spinner();
     s.start('Verifying with Gmail…');
     const result = await verifyAppPasswordCredentials({ user: email, pass });
@@ -78,7 +91,28 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     }
     s.stop('Gmail rejected these credentials ✗');
     log.error(result.error ?? 'Verification failed.');
-    log.info('Let\'s try again — re-enter the address and App Password.');
+
+    const next = await select({
+      message: 'What next?',
+      options: [
+        { value: 'retry', label: 'Re-enter the address and App Password' },
+        { value: 'save', label: "Save it anyway without verifying (I'm sure it's correct)" },
+        { value: 'cancel', label: 'Cancel — add nothing' },
+      ],
+      initialValue: 'retry',
+    });
+    if (isCancel(next) || next === 'cancel') {
+      cancel('Cancelled — no account added.');
+      process.exit(1);
+    }
+    if (next === 'save') {
+      log.warn(
+        'Saved without verification. If the credentials are wrong, sends will fail silently — ' +
+          'run `mailman doctor` to test the login, or `mailman account remove` then re-add to fix.',
+      );
+      break;
+    }
+    // retry → loop again
   }
 
   const { displayName, signature } = await promptProfileDetails();

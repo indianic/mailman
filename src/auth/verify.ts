@@ -21,12 +21,19 @@ export interface VerifyResult {
 function describe(err: unknown): string {
   const e = err as { code?: string; responseCode?: number; response?: string; message?: string };
   const msg = e?.response || e?.message || String(err);
+  // Google's anti-abuse temporary block — kicks in after several failed
+  // sign-ins from one IP, so a *correct* password can be refused for minutes.
+  // Distinct message so the user waits (or saves anyway) instead of assuming
+  // their App Password is wrong.
+  if (/too many|rate.?limit|temporarily|try again later|unusual activity|suspicious|4\.7\.0/i.test(msg)) {
+    return 'Google is temporarily blocking sign-in attempts (an anti-abuse measure that triggers after several tries). Wait a few minutes and try again — or, if you\'re sure the App Password is correct, save it anyway.';
+  }
   if (
     e?.code === 'EAUTH' ||
     e?.responseCode === 535 ||
     /invalid|username|password|credential|badcredentials|authentication failed/i.test(msg)
   ) {
-    return 'Gmail rejected these credentials. Check the address, and that the App Password is the 16-character one from https://myaccount.google.com/apppasswords (2-Step Verification must be on).';
+    return 'Gmail rejected these credentials. Check the address, and that the App Password is the 16-character one from https://myaccount.google.com/apppasswords (2-Step Verification must be on). A regular account password will not work.';
   }
   if (
     e?.code === 'ETIMEDOUT' ||
