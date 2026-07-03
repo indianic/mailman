@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.6.2] - 2026-07-03
+
+- docs: restructure README to clean Title/Features/Installation/Usage format
+
 ## [0.6.1] - 2026-07-03
 
 - fix: confirm_send now enforces alwaysConfirm — refuses to send unless confirm:true is passed (real confirmation gate; previously the setting was ignored)
