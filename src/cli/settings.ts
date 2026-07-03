@@ -3,13 +3,33 @@ import { getSettings, updateSettings } from '../settings.js';
 import { listAccounts } from '../accounts.js';
 import { section, detail, fail } from './tree.js';
 
+// One source of truth for what each setting means and accepts — used by both
+// `settings get` (to explain each row) and `settings set` (to show valid
+// values on misuse). Users routinely don't know these exist or what they do,
+// so every surface spells it out rather than assuming prior knowledge.
+const SETTING_INFO = {
+  defaultAccount: { values: '<alias> | null', desc: "account used when you don't name one" },
+  draftTtlMinutes: { values: 'positive integer', desc: 'minutes an unsent draft stays valid' },
+  alwaysConfirm: { values: 'true | false', desc: 'require confirmation before every send' },
+  defaultBodyType: { values: 'text | html', desc: 'body format for new emails' },
+  desktopNotifications: { values: 'true | false', desc: 'desktop pop-up after each send' },
+} as const;
+
+const SETTABLE_KEYS = Object.keys(SETTING_INFO) as (keyof typeof SETTING_INFO)[];
+
+/** Indented "key   valid-values   — description" block for usage/error output. */
+function keysHelp(): string {
+  return SETTABLE_KEYS.map((k) => `  ${k.padEnd(21)}${SETTING_INFO[k].values.padEnd(18)} — ${SETTING_INFO[k].desc}`).join('\n');
+}
+
 /** `mailman settings get` */
 export async function runSettingsGet(_args: string[]): Promise<void> {
   intro('mailman — settings');
   const settings = await getSettings();
 
-  section('settings');
-  const row = (k: string, v: unknown): void => detail(`${k.padEnd(20)} ${String(v)}`);
+  section('settings   (change with: mailman settings set <key> <value>)');
+  const row = (k: keyof typeof SETTING_INFO, v: unknown): void =>
+    detail(`${k.padEnd(21)}${String(v).padEnd(10)} — ${SETTING_INFO[k].desc}`);
   row('defaultAccount', settings.defaultAccount ?? 'none');
   row('draftTtlMinutes', settings.draftTtlMinutes);
   row('alwaysConfirm', settings.alwaysConfirm);
@@ -18,18 +38,16 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
   outro('settings');
 }
 
-const SETTABLE_KEYS = ['defaultAccount', 'draftTtlMinutes', 'alwaysConfirm', 'defaultBodyType', 'desktopNotifications'] as const;
-
 /** `mailman settings set <key> <value>` */
 export async function runSettingsSet(args: string[]): Promise<void> {
   const [key, value] = args;
   intro('mailman — settings set');
   if (!key || value === undefined) {
-    fail(`Usage: mailman settings set <key> <value>\nKeys: ${SETTABLE_KEYS.join(', ')}`);
+    fail(`Usage: mailman settings set <key> <value>\n\nKeys:\n${keysHelp()}`);
     process.exit(1);
   }
-  if (!SETTABLE_KEYS.includes(key as (typeof SETTABLE_KEYS)[number])) {
-    fail(`Unknown setting "${key}". Keys: ${SETTABLE_KEYS.join(', ')}`);
+  if (!SETTABLE_KEYS.includes(key as keyof typeof SETTING_INFO)) {
+    fail(`Unknown setting "${key}".\n\nKeys:\n${keysHelp()}`);
     process.exit(1);
   }
 

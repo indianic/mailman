@@ -18,7 +18,7 @@ import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
-import { section, detail, fail } from './tree.js';
+import { section, detail, fail, info, attention } from './tree.js';
 
 interface AppPasswordDetails {
   alias: string;
@@ -42,8 +42,30 @@ async function promptAlias(): Promise<string> {
   return String(alias);
 }
 
+/**
+ * Click-by-click walkthrough for creating a Gmail App Password — printed
+ * before the password prompt. Mirrors the OAuth2 guide: users routinely don't
+ * know App Passwords require 2-Step Verification first, or where to generate
+ * one, so every step shows its exact URL rather than assuming prior knowledge.
+ */
+function printAppPasswordSetupGuide(): void {
+  info("Don't have a 16-character App Password yet? Create one — one-time, ~1 minute:");
+  detail(
+    '1. Turn ON 2-Step Verification (App Passwords do not exist until it is on)\n' +
+      '     → https://myaccount.google.com/signinoptions/two-step-verification\n' +
+      '2. Open App Passwords, type a name (e.g. "mailman") → Create\n' +
+      '     → https://myaccount.google.com/apppasswords\n' +
+      '3. Google shows a 16-character code (like "abcd efgh ijkl mnop")\n' +
+      '     Copy it and paste below — spaces are fine, mailman strips them.',
+  );
+  attention(
+    'Your normal Gmail password will NOT work — Google blocks it for SMTP/IMAP. It must be an App Password.',
+  );
+}
+
 async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
   const alias = await promptAlias();
+  printAppPasswordSetupGuide();
 
   // Ask for the address + App Password and actually log in to Gmail before
   // moving on. A wrong App Password is the #1 setup mistake (and silently
