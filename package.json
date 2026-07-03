@@ -1,6 +1,6 @@
 {
   "name": "@indianic/mailman",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "MCP server for sending and reading email (Gmail via SMTP/IMAP App Password or OAuth2 Gmail API) with attachments, draft/confirm review, multi-account settings, recipient suggestions, and inbox search — usable from any Claude CLI session on macOS, Linux, or Windows.",
   "author": "kalpesh",
   "type": "module",

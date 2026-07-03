@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.12.0] - 2026-07-03
+
+- feat: inline App Password setup guide + self-describing settings get/set (valid values + descriptions)
+
 ## [0.11.0] - 2026-07-03
 
 - feat: inline step-by-step Google Cloud OAuth client setup guide in the browser sign-in flow
