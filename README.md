@@ -105,7 +105,16 @@ Regular Gmail passwords **cannot** be used with mailman — Google disabled pass
 
 Passkeys can't be handed to SMTP/IMAP directly, but they work **inside** the browser sign-in: when OAuth2 opens Google's consent page, authenticate there with your passkey — mailman stores the resulting refresh token, not the passkey.
 
-OAuth2 uses **your own** Google Cloud OAuth client (Desktop app, Gmail API enabled) — a one-time setup that replaces per-account passwords. A browser opens for consent and the refresh token is stored encrypted. On a headless box, it prints the consent URL + an `ssh -L` tunnel command instead of launching a browser.
+OAuth2 uses **your own** Google Cloud OAuth client — a one-time setup that replaces per-account passwords. A browser opens for consent and the refresh token is stored encrypted. On a headless box, it prints the consent URL + an `ssh -L` tunnel command instead of launching a browser.
+
+### Creating the OAuth client (one-time, ~2 min)
+
+1. **Google Cloud Console** → create/select a project → **APIs & Services → Library** → enable the **Gmail API** (and **People API** if you want contact suggestions).
+2. **APIs & Services → OAuth consent screen** → **External** → add yourself as a **Test user** (so you don't need Google app verification). Publishing status can stay "Testing".
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID** → **Application type: `Desktop app`**. ⚠️ **This must be `Desktop app`, not `Web application`.**
+4. Copy the **Client ID** and **Client secret** — paste them when `auth login` / `account add` asks.
+
+> **`Error 400: redirect_uri_mismatch`?** Your client is a **Web application** type. mailman signs in over a loopback redirect (`http://127.0.0.1:<random-port>`), which **only Desktop-app clients allow** — Web-app clients require every redirect URI to be pre-registered with a fixed port, so a random port always fails. Delete the client and create a **Desktop app** one instead. There is nothing to configure on mailman's side.
 
 Scopes requested: `gmail.send`, `gmail.readonly`, `contacts.readonly`. (`gmail.readonly` is read access to your whole mailbox — App Password accounts get equivalent read access implicitly via IMAP.)
 

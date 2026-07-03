@@ -9,8 +9,10 @@ import type { Account } from '../config/schema.js';
 
 async function promptClientCredentials(): Promise<OAuthClientConfig> {
   info(
-    'Needs a Google Cloud OAuth client ("Desktop app" type) — see the README for setup steps if you ' +
-      "haven't created one yet.",
+    'Needs a Google Cloud OAuth client of type "Desktop app" — NOT "Web application". ' +
+      'A Web-application client fails with "Error 400: redirect_uri_mismatch", because mailman signs ' +
+      'in via a loopback redirect (http://127.0.0.1:<port>) that only Desktop-app clients allow. ' +
+      "See the README for the 2-minute setup if you haven't created one yet.",
   );
   attention(
     'This grants full-mailbox read access (gmail.readonly), not just send — mailman will be able to ' +
@@ -57,7 +59,11 @@ export async function authorizeOAuth2Account(
 ): Promise<{ account: Account; isDefault: boolean }> {
   const client = await promptClientCredentials();
 
-  info('Opening the consent screen...');
+  info('Opening the consent screen in your browser — approve there, then come back.');
+  attention(
+    'If the browser shows "Error 400: redirect_uri_mismatch", your OAuth client is a "Web application" ' +
+      '— recreate it as "Desktop app" and run this again. (Waiting up to 5 minutes for approval.)',
+  );
   const { refreshToken } = await runOAuthLogin(client, {
     noBrowser: opts.noBrowser,
     onInstructions: (message) => info(message),

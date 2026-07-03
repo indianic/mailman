@@ -5,6 +5,12 @@ import open from 'open';
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
+// How long to wait for the user to approve in the browser before giving up.
+// Without this the CLI hangs forever when Google refuses the request outright
+// (e.g. redirect_uri_mismatch, shown in the browser — our loopback listener
+// never receives a callback), so the user is stuck with only Ctrl-C.
+const CONSENT_TIMEOUT_MS = 5 * 60 * 1000;
+
 // gmail.readonly grants full-mailbox read access, not just send — a
 // materially broader grant, worth being explicit about (see auth-login.ts's
 // prompt and README) rather than bundling it silently into "just send
@@ -34,7 +40,7 @@ function generatePkcePair(): { verifier: string; challenge: string } {
   return { verifier, challenge };
 }
 
-function startLoopbackServer(expectedState: string): Promise<{ port: number; waitForCode: () => Promise<string> }> {
+function startLoopbackServer(expectedState: string): Promise<{ port: number; waitForCode: () => Promise<string>; close: () => void }> {
   return new Promise((resolve, reject) => {
     let settleCode: ((code: string) => void) | undefined;
     let settleError: ((err: Error) => void) | undefined;
@@ -77,7 +83,19 @@ function startLoopbackServer(expectedState: string): Promise<{ port: number; wai
         reject(new Error('Failed to bind the loopback OAuth listener'));
         return;
       }
-      resolve({ port: address.port, waitForCode: () => codePromise });
+      resolve({
+        port: address.port,
+        waitForCode: () => codePromise,
+        // Idempotent: the request handler already closes the server on a
+        // callback, so a later close() (on timeout/error) must not throw.
+        close: () => {
+          try {
+            server.close();
+          } catch {
+            // already closed
+          }
+        },
+      });
     });
   });
 }
@@ -157,21 +175,42 @@ export async function runOAuthLogin(
 ): Promise<OAuthLoginResult> {
   const state = crypto.randomBytes(16).toString('base64url');
   const { verifier, challenge } = generatePkcePair();
-  const { port, waitForCode } = await startLoopbackServer(state);
+  const { port, waitForCode, close } = await startLoopbackServer(state);
   const redirectUri = `http://127.0.0.1:${port}`;
   const authUrl = buildAuthUrl(client, redirectUri, state, challenge);
 
-  if (isLocalBrowserAvailable(Boolean(opts.noBrowser))) {
-    await open(authUrl);
-  } else {
-    opts.onInstructions?.(
-      `No local browser detected. From your LOCAL machine, forward this port back here:\n\n` +
-        `  ssh -L ${port}:localhost:${port} <user>@<this-host>\n\n` +
-        `Then open this URL in your local browser and approve:\n\n  ${authUrl}\n`,
-    );
-  }
+  try {
+    if (isLocalBrowserAvailable(Boolean(opts.noBrowser))) {
+      await open(authUrl);
+    } else {
+      opts.onInstructions?.(
+        `No local browser detected. From your LOCAL machine, forward this port back here:\n\n` +
+          `  ssh -L ${port}:localhost:${port} <user>@<this-host>\n\n` +
+          `Then open this URL in your local browser and approve:\n\n  ${authUrl}\n`,
+      );
+    }
 
-  const code = await waitForCode();
-  const refreshToken = await exchangeCodeForTokens(client, code, redirectUri, verifier);
-  return { refreshToken };
+    const code = await withTimeout(
+      waitForCode(),
+      CONSENT_TIMEOUT_MS,
+      'Timed out after 5 minutes waiting for browser approval. If the browser showed ' +
+        '"Error 400: redirect_uri_mismatch", your OAuth client is a "Web application" type — ' +
+        'delete it and create a "Desktop app" client instead (the loopback redirect mailman uses ' +
+        'only works for Desktop-app clients), then run the command again.',
+    );
+    const refreshToken = await exchangeCodeForTokens(client, code, redirectUri, verifier);
+    return { refreshToken };
+  } finally {
+    // Always release the ephemeral port — on success, timeout, or error.
+    close();
+  }
+}
+
+/** Reject with `message` if `promise` doesn't settle within `ms`; clears the timer either way. */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
