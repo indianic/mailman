@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.9.2] - 2026-07-03
+
+- fix: OAuth2 redirect_uri_mismatch guidance (Desktop-app requirement) + 5-min consent timeout instead of hang
+
 ## [0.9.1] - 2026-07-03
 
 - fix: OAuth Client ID/Secret now required (no more 'undefined' + empty-credential consent); guard optional profile fields
