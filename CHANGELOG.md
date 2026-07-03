@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.11.0] - 2026-07-03
+
+- feat: inline step-by-step Google Cloud OAuth client setup guide in the browser sign-in flow
+
 ## [0.10.0] - 2026-07-03
 
 - feat: enforce one email = one account (DUPLICATE_EMAIL) across configure_account, account add, auth login
