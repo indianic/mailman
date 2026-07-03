@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.9.0] - 2026-07-03
+
+- feat: init/account add offer browser sign-in (OAuth2) as a choice alongside App Password
+
 ## [0.8.1] - 2026-07-03
 
 - fix: verify loop no longer traps users — retry/save-anyway/cancel choice, 16-char hint, Google temp-block detection
