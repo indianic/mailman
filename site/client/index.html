@@ -45,14 +45,16 @@
       }
     </script>
     <script>
-      // Apply theme before paint to avoid a flash of the wrong theme.
+      // Apply theme before paint to avoid a flash. Dark is the default for
+      // everyone — only an explicit 'light' choice opts out.
       (function () {
         try {
-          var t = localStorage.getItem('theme');
-          if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          if (localStorage.getItem('theme') !== 'light') {
             document.documentElement.classList.add('dark');
           }
-        } catch (e) {}
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
       })();
     </script>
   </head>

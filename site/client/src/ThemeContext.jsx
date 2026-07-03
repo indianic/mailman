@@ -3,10 +3,10 @@ import { createContext, useContext, useEffect, useState } from 'react';
 const ThemeContext = createContext(null);
 
 function getInitial() {
-  if (typeof window === 'undefined') return 'light';
-  const stored = localStorage.getItem('theme');
-  if (stored === 'dark' || stored === 'light') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (typeof window === 'undefined') return 'dark';
+  // Dark is the default for everyone; only an explicit user choice of 'light'
+  // overrides it (OS preference is intentionally ignored).
+  return localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
 }
 
 export function ThemeProvider({ children }) {
