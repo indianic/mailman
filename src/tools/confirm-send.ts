@@ -8,10 +8,22 @@ import { getProvider } from '../mail/get-provider.js';
 import { OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
 import { upsertRecipient } from '../contacts.js';
 import { notifyDesktop, summarizeRecipients } from '../notify.js';
+import { getSettings } from '../settings.js';
 import { debugLog } from '../logging.js';
 import type { Tool } from './types.js';
 
-const InputSchema = z.object({ draftId: z.string() });
+const InputSchema = z.object({
+  draftId: z.string(),
+  // Explicit confirmation gate. When settings.alwaysConfirm is on (default),
+  // confirm_send refuses to send unless this is true — so a draft is never
+  // dispatched without a deliberate, separate confirmation step.
+  confirm: z.boolean().optional(),
+});
+
+/** The send is blocked when confirmation is required by settings but not given. */
+export function confirmationRequired(alwaysConfirm: boolean, confirm: boolean | undefined): boolean {
+  return alwaysConfirm && confirm !== true;
+}
 
 async function handler(rawArgs: Record<string, unknown>) {
   const parsed = InputSchema.safeParse(rawArgs);
@@ -36,6 +48,18 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
   if (draft.state === 'cancelled') {
     return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft was cancelled — call draft_email again.');
+  }
+
+  // Confirmation gate — enforced here, not left to the caller's discretion.
+  // With alwaysConfirm on (default), the draft is NOT sent unless confirm:true
+  // is passed. Show the user the draft_email preview, get their explicit "yes",
+  // then call confirm_send again with confirm:true.
+  const settings = await getSettings();
+  if (confirmationRequired(settings.alwaysConfirm, parsed.data.confirm)) {
+    return toolError(
+      'CONFIRMATION_REQUIRED',
+      'Not sent. alwaysConfirm is on: show the draft preview to the user, get their explicit approval, then call confirm_send again with confirm:true. (To disable this gate: mailman settings set alwaysConfirm false.)',
+    );
   }
 
   let account;
@@ -100,11 +124,15 @@ export const confirmSendTool: Tool = {
   definition: {
     name: 'confirm_send',
     description:
-      'Dispatch the exact draft produced by draft_email. This is the only tool that actually causes mail to leave the machine — never call it without the user having seen and confirmed the draft_email preview first. Idempotent: calling it again with the same draftId after a successful send returns the original result.',
+      'Dispatch the exact draft produced by draft_email — the only tool that causes mail to leave the machine. When alwaysConfirm is on (default), you MUST first show the user the draft_email preview, get their explicit approval, and only then call this with confirm:true; a call without confirm:true is refused and nothing is sent. Idempotent: re-calling with the same draftId after a successful send returns the original result.',
     inputSchema: {
       type: 'object',
       properties: {
         draftId: { type: 'string' },
+        confirm: {
+          type: 'boolean',
+          description: 'Set true ONLY after the user has explicitly approved this exact draft. Required to send while alwaysConfirm is on.',
+        },
       },
       required: ['draftId'],
     },
