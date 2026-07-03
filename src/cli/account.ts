@@ -1,4 +1,4 @@
-import { intro, outro, text, password, confirm, isCancel, cancel } from '@clack/prompts';
+import { intro, outro, text, password, confirm, isCancel, cancel, spinner, log } from '@clack/prompts';
 import {
   configureAccount,
   listAccounts,
@@ -11,6 +11,7 @@ import {
 } from '../accounts.js';
 import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
+import { verifyAppPasswordCredentials } from '../auth/verify.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
@@ -35,27 +36,54 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     process.exit(1);
   }
 
-  const email = await text({
-    message: 'Gmail address',
-    validate: (v) => (v.includes('@') ? undefined : 'Enter a valid email address'),
-  });
-  if (isCancel(email)) {
-    cancel('Cancelled.');
-    process.exit(1);
-  }
+  // Ask for the address + App Password and actually log in to Gmail before
+  // moving on. A wrong App Password is the #1 setup mistake (and silently
+  // breaks every later send), so we loop here until Gmail accepts the pair —
+  // the next step never runs on a credential we haven't proven works. The
+  // address is pre-filled on retry so only the mistyped password needs fixing;
+  // Ctrl-C still exits.
+  let email = '';
+  let pass = '';
+  for (;;) {
+    const emailInput = await text({
+      message: 'Gmail address',
+      initialValue: email,
+      validate: (v) => (v.includes('@') ? undefined : 'Enter a valid email address'),
+    });
+    if (isCancel(emailInput)) {
+      cancel('Cancelled.');
+      process.exit(1);
+    }
+    email = String(emailInput).trim();
 
-  const pass = await password({
-    message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
-    validate: (v) => (v.trim().length > 0 ? undefined : 'App Password is required'),
-  });
-  if (isCancel(pass)) {
-    cancel('Cancelled.');
-    process.exit(1);
+    const passInput = await password({
+      message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
+      validate: (v) => (v.trim().length > 0 ? undefined : 'App Password is required'),
+    });
+    if (isCancel(passInput)) {
+      cancel('Cancelled.');
+      process.exit(1);
+    }
+    // Gmail App Passwords are shown grouped as "abcd efgh ijkl mnop" — users
+    // paste them with spaces constantly, and SMTP rejects the spaces. Strip.
+    pass = String(passInput).replace(/\s+/g, '');
+
+    const s = spinner();
+    s.start('Verifying with Gmail…');
+    const result = await verifyAppPasswordCredentials({ user: email, pass });
+    if (result.ok) {
+      s.stop('Gmail accepted these credentials ✓');
+      if (result.imapWarning) log.warn(result.imapWarning);
+      break;
+    }
+    s.stop('Gmail rejected these credentials ✗');
+    log.error(result.error ?? 'Verification failed.');
+    log.info('Let\'s try again — re-enter the address and App Password.');
   }
 
   const { displayName, signature } = await promptProfileDetails();
 
-  return { alias: String(alias), email: String(email), pass: String(pass), displayName, signature };
+  return { alias: String(alias), email, pass, displayName, signature };
 }
 
 async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: boolean) {

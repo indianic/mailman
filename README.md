@@ -14,12 +14,19 @@ MailMan CLI — send and read Gmail just by asking your AI assistant, built for 
 
 ## Installation
 
+Point the `@indianic` scope at the private registry, then install globally with **npm** or **pnpm**:
+
 ```
+# npm
 npm config set @indianic:registry https://npm.indianic.in
 npm install -g @indianic/mailman
+
+# pnpm
+pnpm config set @indianic:registry https://npm.indianic.in
+pnpm add -g @indianic/mailman
 ```
 
-(The `@indianic` scope routes to the private registry via your `~/.npmrc`, so no `--registry` flag is needed and public dependencies still resolve from npm.)
+(The scope config lands in your `~/.npmrc` — which npm, pnpm, and yarn all read — so no `--registry` flag is needed and public dependencies still resolve from the public registry. `mailman update` later upgrades in place with whichever manager you used.)
 
 ## Usage
 
@@ -125,7 +132,7 @@ mailman settings set desktopNotifications true
 
 ## Staying up to date
 
-Interactive `mailman` commands show a one-line "update available" notice when a newer version is published (cached daily). Upgrade in place:
+Interactive `mailman` commands show a one-line "update available" notice when a newer version is published (cached daily). Upgrade in place — it uses the package manager that installed it (npm or pnpm):
 
 ```
 mailman update    # or: mailman upgrade

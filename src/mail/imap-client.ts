@@ -156,6 +156,33 @@ async function fetchOne(
   return undefined;
 }
 
+/**
+ * Login-only IMAP probe used by account setup: connect, then log out. Proves
+ * the App Password grants read access (IMAP enabled + credential accepted)
+ * without touching any mailbox. Throws the same descriptive error as
+ * withClient() on auth/connection failure.
+ */
+export async function verifyImapConnection(credentials: AppPasswordCredentials): Promise<void> {
+  const client = new ImapFlow({
+    host: 'imap.gmail.com',
+    port: 993,
+    secure: true,
+    auth: { user: credentials.user, pass: credentials.pass },
+    logger: false,
+  });
+  try {
+    await client.connect();
+  } catch (err) {
+    const detail = (err as { authenticationFailed?: boolean; responseText?: string }).authenticationFailed
+      ? ((err as { responseText?: string }).responseText ?? 'authentication failed')
+      : err instanceof Error
+        ? err.message
+        : String(err);
+    throw new Error(`IMAP connection to imap.gmail.com failed: ${detail}`);
+  }
+  await client.logout().catch(() => client.close());
+}
+
 export class ImapSmtpProvider implements MailProvider {
   constructor(private credentials: AppPasswordCredentials) {}
 
