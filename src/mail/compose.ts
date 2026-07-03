@@ -33,23 +33,30 @@ export function appendSignature(body: string, signature: string | undefined, bod
 }
 
 /**
- * Wrap an HTML body in a clean, minimal shell — a shared visual identity for
- * emails: readable font stack, ~600px column, comfortable line-height, and a
- * subtle divider before the signature. Opt-in via settings.emailTheme or
- * draft_email's `theme` param; never changes plain/text sends.
+ * Wrap an HTML body (body + signature, since appendSignature runs first) in the
+ * branded MailMan shell: a brand accent bar, a readable ~600px card, and an
+ * always-present IndiaNIC copyright footer. Because the signature is inside the
+ * `html` passed here, it renders WITHIN the card — never dangling outside it.
+ * Opt-in via settings.emailTheme / draft_email's `theme`; never touches text sends.
  */
+const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
 export function wrapPolished(html: string): string {
+  const year = new Date().getFullYear();
   return [
     '<div style="margin:0;padding:0;background:#f6f7f9">',
-    '<div style="max-width:600px;margin:0 auto;padding:28px 24px;',
-    'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:15px;line-height:1.6;color:#1f2937;background:#ffffff;',
-    'border:1px solid #e5e7eb;border-radius:12px">',
+    `<div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;font-family:${FONT_STACK}">`,
+    // Brand accent bar (the indigo→fuchsia identity), kept subtle for routine mail.
+    '<div style="height:4px;background:linear-gradient(90deg,#6366f1,#a21caf,#d946ef)"></div>',
+    `<div style="padding:28px 24px;font-size:15px;line-height:1.6;color:#1f2937">`,
     html,
     '</div>',
-    '<div style="max-width:600px;margin:8px auto 0;padding:0 24px;',
-    'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:12px;color:#9ca3af;text-align:center">Sent with MailMan</div>',
+    // Always-on IndiaNIC footer / copyright.
+    '<div style="border-top:1px solid #eef2f7;padding:16px 24px;font-size:12px;color:#9ca3af;text-align:center">',
+    `© ${year} IndiaNIC Infotech Ltd. · <a href="https://mailman.indianic.dev" style="color:#6366f1;text-decoration:none">mailman.indianic.dev</a>`,
+    '<br>Sent with MailMan',
+    '</div>',
+    '</div>',
     '</div>',
   ].join('');
 }

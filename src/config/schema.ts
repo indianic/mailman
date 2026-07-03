@@ -68,7 +68,7 @@ export const SettingsFileSchema = z.object({
   // (readable font stack, ~600px column, comfortable line-height, a subtle
   // divider before the signature). Opt-in so existing draft_email calls are
   // unchanged; override per call with draft_email's `theme` param.
-  emailTheme: z.enum(['plain', 'polished']).default('plain'),
+  emailTheme: z.enum(['plain', 'polished']).default('polished'),
 });
 
 export type Account = z.infer<typeof AccountSchema>;
@@ -84,7 +84,7 @@ export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   alwaysConfirm: true,
   defaultBodyType: 'html',
   desktopNotifications: true,
-  emailTheme: 'plain',
+  emailTheme: 'polished',
 };
 
 // "google-contacts" is never stored here — it's fetched live from the

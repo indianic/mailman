@@ -73,8 +73,11 @@ test('buildForwardedBody escapes html in the header', () => {
   assert.ok(!out.includes('<b@x.com>'));
 });
 
-test('wrapPolished wraps html in a bounded shell', () => {
+test('wrapPolished wraps html in a bounded, branded shell with an IndiaNIC footer', () => {
   const out = wrapPolished('<p>hi</p>');
   assert.ok(out.includes('<p>hi</p>'));
   assert.ok(out.includes('max-width:600px'));
+  // Always-on copyright footer (year is dynamic, so match the stable text).
+  assert.ok(out.includes('IndiaNIC Infotech Ltd.'));
+  assert.ok(out.includes('mailman.indianic.dev'));
 });

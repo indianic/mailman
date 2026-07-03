@@ -10,6 +10,7 @@ const InputSchema = z.object({
   draftTtlMinutes: z.number().int().positive().optional(),
   alwaysConfirm: z.boolean().optional(),
   defaultBodyType: z.enum(['text', 'html']).optional(),
+  emailTheme: z.enum(['plain', 'polished']).optional(),
   desktopNotifications: z.boolean().optional(),
 });
 
@@ -33,6 +34,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     ...(input.draftTtlMinutes !== undefined ? { draftTtlMinutes: input.draftTtlMinutes } : {}),
     ...(input.alwaysConfirm !== undefined ? { alwaysConfirm: input.alwaysConfirm } : {}),
     ...(input.defaultBodyType !== undefined ? { defaultBodyType: input.defaultBodyType } : {}),
+    ...(input.emailTheme !== undefined ? { emailTheme: input.emailTheme } : {}),
     ...(input.desktopNotifications !== undefined ? { desktopNotifications: input.desktopNotifications } : {}),
   }));
 
@@ -41,6 +43,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     draftTtlMinutes: settings.draftTtlMinutes,
     alwaysConfirm: settings.alwaysConfirm,
     defaultBodyType: settings.defaultBodyType,
+    emailTheme: settings.emailTheme,
     desktopNotifications: settings.desktopNotifications,
   });
 }
@@ -56,6 +59,7 @@ export const updateSettingsTool: Tool = {
         draftTtlMinutes: { type: 'number' },
         alwaysConfirm: { type: 'boolean' },
         defaultBodyType: { type: 'string', enum: ['text', 'html'] },
+        emailTheme: { type: 'string', enum: ['plain', 'polished'], description: 'polished = branded MailMan shell + IndiaNIC footer on HTML emails' },
         desktopNotifications: { type: 'boolean' },
       },
     },

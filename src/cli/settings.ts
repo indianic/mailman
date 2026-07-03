@@ -12,6 +12,7 @@ const SETTING_INFO = {
   draftTtlMinutes: { values: 'positive integer', desc: 'minutes an unsent draft stays valid' },
   alwaysConfirm: { values: 'true | false', desc: 'require confirmation before every send' },
   defaultBodyType: { values: 'text | html', desc: 'body format for new emails' },
+  emailTheme: { values: 'plain | polished', desc: 'polished = branded shell + IndiaNIC footer (HTML)' },
   desktopNotifications: { values: 'true | false', desc: 'desktop pop-up after each send' },
 } as const;
 
@@ -34,6 +35,7 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
   row('draftTtlMinutes', settings.draftTtlMinutes);
   row('alwaysConfirm', settings.alwaysConfirm);
   row('defaultBodyType', settings.defaultBodyType);
+  row('emailTheme', settings.emailTheme);
   row('desktopNotifications', settings.desktopNotifications);
   outro('settings');
 }
@@ -79,6 +81,12 @@ export async function runSettingsSet(args: string[]): Promise<void> {
       process.exit(1);
     }
     await updateSettings((current) => ({ ...current, desktopNotifications: value === 'true' }));
+  } else if (key === 'emailTheme') {
+    if (value !== 'plain' && value !== 'polished') {
+      fail('emailTheme must be "plain" or "polished"');
+      process.exit(1);
+    }
+    await updateSettings((current) => ({ ...current, emailTheme: value }));
   } else {
     if (value !== 'text' && value !== 'html') {
       fail('defaultBodyType must be "text" or "html"');
