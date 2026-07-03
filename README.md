@@ -99,9 +99,13 @@ Manual MCP config (what `init`/`register` write for you — note it carries **no
 - [docs/CLI.md](docs/CLI.md) — every terminal command (setup, accounts, diagnostics)
 - [docs/CROSS-OS.md](docs/CROSS-OS.md) — per-OS support matrix
 
-## OAuth2 setup (optional — the expert path)
+## OAuth2 / browser sign-in (the passwordless path)
 
-`mailman init` / `account add` are App Password–only on purpose (nothing beyond 2-Step Verification and a 16-char password). OAuth2 lives behind its own command — `mailman auth login <alias>` — for the cases that need it: a Workspace admin who disabled app passwords, or Google Contacts–backed suggestions. It uses **your own** Google Cloud OAuth client (Desktop app, Gmail API enabled); a browser opens for consent and the refresh token is stored encrypted. On a headless box, `auth login` prints the consent URL + an `ssh -L` tunnel command instead of launching a browser.
+Regular Gmail passwords **cannot** be used with mailman — Google disabled password login for SMTP/IMAP in 2022, so only an **App Password** or **OAuth2** is accepted. `mailman init` / `account add` open with a choice: **App Password** (paste a 16-char code — the default, simplest path) or **Sign in with browser (OAuth2)** — no password, and the option to use if you're passkey/passwordless or your Workspace admin disabled App Passwords. `mailman auth login <alias>` is the same OAuth2 flow as a standalone command.
+
+Passkeys can't be handed to SMTP/IMAP directly, but they work **inside** the browser sign-in: when OAuth2 opens Google's consent page, authenticate there with your passkey — mailman stores the resulting refresh token, not the passkey.
+
+OAuth2 uses **your own** Google Cloud OAuth client (Desktop app, Gmail API enabled) — a one-time setup that replaces per-account passwords. A browser opens for consent and the refresh token is stored encrypted. On a headless box, it prints the consent URL + an `ssh -L` tunnel command instead of launching a browser.
 
 Scopes requested: `gmail.send`, `gmail.readonly`, `contacts.readonly`. (`gmail.readonly` is read access to your whole mailbox — App Password accounts get equivalent read access implicitly via IMAP.)
 

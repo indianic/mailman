@@ -26,8 +26,8 @@ Unknown commands suggest the nearest real one (`upgarde` → did you mean
 
 | Command | Purpose |
 |---|---|
-| `mailman init` | First-run wizard: add your first account (email + App Password — no auth-method question; OAuth2 lives behind `auth login` instead), auto-set as default, prompt for an optional "From Name"/signature, then **auto-write the `mailman` MCP config into whichever AI tools you pick** (Claude Code, Cursor, Gemini CLI, Windsurf, Codex) at a chosen scope. Idempotent. The recommended starting point. |
-| `mailman account add` | Add another account. Prompts for alias, email, App Password (masked), and an optional "From Name"/signature — same App-Password-only flow as `init`; use `auth login <alias>` for an OAuth2 account. `--default` forces it as default even if not the first account. |
+| `mailman init` | First-run wizard: opens with a connect-method choice — **App Password** (default: paste a 16-char code) or **Sign in with browser (OAuth2)** (passwordless; for passkey / App-Password-disabled accounts) — adds your first account, auto-set as default, prompts for an optional "From Name"/signature, then **auto-writes the `mailman` MCP config into whichever AI tools you pick** (Claude Code, Cursor, Gemini CLI, Windsurf, Codex) at a chosen scope. Idempotent. The recommended starting point. |
+| `mailman account add` | Add another account. Same connect-method choice as `init` (App Password default, or browser OAuth2), then alias/email/profile prompts. `auth login <alias>` is the standalone OAuth2 entry point. `--default` forces it as default even if not the first account. |
 | `mailman account list` | Plain table of configured accounts (alias, method, default, read-access). |
 | `mailman account remove <alias>` | Remove an account. Requires `--yes` (or an interactive confirm) if it's the last remaining account or the current default — mirrors the `confirmRemoval` gate on the `remove_account` MCP tool. |
 | `mailman account set-default <alias>` | Set the default account used when `draft_email` gets no explicit `account`. |

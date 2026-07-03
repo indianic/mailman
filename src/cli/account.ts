@@ -12,6 +12,7 @@ import {
 import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { verifyAppPasswordCredentials } from '../auth/verify.js';
+import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
@@ -25,7 +26,8 @@ interface AppPasswordDetails {
   signature?: string;
 }
 
-async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
+/** Shared by both auth methods — a short local nickname for the account. */
+async function promptAlias(): Promise<string> {
   const alias = await text({
     message: 'Account alias (a short nickname, e.g. "personal-gmail")',
     placeholder: 'personal-gmail',
@@ -35,6 +37,11 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     cancel('Cancelled.');
     process.exit(1);
   }
+  return String(alias);
+}
+
+async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
+  const alias = await promptAlias();
 
   // Ask for the address + App Password and actually log in to Gmail before
   // moving on. A wrong App Password is the #1 setup mistake (and silently
@@ -117,7 +124,7 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
 
   const { displayName, signature } = await promptProfileDetails();
 
-  return { alias: String(alias), email, pass, displayName, signature };
+  return { alias, email, pass, displayName, signature };
 }
 
 async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: boolean) {
@@ -140,16 +147,58 @@ async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: b
   }
 }
 
+/** OAuth2 (browser sign-in) branch of the wizard — for passkey/passwordless
+ * users or Workspace tenants that disable App Passwords. Shares alias + email
+ * prompts with the App Password path, then hands off to the same browser-
+ * consent flow `mailman auth login` uses (which also prompts for the Google
+ * Cloud client and profile, and stores a verified refresh token). */
+async function addOAuth2AccountInteractive(setDefault?: boolean) {
+  const alias = await promptAlias();
+  const email = await text({
+    message: 'Gmail address for this account',
+    validate: (v) => (v.includes('@') ? undefined : 'Enter a valid email address'),
+  });
+  if (isCancel(email)) {
+    cancel('Cancelled.');
+    process.exit(1);
+  }
+  try {
+    return await authorizeOAuth2Account({ alias, email: String(email).trim(), setDefault });
+  } catch (err) {
+    if (err instanceof KeyringUnavailableError) {
+      fail(err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
 /**
- * App Password only — no "auth method" question. The wizard used to open
- * with an App-Password-vs-OAuth2 select, which forced every user to read
- * about Google Cloud clients/secrets before doing the simple thing (a real
- * user asked for its removal). OAuth2 is deliberately NOT deleted: it
- * lives behind its expert entry point, `mailman auth login <alias>`
- * (browser consent, client ID/secret), for Workspace tenants that disable
- * app passwords or users who want Google Contacts suggestions.
+ * Opens with a quick "how do you want to connect?" choice. App Password is the
+ * default (pre-selected → Enter proceeds), so the simple path needs no reading;
+ * the Google Cloud client details only appear if you actually pick browser
+ * sign-in. (An earlier version dropped this select entirely because the OLD one
+ * forced every user through the OAuth explanation first — keeping App Password
+ * default-and-first solves that without hiding the browser option, which
+ * passkey / passwordless / App-Password-disabled accounts need.)
  */
 async function addAccountInteractive(setDefault?: boolean) {
+  const method = await select({
+    message: 'How do you want to connect this Gmail account?',
+    options: [
+      { value: 'app-password', label: 'App Password', hint: 'paste a 16-char code from Google — simplest' },
+      { value: 'oauth2', label: 'Sign in with browser (OAuth2)', hint: 'no password; works with passkeys / passwordless / App-Password-disabled accounts' },
+    ],
+    initialValue: 'app-password',
+  });
+  if (isCancel(method)) {
+    cancel('Cancelled.');
+    process.exit(1);
+  }
+
+  if (method === 'oauth2') {
+    return addOAuth2AccountInteractive(setDefault);
+  }
   const details = await promptAppPasswordDetails();
   return addAppPasswordAccount(details, setDefault);
 }
