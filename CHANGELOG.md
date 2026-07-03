@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.14.0] - 2026-07-03
+
+- feat: branded polished email shell by default with always-on IndiaNIC footer; emailTheme now settable
+
 ## [0.13.0] - 2026-07-03
 
 - feat: interactive account picker for remove/set-default + spaced-alias handling
