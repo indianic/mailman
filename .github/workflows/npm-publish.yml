@@ -1,0 +1,47 @@
+name: Publish to public npm
+
+# Publishes @indianic/mailman to the PUBLIC registry (registry.npmjs.org).
+# Trigger it manually (Actions tab -> Run workflow) or by publishing a GitHub
+# Release. Requires:
+#   - the `indianic` org to exist on npmjs.com (owns the @indianic scope)
+#   - a repo secret NPM_TOKEN (an npm "Automation" token with publish rights)
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # points npm at the PUBLIC registry and wires NODE_AUTH_TOKEN into .npmrc
+          registry-url: 'https://registry.npmjs.org'
+
+      # keytar's native module builds against libsecret headers on Linux.
+      - name: Install libsecret (for keytar)
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # package.json's publishConfig.registry points at the INTERNAL registry
+      # (npm.indianic.in) so local release-indianic keeps working. Remove that
+      # key in CI only so this job publishes to the public registry configured
+      # by setup-node above. The committed package.json is unchanged.
+      - name: Target the public registry for this publish
+        run: npm pkg delete publishConfig.registry
+
+      - name: Publish (public, scoped)
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

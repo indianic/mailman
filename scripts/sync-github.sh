@@ -19,11 +19,14 @@ TAG="${1:-}"
 SRC_BRANCH="${SRC_BRANCH:-main}"
 GITHUB_REMOTE="${GITHUB_REMOTE:-github}"
 GITHUB_URL="${GITHUB_URL:-https://github.com/indianic/mailman.git}"
-# site/docker/scripts are internal-only. .github/workflows is excluded too:
-# (1) it needs a token with the `workflow` scope to push, and (2) GitLab CI
-# already runs the full pipeline — GitHub is a code mirror. Add CI back later
-# with a workflow-scoped token if desired. Override via EXTRA_EXCLUDE.
-EXCLUDE=(site docker scripts .github/workflows)
+# site/docker/scripts are internal-only and always excluded.
+EXCLUDE=(site docker scripts)
+# .github/workflows is excluded BY DEFAULT because pushing workflow files needs
+# a token with the `workflow` scope. When you have such a token, run with
+# INCLUDE_WORKFLOWS=1 to ship the workflows (e.g. the npm-publish Action).
+if [ -z "${INCLUDE_WORKFLOWS:-}" ]; then
+  EXCLUDE+=(.github/workflows)
+fi
 if [ -n "${EXTRA_EXCLUDE:-}" ]; then
   # shellcheck disable=SC2206
   EXCLUDE+=($EXTRA_EXCLUDE)
