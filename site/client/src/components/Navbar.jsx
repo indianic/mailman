@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle.jsx';
-import { Package } from './icons.jsx';
+import { Package, GitHub } from './icons.jsx';
 import BrandMark from './BrandMark.jsx';
-import { NPM_URL } from '../config.js';
+import { NPM_URL, GITHUB_URL } from '../config.js';
 
 const NAV = [
   { label: 'What is it', href: '/#what' },
@@ -61,6 +61,16 @@ export default function Navbar() {
               ← Home
             </Link>
           )}
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View mailman source on GitHub"
+            title="View source on GitHub"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/70 text-slate-600 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:text-brand-300"
+          >
+            <GitHub className="h-[18px] w-[18px]" />
+          </a>
           <a
             href={NPM_URL}
             target="_blank"
