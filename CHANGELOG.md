@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.1.0] - 2026-07-06
+
+- feat: mailman account password — update an account's App Password in place (picker + live verify)
+
 ## [1.0.0] - 2026-07-03
 
 - release: 1.0.0 — first stable release
