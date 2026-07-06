@@ -158,6 +158,29 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
   return { account, isDefault };
 }
 
+/**
+ * Replace ONLY an app-password account's stored credentials (email, method,
+ * displayName, signature are all preserved) — the "my App Password changed /
+ * was revoked" path, so the user doesn't have to re-run the full add wizard.
+ * Re-encrypts with the current master key.
+ */
+export async function updateAccountCredentials(
+  alias: string,
+  credentials: { user: string; pass: string },
+): Promise<Account> {
+  const masterKey = await getOrCreateMasterKey();
+  const encryptedCredentials = encrypt(masterKey, JSON.stringify(credentials));
+  const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    const updated: Account = { ...target, credentials: encryptedCredentials };
+    return { ...current, accounts: current.accounts.map((a) => (a.alias === alias ? updated : a)) };
+  });
+  return file.accounts.find((a) => a.alias === alias)!;
+}
+
 export interface UpdateAccountProfileInput {
   displayName?: string | null;
   signature?: string | null;

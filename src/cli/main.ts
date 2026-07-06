@@ -3,7 +3,7 @@ import { section, detail, fail } from './tree.js';
 import { getPackageVersion } from '../version.js';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
-import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile } from './account.js';
+import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile, runAccountPassword } from './account.js';
 import { runRotateKey } from './rotate-key.js';
 import { runAuthLogin } from './auth-login.js';
 import { runSettingsGet, runSettingsSet } from './settings.js';
@@ -28,9 +28,10 @@ interface CommandEntry {
 // phase fills one in.
 const COMMANDS: Record<string, CommandEntry> = {
   init: { handler: runInit, summary: 'First-run wizard: add your first account' },
-  account: { handler: null, summary: 'see `account add` / `account list` / `account profile` / `account remove` / `account set-default`' },
+  account: { handler: null, summary: 'see `account add` / `account list` / `account password` / `account profile` / `account remove` / `account set-default`' },
   'account add': { handler: runAccountAdd, summary: 'Add another account' },
   'account list': { handler: runAccountList, summary: 'Table of configured accounts' },
+  'account password': { handler: runAccountPassword, summary: 'Update an account\'s App Password (pick from a list, verified live)' },
   'account remove': { handler: runAccountRemove, summary: 'Remove an account (--yes to skip confirm)' },
   'account set-default': { handler: runAccountSetDefault, summary: 'Set the default account' },
   'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / email signature (--name, --signature, --clear-*)' },
