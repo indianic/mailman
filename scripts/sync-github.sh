@@ -57,7 +57,7 @@ fi
 git worktree add --quiet --detach "$WT" "$SRC_BRANCH"
 (
   cd "$WT"
-  git rm -r --quiet "${EXCLUDE[@]}" 2>/dev/null || true
+  git rm -r --quiet --ignore-unmatch "${EXCLUDE[@]}" 2>/dev/null || true
   git commit -q -m "build: package-only tree for GitHub (exclude ${EXCLUDE[*]})"
   "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" HEAD:refs/heads/main
   if [ -n "$TAG" ]; then
