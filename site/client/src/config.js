@@ -3,7 +3,7 @@
 // must never change) — keep them distinct on purpose.
 export const BRAND = 'MailMan';
 export const PACKAGE = '@indianic/mailman';
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 export const NPM_URL = 'https://npm.indianic.in/#/packages';
 export const GITHUB_URL = 'https://github.com/indianic/mailman';
 
