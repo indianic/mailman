@@ -2,6 +2,18 @@
 
 MailMan CLI — send and read Gmail just by asking your AI assistant, built for IndiaNIC infrastructure.
 
+> 🌐 **Live tour & docs:** [mailman.indianic.dev](https://mailman.indianic.dev)
+
+## See it in action
+
+Ask your AI in plain English. MailMan **drafts, previews, and only sends on your OK** — never the moment you ask.
+
+![How MailMan works — ask, preview, confirm](https://raw.githubusercontent.com/indianic/mailman/main/docs/images/how-it-works.png)
+
+**Real prompts, across Claude Code · Cursor · Gemini CLI · Windsurf** — email happens where you already work:
+
+![Sample prompts — send a PR link, attach a build, triage the inbox, schedule an EOD update](https://raw.githubusercontent.com/indianic/mailman/main/docs/images/sample-prompts.png)
+
 ## Features
 
 - Send **and read** Gmail from your AI in plain English — "send those docs to Kalpesh," "show my last 10 emails"
@@ -11,6 +23,8 @@ MailMan CLI — send and read Gmail just by asking your AI assistant, built for 
 - Multi-account, machine-bound encrypted credentials (OS keychain), desktop notifications on send
 - Installs into **Claude Code, Cursor, Gemini CLI, Windsurf, Codex** (`mailman register`) — cross-platform Win/Mac/Linux
 - 23 MCP tools, exposed to your AI over MCP
+
+![Everything email, hands-free — natural-language send, 182 templates, draft/preview/confirm, attachments, scheduled sends, inbox search, contacts, notifications, machine-bound security, cross-OS](https://raw.githubusercontent.com/indianic/mailman/main/docs/images/use-cases.png)
 
 ## Installation
 
