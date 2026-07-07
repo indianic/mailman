@@ -1,6 +1,11 @@
 # @indianic/mailman
 
-[![npm](https://img.shields.io/npm/v/@integratex/mailman?logo=npm&color=cb3837&label=%40integratex%2Fmailman)](https://www.npmjs.com/package/@integratex/mailman)
+[![npm](https://img.shields.io/npm/v/@integratex/mailman?style=flat-square&logo=npm&color=cb3837&label=npm)](https://www.npmjs.com/package/@integratex/mailman)
+[![license](https://img.shields.io/npm/l/@integratex/mailman?style=flat-square&color=green)](https://opensource.org/licenses/MIT)
+[![node](https://img.shields.io/node/v/@integratex/mailman?style=flat-square&logo=node.js&logoColor=white&color=339933)](https://nodejs.org)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-23%20tools-orange?style=flat-square)
+![platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational?style=flat-square)
 
 MailMan CLI — send and read Gmail just by asking your AI assistant, built for IndiaNIC infrastructure.
 
