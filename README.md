@@ -1,8 +1,11 @@
 # @indianic/mailman
 
+[![npm](https://img.shields.io/npm/v/@integratex/mailman?logo=npm&color=cb3837&label=%40integratex%2Fmailman)](https://www.npmjs.com/package/@integratex/mailman)
+
 MailMan CLI — send and read Gmail just by asking your AI assistant, built for IndiaNIC infrastructure.
 
 > 🌐 **Live tour & docs:** [mailman.indianic.dev](https://mailman.indianic.dev)
+> 📦 **Public build:** [`@integratex/mailman`](https://www.npmjs.com/package/@integratex/mailman) — `npm i -g @integratex/mailman`
 
 ## See it in action
 
