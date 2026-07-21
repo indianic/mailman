@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.1.2] - 2026-07-21
+
+- Fix public build: package name (editor MCP configs, scheduled-send ticker, self-update) now resolved from package.json at runtime, so the public @integratex/mailman build no longer references the private @indianic package. Public npmjs install is now the documented path on GitHub; private-registry docs moved to INTERNAL.md (excluded from the mirror).
+
 ## [1.1.0] - 2026-07-06
 
 - feat: mailman account password — update an account's App Password in place (picker + live verify)
