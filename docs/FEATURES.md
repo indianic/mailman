@@ -16,7 +16,7 @@ Cursor, Gemini CLI, Windsurf, Codex) and talks to your Gmail directly. You
 set it up once, and it works from anywhere you use your AI tool.
 
 > **Under the hood:** mailman is a Node.js **MCP server** (Model Context
-> Protocol). Your AI tool launches it over a pipe (`npx -y @indianic/mailman`)
+> Protocol). Your AI tool launches it over a pipe (`npx -y @integratex/mailman`)
 > and calls its “tools” from natural language. It reaches Gmail two ways:
 > **SMTP/IMAP** (for App Password accounts) or the **Gmail REST API** (for
 > OAuth2 accounts). Pure Node — same behavior on macOS, Linux, Windows.
@@ -176,7 +176,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A["npx @indianic/mailman init"] --> B["Enter email + App Password"]
+    A["npx @integratex/mailman init"] --> B["Enter email + App Password"]
     B --> C["Optional: From Name + signature"]
     C --> D["Credentials encrypted → OS keychain"]
     D --> E["Pick AI tools to register"]
@@ -285,9 +285,9 @@ flowchart TD
 - **Verified against a live Gmail account** (App Password): send, list, read,
   and search all confirmed end-to-end on **macOS** and **Linux** (Docker).
 - **Descoped by decision** (not open gaps): OAuth2 real-delivery verification
-  (App Password is the supported path; OAuth2 stays smoke-tested), Windows
-  hardware verification (accepted as-is), and a public `npm` release
-  (distribution is `@indianic/mailman` on the IndiaNIC private registry).
+  (App Password is the supported path; OAuth2 stays smoke-tested) and Windows
+  hardware verification (accepted as-is). A public npm release has since
+  shipped as [`@integratex/mailman`](https://www.npmjs.com/package/@integratex/mailman).
 
 *See also: [README.md](../README.md) · [PLAN.md](PLAN.md) (architecture) ·
 [SKILLS.md](SKILLS.md) (tool specs) · [CLI.md](CLI.md) (commands) ·

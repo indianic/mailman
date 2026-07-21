@@ -55,7 +55,7 @@ jobs:
             flag { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
           if [ ! -s RELEASE_NOTES.md ]; then
-            echo "Stable release ${GITHUB_REF_NAME} of @indianic/mailman." > RELEASE_NOTES.md
+            echo "Stable release ${GITHUB_REF_NAME} of @integratex/mailman." > RELEASE_NOTES.md
           fi
 
       - name: Create GitHub Release

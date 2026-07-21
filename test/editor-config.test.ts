@@ -13,10 +13,16 @@ import {
   writeEditorConfig,
   resolveTools,
 } from '../src/cli/editor-config.js';
+import { getPackageName } from '../src/version.js';
+
+// Whatever name package.json carries for this build (@integratex/mailman on
+// the public registry, @indianic/mailman internally) — the configs must
+// reference that name, never a hardcoded one.
+const PKG = getPackageName();
 
 test('jsonServerBlock is the secretless npx launch of the scoped package (no env)', () => {
   const block = jsonServerBlock();
-  assert.deepEqual(block, { command: 'npx', args: ['-y', '@indianic/mailman'] });
+  assert.deepEqual(block, { command: 'npx', args: ['-y', PKG] });
   assert.ok(!('env' in block), 'must carry no env — credentials live in the OS keychain, not editor config');
 });
 
@@ -28,7 +34,7 @@ test('mergeJsonMcpServers adds the mailman entry and leaves other servers/keys u
   const merged = mergeJsonMcpServers(existing);
   const servers = merged.mcpServers as Record<string, unknown>;
   assert.deepEqual(servers.other, { command: 'foo', args: ['bar'] }, 'unrelated server preserved');
-  assert.deepEqual(servers[SERVER_KEY], { command: 'npx', args: ['-y', '@indianic/mailman'] });
+  assert.deepEqual(servers[SERVER_KEY], { command: 'npx', args: ['-y', PKG] });
   assert.equal(merged.someTopLevelKey, 42, 'unrelated top-level key preserved');
 });
 
@@ -47,7 +53,7 @@ test('mergeJsonMcpServers is idempotent — re-running yields one entry, not dup
 test('mergeCodexToml appends a mailman block and replaces (not duplicates) on re-run', () => {
   const first = mergeCodexToml('');
   assert.match(first, /\[mcp_servers\.mailman\]/);
-  assert.match(first, /@indianic\/mailman/);
+  assert.ok(first.includes(PKG));
 
   const second = mergeCodexToml(first);
   const occurrences = second.split('[mcp_servers.mailman]').length - 1;
@@ -87,7 +93,7 @@ test('writeEditorConfig (Claude, global) creates ~/.claude.json with the merged 
     assert.equal(result.action, 'created');
     assert.equal(result.file, path.join(home, '.claude.json'));
     const parsed = JSON.parse(readFileSync(result.file, 'utf8'));
-    assert.deepEqual(parsed.mcpServers.mailman, { command: 'npx', args: ['-y', '@indianic/mailman'] });
+    assert.deepEqual(parsed.mcpServers.mailman, { command: 'npx', args: ['-y', PKG] });
   });
 });
 

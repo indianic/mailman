@@ -18,6 +18,7 @@ import { verifyAppPasswordCredentials } from '../auth/verify.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
+import { NPM_PACKAGE } from './editor-config.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
 import { section, detail, fail, info, attention } from './tree.js';
 
@@ -311,7 +312,7 @@ export async function runInit(_args: string[]): Promise<void> {
   } else {
     outro(
       `Added "${account.alias}"${isDefault ? ' (default)' : ''}. To register it later, run ` +
-        '`mailman register --tools claude` (or `claude mcp add mailman -- npx -y @indianic/mailman`).',
+        `\`mailman register --tools claude\` (or \`claude mcp add mailman -- npx -y ${NPM_PACKAGE}\`).`,
     );
   }
 }

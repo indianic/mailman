@@ -22,7 +22,7 @@ send (which needs live creds and stays the macOS-verified manual step).
 | Config dir | ✅ `~/Library/Application Support/mcp-mailman/` | ✅ `~/.config/mcp-mailman/` (Docker) | ✅ same | 🟡 same | 🟡 `%APPDATA%\mcp-mailman\` |
 | Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | ✅ ciphertext-only + decrypt roundtrip (Docker) | — | — | 🟡 same code path |
 | No-keyring failure mode (clear error, no plaintext fallback) | ✅ simulated (deleted keychain entry → clean `NO_MASTER_KEY`) | ✅ missing key → `NoMasterKeyError` (Docker) | ✅ configureAccount → `KeyringUnavailableError`, no accounts.json (Docker) | 🟡 | 🟡 |
-| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves `@indianic/mailman` (Docker) | ✅ same | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
+| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves the `mailman` bin (Docker) | ✅ same | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
 | CLI bins (`mailman` + `mcp-mailman` alias) | ✅ | ✅ both on PATH (Docker) | ✅ same | 🟡 | 🟡 npm `.cmd`/`.ps1` shims; no GNU collision |
 | MCP stdio server + editor config write | ✅ (Claude Code, real `~/.claude.json`) | ✅ `register --tools claude` wrote valid `~/.claude.json` (Docker) | ❌ interactive `init` needs a TTY (guard added) | 🟡 | 🟡 |
 | Real Gmail send + read | ✅ (App Password, live) | 🟡 not run in container (needs live creds) | — | — | 🟡 |
@@ -65,7 +65,7 @@ after itself — no hardware needed:
 ```
 
 It `npm pack`s a **hermetic tarball** (mailman installs from that, never
-from `npm.indianic.in` — no registry token in any image layer), builds an
+from a registry — no registry token in any image layer), builds an
 Ubuntu 24.04 + node 20 image, then runs the checklist twice: **desktop**
 (gnome-keyring up via `dbus-run-session` → success path) and **headless**
 (no keyring → must fail clean). A timestamped report lands in
@@ -83,8 +83,8 @@ Same script on each target — check off per OS:
 
 1. [ ] Node ≥ 18 on PATH (`node --version`); old-Node guard prints the
        friendly message when run with an old binary.
-2. [ ] `npm install -g @indianic/mailman` resolves via the `@indianic`
-       scope routing in `~/.npmrc`; both `mailman` and `mcp-mailman` bins
+2. [ ] `npm install -g @integratex/mailman` resolves from the public npm
+       registry; both `mailman` and `mcp-mailman` bins
        land on PATH (Windows: `.cmd` shims work from cmd + PowerShell).
 3. [ ] `mailman doctor` — keyring probe passes (or, headless: fails with
        the daemon-naming message); SMTP/IMAP reachability green.
@@ -100,7 +100,7 @@ Same script on each target — check off per OS:
 7. [ ] Scheduler: `schedule_send` installs the OS ticker (crontab line /
        schtasks task), a send fires with the MCP process closed, and the
        entry is marked `sent`.
-8. [ ] `mailman update` self-updates from npm.indianic.in.
+8. [ ] `mailman update` self-updates from the npm registry.
 9. [ ] `mailman reset --yes` wipes the config dir **and** removes the
        credential-store entry (verify in the OS credential UI).
 

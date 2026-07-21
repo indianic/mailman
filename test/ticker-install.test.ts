@@ -7,6 +7,7 @@ import {
   upsertCronLine,
   buildSchtasksCreateArgs,
 } from '../src/scheduler/ticker-install.js';
+import { getPackageName } from '../src/version.js';
 
 test('buildLaunchdPlist embeds the send-scheduled --due command and a poll interval', () => {
   const plist = buildLaunchdPlist(120);
@@ -15,7 +16,7 @@ test('buildLaunchdPlist embeds the send-scheduled --due command and a poll inter
   assert.match(plist, /<integer>120<\/integer>/);
   // npx must resolve the published scoped package, not the (unpublished)
   // bare binary name — a regression here silently breaks every scheduled send.
-  assert.match(plist, /@indianic\/mailman/);
+  assert.ok(plist.includes(getPackageName()));
 });
 
 test('buildLaunchdPlist bakes the node bin dir into PATH — launchd default PATH lacks Homebrew/nvm', () => {
@@ -25,7 +26,8 @@ test('buildLaunchdPlist bakes the node bin dir into PATH — launchd default PAT
 });
 
 test('buildCronLine sets PATH inline so cron (default /usr/bin:/bin) finds npx', () => {
-  assert.match(buildCronLine(3, '/opt/fake/node/bin'), /PATH=\/opt\/fake\/node\/bin:\S* npx -y @indianic\/mailman/);
+  assert.ok(/PATH=\/opt\/fake\/node\/bin:\S* npx -y /.test(buildCronLine(3, '/opt/fake/node/bin')));
+  assert.ok(buildCronLine(3, '/opt/fake/node/bin').includes(`npx -y ${getPackageName()}`));
 });
 
 test('isCronInstalled detects the mailman marker line', () => {
@@ -34,7 +36,7 @@ test('isCronInstalled detects the mailman marker line', () => {
 });
 
 test('buildCronLine npx-resolves the scoped package, not the bare binary name', () => {
-  assert.match(buildCronLine(), /npx -y @indianic\/mailman send-scheduled --due/);
+  assert.ok(buildCronLine().includes(`npx -y ${getPackageName()} send-scheduled --due`));
 });
 
 test('upsertCronLine appends the ticker line without touching unrelated entries', () => {
@@ -55,6 +57,6 @@ test('upsertCronLine replaces a prior mailman line instead of duplicating it', (
 test('buildSchtasksCreateArgs includes the task name and due command', () => {
   const args = buildSchtasksCreateArgs(4);
   assert.ok(args.includes('mcp-mailman-ticker'));
-  assert.ok(args.includes('npx -y @indianic/mailman send-scheduled --due'));
+  assert.ok(args.includes(`npx -y ${getPackageName()} send-scheduled --due`));
   assert.ok(args.includes('4'));
 });

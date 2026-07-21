@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { getPackageName } from '../version.js';
 
 /**
  * Writes/merges the `mailman` MCP server entry into each supported editor's
@@ -11,11 +12,13 @@ import { homedir } from 'node:os';
  * carries **no secrets** (Gmail credentials live encrypted in the OS keychain,
  * not in editor config), so there's no API key to prompt for, no credential
  * file to lock down to 0600, and nothing to add to .gitignore. The block is
- * just `npx -y @indianic/mailman`, identical for every editor.
+ * just `npx -y <package>`, identical for every editor.
  */
 
 export const SERVER_KEY = 'mailman';
-const NPM_PACKAGE = '@indianic/mailman';
+// Resolved from package.json so the public (@integratex/mailman) and internal
+// (@indianic/mailman) builds each write configs that npx can actually fetch.
+export const NPM_PACKAGE = getPackageName();
 
 export type Scope = 'global' | 'project';
 export type EditorFormat = 'json' | 'toml';

@@ -19,8 +19,8 @@ TAG="${1:-}"
 SRC_BRANCH="${SRC_BRANCH:-main}"
 GITHUB_REMOTE="${GITHUB_REMOTE:-github}"
 GITHUB_URL="${GITHUB_URL:-https://github.com/indianic/mailman.git}"
-# site/docker/scripts are internal-only and always excluded.
-EXCLUDE=(site docker scripts)
+# site/docker/scripts/INTERNAL.md are internal-only and always excluded.
+EXCLUDE=(site docker scripts INTERNAL.md)
 # .github/workflows is excluded BY DEFAULT because pushing workflow files needs
 # a token with the `workflow` scope. When you have such a token, run with
 # INCLUDE_WORKFLOWS=1 to ship the workflows (e.g. the npm-publish Action).

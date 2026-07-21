@@ -1,4 +1,4 @@
-# @indianic/mailman
+# @integratex/mailman
 
 [![npm](https://img.shields.io/npm/v/@integratex/mailman?style=flat-square&logo=npm&color=cb3837&label=npm)](https://www.npmjs.com/package/@integratex/mailman)
 [![license](https://img.shields.io/npm/l/@integratex/mailman?style=flat-square&color=green)](https://opensource.org/licenses/MIT)
@@ -36,19 +36,17 @@ Ask your AI in plain English. MailMan **drafts, previews, and only sends on your
 
 ## Installation
 
-Point the `@indianic` scope at the private registry, then install globally with **npm** or **pnpm**:
+Install globally from the public npm registry with **npm** or **pnpm**:
 
 ```
 # npm
-npm config set @indianic:registry https://npm.indianic.in
-npm install -g @indianic/mailman
+npm install -g @integratex/mailman
 
 # pnpm
-pnpm config set @indianic:registry https://npm.indianic.in
-pnpm add -g @indianic/mailman
+pnpm add -g @integratex/mailman
 ```
 
-(The scope config lands in your `~/.npmrc` — which npm, pnpm, and yarn all read — so no `--registry` flag is needed and public dependencies still resolve from the public registry. `mailman update` later upgrades in place with whichever manager you used.)
+(No registry configuration needed — it's a regular public package on [npmjs.com](https://www.npmjs.com/package/@integratex/mailman). `mailman update` later upgrades in place with whichever manager you used.)
 
 ## Usage
 
@@ -94,23 +92,23 @@ You: search for invoices from last month
 You: send this tomorrow at 9am instead of now   # goes out even if the tool is closed
 ```
 
-> **Package vs. command names.** The npm package is **`@indianic/mailman`**; it installs a CLI you run as **`mailman`**. A second alias, **`mcp-mailman`**, points at the same binary — use it only on a host that also has GNU Mailman's `/usr/bin/mailman`.
+> **Package vs. command names.** The npm package is **`@integratex/mailman`**; it installs a CLI you run as **`mailman`**. A second alias, **`mcp-mailman`**, points at the same binary — use it only on a host that also has GNU Mailman's `/usr/bin/mailman`.
 
 ## How it works
 
-A native stdio **MCP server**: your editor launches it via `npx -y @indianic/mailman` and Claude calls its tools from natural language. It reaches Gmail two ways — **SMTP/IMAP** for App Password accounts, or the **Gmail REST API** for OAuth2 accounts. Pure Node.js, so behavior is identical on macOS, Linux, and Windows. Configured once, globally — available from any project.
+A native stdio **MCP server**: your editor launches it via `npx -y @integratex/mailman` and Claude calls its tools from natural language. It reaches Gmail two ways — **SMTP/IMAP** for App Password accounts, or the **Gmail REST API** for OAuth2 accounts. Pure Node.js, so behavior is identical on macOS, Linux, and Windows. Configured once, globally — available from any project.
 
 Manual MCP config (what `init`/`register` write for you — note it carries **no secrets**, credentials live in the OS keychain):
 
 ```json
 {
   "mcpServers": {
-    "mailman": { "command": "npx", "args": ["-y", "@indianic/mailman"] }
+    "mailman": { "command": "npx", "args": ["-y", "@integratex/mailman"] }
   }
 }
 ```
 
-- **Claude Code** — `claude mcp add mailman -- npx -y @indianic/mailman`
+- **Claude Code** — `claude mcp add mailman -- npx -y @integratex/mailman`
 - **Cursor / Windsurf / Gemini CLI / Codex** — add the block to that tool's MCP config file.
 
 ## Docs

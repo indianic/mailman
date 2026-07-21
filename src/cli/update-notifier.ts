@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
 import { getConfigDir } from '../config/paths.js';
-import { getPackageVersion } from '../version.js';
+import { getPackageName, getPackageVersion } from '../version.js';
 
 /**
  * Passive "update available" notifier — the npm/MCPHub pattern: every
@@ -25,7 +25,7 @@ import { getPackageVersion } from '../version.js';
  */
 
 const execFileAsync = promisify(execFile);
-const PKG = '@indianic/mailman';
+const PKG = getPackageName();
 const TTL_MS = 24 * 60 * 60 * 1000; // check the registry at most once a day
 // Hidden subcommand the detached refresh re-enters through — not in the
 // COMMANDS table, so it never shows in `help` or typo suggestions.

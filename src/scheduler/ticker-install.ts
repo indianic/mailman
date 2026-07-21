@@ -3,6 +3,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { getPackageName } from '../version.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -12,12 +13,13 @@ const SCHTASKS_NAME = 'mcp-mailman-ticker';
 const POLL_INTERVAL_SECONDS = 180; // within the 1-5 min range docs/PLAN.md specifies
 
 // The npm package name the OS ticker `npx`-resolves at fire time. This is
-// the published *package* (@indianic/mailman), NOT the CLI binary name
-// (mcp-mailman) — they differ. Keeping it a single constant so a future
-// rename can't silently leave the scheduler resolving a dead package name
-// and failing every scheduled send. (labels/markers/log paths above stay
-// "mcp-mailman" — they're just local identifiers, not npm package names.)
-const NPM_PACKAGE = '@indianic/mailman';
+// the published *package* name, NOT the CLI binary name (mcp-mailman) — they
+// differ. Read from package.json because mailman ships under two names
+// (@integratex/mailman publicly, @indianic/mailman internally); a hardcoded
+// literal here would leave one distribution's scheduler resolving a dead
+// package name and failing every scheduled send. (labels/markers/log paths
+// above stay "mcp-mailman" — local identifiers, not npm package names.)
+const NPM_PACKAGE = getPackageName();
 
 export type TickerMechanism = 'launchd' | 'crontab' | 'schtasks';
 

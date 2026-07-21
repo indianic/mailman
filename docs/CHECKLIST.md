@@ -9,7 +9,8 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 > pending items were **descoped by decision**: OAuth2 real-delivery
 > verification (App Password is the supported auth path), Windows hardware
 > verification (accepted as-is), and a public `mcp-mailman` npm release
-> (distribution is `@indianic/mailman` on the IndiaNIC private registry).
+> (a public build has since shipped under the scoped name
+> [`@integratex/mailman`](https://www.npmjs.com/package/@integratex/mailman) instead).
 
 ## Phase 0 — Project setup
 
@@ -134,11 +135,11 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
 - [x] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`, pending-scheduled count
 - [x] Finalize `mailman status` tree rendering (accounts / security / mcp registration / activity / scheduled sections) — already handled all sections generically since Phase 0; just needed real data behind it
-- [x] `mailman register` CLI command — prints the `claude mcp add mailman -- npx -y @indianic/mailman` line (doesn't auto-run it)
+- [x] `mailman register` CLI command — prints the `claude mcp add mailman -- npx -y @integratex/mailman` line (doesn't auto-run it)
 - [x] `mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
 - [x] `mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
 - [x] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked IMAP-shaped fixtures against the real parsing logic, mocked `fetch` standing in for the Gmail API (mailman uses raw REST via fetch, not the `googleapis` SDK, for Gmail/People calls — same "no real Gmail" testing intent, different mocking boundary) — automatically wired into CI via the existing `npm test` glob
 - [x] Finalize README (install, both auth setups, usage examples, config paths table, read-access scope disclosure)
 - [x] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, keychain backend, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy) — **wrapped 2026-07-02**: macOS fully verified (incl. a real end-to-end `mailman init` wizard run); **Linux verified via Docker** (see the `docker/` harness, task #94 — surfaced the keytar↔keyring cross-read note); Windows implemented but hardware verification not pursued (accepted as-is). Per-OS support matrix + verification checklist in [docs/CROSS-OS.md](CROSS-OS.md)
-- [x] ~~`npm publish` as `mcp-mailman`~~ — **descoped 2026-07-02** (user decision): distribution is via the IndiaNIC private registry as `@indianic/mailman`; a public `mcp-mailman` release is not needed.
-- [x] Document `claude mcp add mailman -- npx -y @indianic/mailman` as the standard install step
+- [x] ~~`npm publish` as `mcp-mailman`~~ — **descoped 2026-07-02** (user decision): an unscoped `mcp-mailman` release is not needed; a public scoped build has since shipped as `@integratex/mailman` on npmjs.
+- [x] Document `claude mcp add mailman -- npx -y @integratex/mailman` as the standard install step
