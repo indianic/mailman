@@ -1133,6 +1133,72 @@
         max-width: 72ch;
         font-size: 15px;
       }
+      /* ============ USE CASES ============ */
+      .usecases {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 28px;
+      }
+      .uc {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .uc-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .uc-head .ue {
+        font-size: 22px;
+        line-height: 1;
+      }
+      .uc-head h3 {
+        font-size: 17px;
+        font-weight: 750;
+      }
+      .uc .prompts code {
+        white-space: normal;
+        font-size: 12.5px;
+        padding: 9px 12px;
+        line-height: 1.5;
+      }
+      .uc .prompts code em {
+        color: var(--muted);
+        font-style: normal;
+        font-size: 11.5px;
+      }
+      .uc-tools {
+        margin: 14px 0 0;
+        padding-top: 11px;
+        border-top: 1px dashed var(--line);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .uc-tools code {
+        font-size: 11.5px;
+        color: var(--accent);
+      }
+      @media (max-width: 900px) {
+        .usecases {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 620px) {
+        .usecases {
+          grid-template-columns: 1fr;
+        }
+      }
+
       .prompts {
         display: grid;
         gap: 10px;
@@ -1275,6 +1341,7 @@
           ><span class="wordmark"><span class="a">Mail</span><span class="b">Man</span></span></span
         >
         <nav class="navlinks">
+          <a href="#ask">Use cases</a>
           <a href="#words">Plain words</a>
           <a href="#how">How it works</a>
           <a href="#quickstart">Quick start</a>
@@ -1391,6 +1458,110 @@
           and
           <a href="https://github.com/indianic/mailman" target="_blank" rel="noopener">GitHub</a>.
         </p>
+      </div>
+    </section>
+
+    <!-- ============ USE CASES ============ -->
+    <section id="ask">
+      <div class="wrap">
+        <p class="eyebrow">What you can ask for</p>
+        <h2 class="section-title">Say it the way you'd say it to a colleague.</h2>
+        <p class="lead">
+          There are no commands to memorise — these are literal sentences you can type into your AI
+          tool. Every one of them maps to real tools underneath; the tool name is shown so a
+          developer can trace it.
+        </p>
+
+        <div class="usecases">
+          <article class="uc">
+            <div class="uc-head"><span class="ue">📤</span><h3>Send</h3></div>
+            <div class="prompts">
+              <code>email the PR link to Kalpesh for review</code>
+              <code>send the release notes to <b>kalpesh@indianic.com</b></code>
+              <code>attach <b>./dist/report.pdf</b> and send it to the QA team</code>
+              <code>send everything in <b>./invoices/*.pdf</b> to accounts</code>
+              <code>email John the checklist <em>— asks you which John it means</em></code>
+            </div>
+            <p class="uc-tools">
+              draft_email · preview_attachments · suggest_recipients · confirm_send
+            </p>
+          </article>
+
+          <article class="uc">
+            <div class="uc-head"><span class="ue">📥</span><h3>Read &amp; triage</h3></div>
+            <div class="prompts">
+              <code>show my last 10 emails</code>
+              <code>what came in while I was heads-down?</code>
+              <code>open the one from Priya and read it out</code>
+              <code>give me a mailbox overview <em>— sent, inbox, unread, attachments</em></code>
+              <code>anything unread with an attachment?</code>
+            </div>
+            <p class="uc-tools">list_recent_emails · read_email · get_mailbox_overview</p>
+          </article>
+
+          <article class="uc">
+            <div class="uc-head"><span class="ue">🔎</span><h3>Search &amp; filter</h3></div>
+            <div class="prompts">
+              <code>find everything from <b>john@acme.com</b> this month</code>
+              <code>search for <b>invoice</b> in the subject line</code>
+              <code>emails with attachments from last week</code>
+              <code>what did the Acme thread say about the launch date?</code>
+              <code>show what I sent Priya in June</code>
+            </div>
+            <p class="uc-tools">search_emails — by person, subject, date, has:attachment</p>
+          </article>
+
+          <article class="uc">
+            <div class="uc-head"><span class="ue">↩️</span><h3>Reply &amp; forward</h3></div>
+            <div class="prompts">
+              <code>reply to that politely and decline</code>
+              <code>draft a reply agreeing to Tuesday, keep it short</code>
+              <code>suggest three ways I could answer this</code>
+              <code>forward the last one from Priya to the team</code>
+            </div>
+            <p class="uc-tools">
+              draft_email with <code>reply</code>/<code>fwd</code> — quotes the original underneath
+            </p>
+          </article>
+
+          <article class="uc">
+            <div class="uc-head"><span class="ue">🧾</span><h3>Summarise</h3></div>
+            <div class="prompts">
+              <code>summarise the last 20 emails from Acme</code>
+              <code>what are the last 5 emails from my manager about?</code>
+              <code>catch me up on this thread in three bullets</code>
+              <code>who's waiting on a reply from me?</code>
+            </div>
+            <p class="uc-tools">
+              search_emails / list_recent_emails → your AI reads and condenses
+            </p>
+          </article>
+
+          <article class="uc">
+            <div class="uc-head"><span class="ue">⏰</span><h3>Schedule</h3></div>
+            <div class="prompts">
+              <code>send this tomorrow at 9am instead</code>
+              <code>schedule the EOD update for 6pm</code>
+              <code>what's queued to go out?</code>
+              <code>cancel the one scheduled for Monday</code>
+            </div>
+            <p class="uc-tools">schedule_send · list_scheduled · cancel_scheduled</p>
+          </article>
+        </div>
+
+        <div class="note">
+          🧠 <strong>Who does what.</strong> MailMan fetches and sends; the
+          <em>understanding</em> is your AI's. "Summarise the last 20 from Acme" is MailMan returning
+          20 messages and your assistant condensing them — which is why summaries and suggested
+          replies read like your assistant, not like a canned template.
+          <br />
+          ⚠️ <strong>Two honest limits.</strong> <strong>Search depth depends on how you connected:</strong>
+          OAuth2 accounts get Gmail's full query syntax (<code>from:</code>, <code>subject:</code>,
+          <code>after:</code>, <code>has:attachment</code>); App Password accounts get a simpler
+          subset over IMAP — subject, sender and date range. And a
+          <strong>reply is <code>Re:</code> framing with the original quoted underneath</strong> — it
+          goes out as a new message, so it won't nest inside the original Gmail thread.
+        </div>
       </div>
     </section>
 
