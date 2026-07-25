@@ -1,0 +1,94 @@
+name: 🐞 Bug report
+description: Something in mailman didn't work the way it should
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this.
+
+        ⚠️ **Never paste credentials.** No App Passwords, OAuth2 client secrets,
+        or refresh tokens — in any field below. `mailman doctor` output is safe
+        to share; it prints no secrets.
+
+        If this has security impact (credential exposure, a way to send mail
+        without confirmation), please **don't** file it here — email
+        kalpesh.gamit@indianic.com instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you asked your AI (or typed in the terminal), and what happened instead.
+      placeholder: |
+        I asked: "mailman, send the report to john@example.com"
+        Expected: a draft preview
+        Got: an error saying AMBIGUOUS_ACCOUNT
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `mailman doctor`
+      description: >
+        Paste the full output. This reports your OS, Node version, keychain
+        reachability, Gmail connectivity and a live login check per account —
+        usually enough to diagnose the problem on its own. Redact email
+        addresses if they're sensitive.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ai-tool
+    attributes:
+      label: Which AI tool were you using?
+      options:
+        - Claude Code
+        - Cursor
+        - Gemini CLI
+        - Windsurf
+        - Codex
+        - Claude Desktop (manually configured)
+        - Other MCP host (manually configured)
+        - Not applicable — this is a CLI bug
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auth-method
+    attributes:
+      label: How is the affected account connected?
+      options:
+        - App Password (SMTP/IMAP)
+        - OAuth2 (Gmail API)
+        - Both / more than one account
+        - Not applicable
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: mailman version
+      description: Output of `mailman --version`
+      placeholder: '1.1.2'
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-code
+    attributes:
+      label: Error code, if you saw one
+      description: >
+        mailman returns structured errors like `AMBIGUOUS_ACCOUNT`,
+        `DRAFT_EXPIRED`, `VERIFICATION_FAILED`, `RATE_LIMITED`. The code matters
+        more than the message text.
+      placeholder: DRAFT_EXPIRED
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Steps to reproduce, when it started, whether it's intermittent.

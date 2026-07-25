@@ -173,6 +173,19 @@ mailman update    # or: mailman upgrade
 
 Restart your AI tools afterward so their MCP server picks up the new version.
 
+## Contributing
+
+Issues and pull requests are welcome — you don't need commit access, the
+standard fork → branch → PR flow works. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the development loop
+(`lint` / `typecheck` / `test` — exactly what CI runs), where things live, and
+which changes won't be merged and why.
+
+- 🐞 [Report a bug](https://github.com/indianic/mailman/issues/new?template=bug_report.yml) — include your `mailman doctor` output
+- 💡 [Request a feature](https://github.com/indianic/mailman/issues/new?template=feature_request.yml)
+- 💬 [Ask or discuss](https://github.com/indianic/mailman/discussions)
+- 🔐 Security issues: email kalpesh.gamit@indianic.com — **not** a public issue
+
 ## License
 
-MIT
+[MIT](LICENSE)
