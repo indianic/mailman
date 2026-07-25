@@ -1,0 +1,3129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MailMan — Product &amp; Capability Guide</title>
+    <meta
+      name="description"
+      content="MailMan is an open-source MCP server that lets you send and read Gmail by asking your AI assistant in plain English — with a draft → preview → confirm safety flow, attachments, scheduled sends and inbox search."
+    />
+    <style>
+      /* ============ TOKENS ============ */
+      :root {
+        --ground: #eef0f7;
+        --surface: #ffffff;
+        --surface-2: #f5f6fb;
+        --ink: #14162b;
+        --muted: #5a5f7d;
+        --line: #dcdff0;
+        --accent: #4f46e5; /* indigo — brand */
+        --accent-2: #8b5cf6; /* violet — gradient partner */
+        --accent-soft: #e5e5fd;
+        --accent-ink: #3730a3;
+        --signal: #b45309; /* amber — savings / speed only */
+        --signal-soft: #fbeedb;
+        --good: #0f9d70;
+        --code-bg: #14162b;
+        --code-ink: #e6e8f5;
+        --radius: 14px;
+        --maxw: 1120px;
+        --shadow: 0 1px 2px rgba(20, 22, 43, 0.04), 0 8px 24px rgba(20, 22, 43, 0.07);
+        --mono:
+          ui-monospace, 'SF Mono', 'SFMono-Regular', 'JetBrains Mono', 'Fira Code', 'Roboto Mono',
+          Menlo, Consolas, monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, system-ui,
+          sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #0b0d18;
+          --surface: #141727;
+          --surface-2: #191d31;
+          --ink: #e9ebf6;
+          --muted: #969cc0;
+          --line: #262b45;
+          --accent: #818cf8;
+          --accent-2: #a78bfa;
+          --accent-soft: #1e2145;
+          --accent-ink: #c7d2fe;
+          --signal: #fbbf24;
+          --signal-soft: #2c2413;
+          --good: #34d399;
+          --code-bg: #0a0c16;
+          --code-ink: #dfe3f5;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+      }
+      :root[data-theme='dark'] {
+        --ground: #0b0d18;
+        --surface: #141727;
+        --surface-2: #191d31;
+        --ink: #e9ebf6;
+        --muted: #969cc0;
+        --line: #262b45;
+        --accent: #818cf8;
+        --accent-2: #a78bfa;
+        --accent-soft: #1e2145;
+        --accent-ink: #c7d2fe;
+        --signal: #fbbf24;
+        --signal-soft: #2c2413;
+        --good: #34d399;
+        --code-bg: #0a0c16;
+        --code-ink: #dfe3f5;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      :root[data-theme='light'] {
+        --ground: #eef0f7;
+        --surface: #ffffff;
+        --surface-2: #f5f6fb;
+        --ink: #14162b;
+        --muted: #5a5f7d;
+        --line: #dcdff0;
+        --accent: #4f46e5;
+        --accent-2: #8b5cf6;
+        --accent-soft: #e5e5fd;
+        --accent-ink: #3730a3;
+        --signal: #b45309;
+        --signal-soft: #fbeedb;
+        --good: #0f9d70;
+        --code-bg: #14162b;
+        --code-ink: #e6e8f5;
+        --shadow: 0 1px 2px rgba(20, 22, 43, 0.04), 0 8px 24px rgba(20, 22, 43, 0.07);
+      }
+
+      /* ============ BASE ============ */
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      h1,
+      h2,
+      h3 {
+        text-wrap: balance;
+        line-height: 1.12;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      section {
+        padding: 72px 24px;
+        border-top: 1px solid var(--line);
+      }
+      .wrap {
+        max-width: var(--maxw);
+        margin: 0 auto;
+      }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 600;
+        margin: 0 0 14px;
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 18px;
+        max-width: 64ch;
+      }
+      .section-title {
+        font-size: clamp(26px, 3.5vw, 38px);
+        font-weight: 800;
+        margin-bottom: 12px;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.92em;
+      }
+
+      /* ============ HEADER ============ */
+      header.bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: color-mix(in srgb, var(--ground) 88%, transparent);
+        backdrop-filter: saturate(180%) blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      .bar-in {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 24px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 800;
+        font-size: 17px;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .navlinks {
+        display: flex;
+        gap: 0;
+        margin-left: auto;
+        flex-wrap: nowrap;
+      }
+      .navlinks a {
+        color: var(--muted);
+        font-size: 13.5px;
+        padding: 6px 9px;
+        border-radius: 8px;
+        white-space: nowrap;
+      }
+      .navlinks a:hover {
+        color: var(--ink);
+        background: var(--surface-2);
+        text-decoration: none;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 0;
+        cursor: pointer;
+        white-space: nowrap;
+        font-family: inherit;
+      }
+      .btn:hover {
+        text-decoration: none;
+        filter: brightness(1.08);
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      .btn.ghost:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .iconbtn {
+        display: inline-grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 15px;
+        flex-shrink: 0;
+        padding: 0;
+        line-height: 1;
+      }
+      .iconbtn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      @media (max-width: 1180px) {
+        .navlinks {
+          display: none;
+        }
+        #themeBtn {
+          margin-left: auto;
+        }
+      }
+      @media (max-width: 560px) {
+        .bar-in .btn.gh-top span.lbl {
+          display: none;
+        }
+      }
+
+      /* ============ HERO ============ */
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border-top: 0;
+        padding-top: 76px;
+        padding-bottom: 80px;
+      }
+      #stamps {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.42;
+        pointer-events: none;
+      }
+      .hero .wrap {
+        position: relative;
+        z-index: 1;
+      }
+      .hero h1 {
+        font-size: clamp(32px, 5.6vw, 60px);
+        font-weight: 850;
+        max-width: 17ch;
+      }
+      .hero .grad {
+        background: linear-gradient(100deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .hero p.lead {
+        margin-top: 20px;
+        font-size: 19px;
+      }
+      .hero-cta {
+        display: flex;
+        gap: 12px;
+        margin-top: 26px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-ink);
+        background: var(--accent-soft);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .aud {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        background: var(--surface-2);
+      }
+      .aud.tech {
+        color: var(--accent-ink);
+        background: var(--accent-soft);
+        border-color: transparent;
+      }
+      .aud-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+
+      /* ============ INSTALL BOX ============ */
+      .installbox {
+        margin-top: 30px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        max-width: 660px;
+      }
+      .pmtabs {
+        display: flex;
+        gap: 2px;
+        padding: 8px 8px 0;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .pmtab {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 8px 14px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        border-radius: 8px 8px 0 0;
+      }
+      .pmtab:hover {
+        color: var(--ink);
+        background: var(--surface-2);
+      }
+      .pmtab[aria-selected='true'] {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        background: transparent;
+      }
+      .cmdrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        background: var(--code-bg);
+      }
+      .cmdrow .dollar {
+        color: var(--accent-2);
+        font-family: var(--mono);
+        font-weight: 700;
+        user-select: none;
+      }
+      .cmdrow code {
+        font-family: var(--mono);
+        font-size: 14.5px;
+        color: var(--code-ink);
+        flex: 1;
+        overflow-x: auto;
+        white-space: nowrap;
+        text-align: left;
+        min-width: 0;
+      }
+      .copy {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e6e8f5;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: var(--sans);
+        padding: 6px 11px;
+        border-radius: 8px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .copy:hover {
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .copy.done {
+        color: #6ee7b7;
+        border-color: #6ee7b7;
+      }
+      .installnote {
+        font-size: 13px;
+        color: var(--muted);
+        padding: 12px 18px;
+        margin: 0;
+        background: var(--surface-2);
+      }
+
+      /* ============ STAT TILES ============ */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin-top: 34px;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+      .stat .n {
+        font-size: clamp(22px, 2.6vw, 30px);
+        font-weight: 850;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.15;
+      }
+      .stat.savings .n {
+        color: var(--signal);
+      }
+      .stat .l {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      @media (max-width: 900px) {
+        .stats {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (max-width: 560px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      /* ============ GENERIC GRID + CARDS ============ */
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .g3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .g2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+      .card h3 {
+        font-size: 18.5px;
+        font-weight: 750;
+        margin-bottom: 8px;
+      }
+      .card p {
+        color: var(--muted);
+        margin: 0;
+        font-size: 15px;
+      }
+      .card p + p {
+        margin-top: 10px;
+      }
+      .ico {
+        font-size: 26px;
+        line-height: 1;
+        margin-bottom: 12px;
+        display: block;
+      }
+      @media (max-width: 860px) {
+        .g3,
+        .g2 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ============ GLOSSARY ============ */
+      .glossary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-top: 26px;
+      }
+      .term {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        box-shadow: var(--shadow);
+      }
+      .term h4 {
+        margin: 0 0 6px;
+        font-size: 15.5px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .term p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .term .word {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--accent-ink);
+        background: var(--accent-soft);
+        padding: 2px 7px;
+        border-radius: 6px;
+      }
+      .term .deep {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        border-left: 2px solid var(--line);
+        padding-left: 10px;
+      }
+      .term .deep b {
+        color: var(--accent);
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      @media (max-width: 760px) {
+        .glossary {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ============ FLOW DIAGRAM ============ */
+      .flow {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 30px;
+        box-shadow: var(--shadow);
+        margin-top: 28px;
+        overflow-x: auto;
+      }
+      .flow-row {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        min-width: 700px;
+      }
+      .fstep {
+        flex: 1;
+        text-align: center;
+        padding: 8px 10px;
+      }
+      .fstep .badge {
+        width: 54px;
+        height: 54px;
+        border-radius: 15px;
+        display: grid;
+        place-items: center;
+        font-size: 25px;
+        margin: 0 auto 12px;
+        background: var(--accent-soft);
+        border: 1px solid var(--line);
+      }
+      .fstep.gate .badge {
+        background: var(--signal-soft);
+        border-color: var(--signal);
+      }
+      .fstep h4 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .fstep p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .fstep .tool {
+        display: inline-block;
+        margin-top: 7px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 2px 7px;
+      }
+      .farrow {
+        display: flex;
+        align-items: center;
+        color: var(--accent);
+        padding: 0 2px;
+        flex-shrink: 0;
+      }
+      .flow-note {
+        text-align: center;
+        margin: 20px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      /* ============ QUICK START STEPS ============ */
+      .steps {
+        display: grid;
+        gap: 14px;
+        margin-top: 28px;
+        counter-reset: qs;
+      }
+      .step {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 20px 22px;
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .step .num {
+        counter-increment: qs;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 15px;
+        font-family: var(--mono);
+      }
+      .step .num::before {
+        content: counter(qs);
+      }
+      .step h4 {
+        margin: 4px 0 6px;
+        font-size: 17px;
+        font-weight: 750;
+      }
+      .step p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .step p:last-child {
+        margin-bottom: 0;
+      }
+      pre.code {
+        margin: 0;
+        background: var(--code-bg);
+        color: var(--code-ink);
+        border-radius: 10px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 1.65;
+        position: relative;
+      }
+      pre.code .c {
+        color: #8d93b8;
+      }
+      pre.code .k {
+        color: #a5b4fc;
+      }
+      pre.code .s {
+        color: #6ee7b7;
+      }
+      pre.code .u {
+        color: #fbbf24;
+      }
+      .codewrap {
+        position: relative;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .step > div,
+      .commcard,
+      .panel,
+      .card,
+      .f {
+        min-width: 0;
+      }
+      .codewrap .copy {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        opacity: 0.75;
+      }
+      .codewrap:hover .copy {
+        opacity: 1;
+      }
+
+      /* ============ CHAT SAMPLE ============ */
+      .chat {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 22px;
+        margin-top: 16px;
+      }
+      .chat .line {
+        display: flex;
+        gap: 12px;
+        padding: 7px 0;
+        font-size: 14.5px;
+        align-items: baseline;
+      }
+      .chat .who {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        min-width: 46px;
+        color: var(--muted);
+      }
+      .chat .line.you .who {
+        color: var(--accent);
+      }
+      .chat .line.ai .who {
+        color: var(--good);
+      }
+      .chat .msg {
+        flex: 1;
+      }
+      .chat .msg em {
+        color: var(--muted);
+        font-style: normal;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .chat .sep {
+        border-top: 1px dashed var(--line);
+        margin: 12px 0;
+      }
+
+      /* ============ FEATURES GRID ============ */
+      .feat {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 28px;
+      }
+      .f {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        box-shadow: var(--shadow);
+        transition:
+          transform 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .f:hover {
+        transform: translateY(-2px);
+        border-color: var(--accent);
+      }
+      .f .fe {
+        font-size: 24px;
+        line-height: 1;
+        display: block;
+        margin-bottom: 10px;
+      }
+      .f h4 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .f p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .f .hood {
+        margin-top: 10px;
+        font-size: 12.5px;
+        color: var(--muted);
+        font-family: var(--mono);
+        border-top: 1px dashed var(--line);
+        padding-top: 9px;
+      }
+      .f .hood b {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      @media (max-width: 900px) {
+        .feat {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 620px) {
+        .feat {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ============ LEVERS ============ */
+      .levers {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-top: 28px;
+      }
+      .lever {
+        display: flex;
+        gap: 14px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        box-shadow: var(--shadow);
+      }
+      .lever .li {
+        font-size: 23px;
+        flex-shrink: 0;
+        line-height: 1.3;
+      }
+      .lever h4 {
+        margin: 2px 0 3px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .lever p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      @media (max-width: 760px) {
+        .levers {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ============ COMPARISON TABLE ============ */
+      .cmp-wrap {
+        margin-top: 28px;
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      table.cmp {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 660px;
+        background: var(--surface);
+        font-size: 15px;
+      }
+      table.cmp th,
+      table.cmp td {
+        text-align: left;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      table.cmp thead th {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        font-family: var(--mono);
+        background: var(--surface-2);
+        font-weight: 600;
+      }
+      table.cmp thead th.new {
+        color: var(--accent);
+      }
+      table.cmp tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      table.cmp td.metric {
+        font-weight: 600;
+        color: var(--ink);
+        width: 26%;
+      }
+      table.cmp td.old {
+        color: var(--muted);
+      }
+      table.cmp td.win {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      table.cmp td.win b {
+        color: var(--accent);
+      }
+
+      /* ============ API TABLE ============ */
+      .api-wrap {
+        margin-top: 26px;
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      table.api {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 640px;
+        background: var(--surface);
+        font-size: 14.5px;
+      }
+      table.api th,
+      table.api td {
+        text-align: left;
+        padding: 11px 18px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      table.api thead th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        font-family: var(--mono);
+        background: var(--surface-2);
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      table.api tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      table.api tbody tr:hover {
+        background: var(--surface-2);
+      }
+      table.api td.sym {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--accent);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      table.api td.grp {
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      table.api td.desc {
+        color: var(--muted);
+      }
+      table.api tr.danger td.sym {
+        color: var(--signal);
+      }
+      .tblcap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 34px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .tblcap h3 {
+        font-size: 16px;
+        font-weight: 750;
+        color: var(--ink);
+      }
+      .tblcap .cnt {
+        font-family: var(--mono);
+        font-size: 12px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+
+      /* ============ SEGMENTS ============ */
+      .seg {
+        border-left: 3px solid var(--accent);
+        padding: 4px 0 4px 18px;
+      }
+      .seg h4 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .seg p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14.5px;
+      }
+      .seg-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 26px 40px;
+        margin-top: 28px;
+      }
+      @media (max-width: 760px) {
+        .seg-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ============ FAQ ============ */
+      .faq {
+        margin-top: 26px;
+        display: grid;
+        gap: 12px;
+      }
+      details.q {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      details.q summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 17px 22px;
+        font-weight: 650;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      details.q summary::-webkit-details-marker {
+        display: none;
+      }
+      details.q summary .qm {
+        color: var(--accent);
+        font-weight: 800;
+        margin-left: auto;
+        transition: transform 0.2s ease;
+        font-size: 20px;
+        line-height: 1;
+      }
+      details.q[open] summary .qm {
+        transform: rotate(45deg);
+      }
+      details.q .a {
+        padding: 0 22px 20px 22px;
+        color: var(--muted);
+        font-size: 15px;
+        margin: 0;
+      }
+      details.q .a strong {
+        color: var(--ink);
+      }
+      details.q .a + .a {
+        padding-top: 10px;
+      }
+
+      /* ============ CALLOUT BOXES ============ */
+      .note {
+        font-size: 14px;
+        color: var(--muted);
+        background: var(--surface-2);
+        border: 1px dashed var(--line);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-top: 24px;
+      }
+      .note strong {
+        color: var(--ink);
+      }
+      .panel {
+        margin-top: 24px;
+        background: linear-gradient(
+          135deg,
+          var(--accent-soft),
+          color-mix(in srgb, var(--accent-soft) 35%, var(--surface))
+        );
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 26px;
+      }
+      .panel h3 {
+        font-size: 20px;
+        font-weight: 750;
+        margin-bottom: 8px;
+      }
+      .panel p {
+        color: var(--ink);
+        opacity: 0.85;
+        margin: 0 0 16px;
+        max-width: 72ch;
+        font-size: 15px;
+      }
+      .prompts {
+        display: grid;
+        gap: 10px;
+      }
+      .prompts code {
+        display: block;
+        font-family: var(--mono);
+        font-size: 13px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: var(--ink);
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      .prompts code b {
+        color: var(--accent);
+      }
+      .comm {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 26px;
+      }
+      .commcard {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 22px;
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+      }
+      .commcard .ce {
+        font-size: 24px;
+        line-height: 1;
+        margin-bottom: 10px;
+      }
+      .commcard h4 {
+        margin: 0 0 6px;
+        font-size: 16.5px;
+        font-weight: 750;
+      }
+      .commcard p {
+        margin: 0 0 16px;
+        font-size: 14px;
+        color: var(--muted);
+        flex: 1;
+      }
+      .commcard .btn {
+        align-self: flex-start;
+      }
+      @media (max-width: 860px) {
+        .comm {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ============ CTA + FOOTER ============ */
+      .cta-band {
+        text-align: center;
+      }
+      .cta-band h2 {
+        font-size: clamp(26px, 4vw, 40px);
+        font-weight: 850;
+        margin-bottom: 12px;
+      }
+      .cta-band .lead {
+        margin: 0 auto 26px;
+      }
+      .cta-band .hero-cta {
+        justify-content: center;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 30px 24px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .foot-in {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+
+      /* ============ WORDMARK ============ */
+      .wordmark {
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: baseline;
+      }
+      .wordmark .a {
+        color: currentColor;
+      }
+      .wordmark .b {
+        background-image: linear-gradient(90deg, #6366f1, #a21caf);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      @media (prefers-color-scheme: dark) {
+        .wordmark .b {
+          background-image: linear-gradient(90deg, #a5b4fc, #d946ef);
+        }
+      }
+      :root[data-theme='dark'] .wordmark .b {
+        background-image: linear-gradient(90deg, #a5b4fc, #d946ef);
+      }
+      :root[data-theme='light'] .wordmark .b {
+        background-image: linear-gradient(90deg, #6366f1, #a21caf);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============ HEADER ============ -->
+    <header class="bar">
+      <div class="bar-in">
+        <span class="brand"
+          ><span class="wordmark"><span class="a">Mail</span><span class="b">Man</span></span></span
+        >
+        <nav class="navlinks">
+          <a href="#words">Plain words</a>
+          <a href="#how">How it works</a>
+          <a href="#quickstart">Quick start</a>
+          <a href="#compat">Works with</a>
+          <a href="#features">Features</a>
+          <a href="#value">Why it's faster</a>
+          <a href="#api">API</a>
+          <a href="#faq">FAQ</a>
+          <a href="#community">Community</a>
+        </nav>
+        <button
+          class="iconbtn"
+          id="themeBtn"
+          type="button"
+          aria-label="Switch between light and dark theme"
+          title="Toggle light / dark"
+        >
+          <span id="themeIcon">🌗</span>
+        </button>
+        <a
+          class="btn gh-top"
+          href="https://github.com/indianic/mailman"
+          target="_blank"
+          rel="noopener"
+          >⭐ <span class="lbl">Star on GitHub</span></a
+        >
+      </div>
+    </header>
+
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <canvas id="stamps" aria-hidden="true"></canvas>
+      <div class="wrap">
+        <span class="pill">✉️ Open-source MCP server · MIT</span>
+        <h1 style="margin-top: 18px">
+          Send and read your email by <span class="grad">just asking</span>.
+        </h1>
+        <p class="lead">
+          MailMan plugs your Gmail into the AI assistant you already use — Claude Code, Cursor,
+          Gemini CLI, Windsurf, Codex. Say <em>“send those docs to Kalpesh”</em> or
+          <em>“show my last 10 emails”</em> and it happens, without leaving your editor.
+        </p>
+        <p class="lead" style="margin-top: 12px">
+          👉 <strong>In one sentence:</strong> it's a small, free program that gives your AI
+          assistant a safe pair of hands for your inbox — and
+          <strong>nothing is ever sent until you've seen it and said yes</strong>.
+        </p>
+        <div class="aud-row">
+          <span class="aud">👔 Written for non-technical readers</span>
+          <span class="aud tech">🧑‍💻 With technical depth on tap</span>
+        </div>
+
+        <!-- INSTALL -->
+        <div class="installbox">
+          <div class="pmtabs" role="tablist" aria-label="Package manager">
+            <button class="pmtab" role="tab" aria-selected="true" data-pm="npm">npm</button>
+            <button class="pmtab" role="tab" aria-selected="false" data-pm="pnpm">pnpm</button>
+            <button class="pmtab" role="tab" aria-selected="false" data-pm="yarn">yarn</button>
+            <button class="pmtab" role="tab" aria-selected="false" data-pm="bun">bun</button>
+          </div>
+          <div class="cmdrow">
+            <span class="dollar" aria-hidden="true">$</span>
+            <code id="installCmd">npm install -g @integratex/mailman</code>
+            <button class="copy" type="button" data-copy-target="installCmd">Copy</button>
+          </div>
+          <p class="installnote">
+            Public package — no registry setup. Then run <code>mailman init</code> once and you're
+            live in every AI tool on the machine.
+          </p>
+        </div>
+
+        <div class="hero-cta">
+          <a class="btn" href="#quickstart">Quick start — 30 seconds ↓</a>
+          <a class="btn ghost" href="https://mailman.indianic.dev" target="_blank" rel="noopener"
+            >Live tour &amp; docs ↗</a
+          >
+          <a
+            class="btn ghost"
+            href="https://www.npmjs.com/package/@integratex/mailman"
+            target="_blank"
+            rel="noopener"
+            >View on npm ↗</a
+          >
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="n">v1.1.2</div>
+            <div class="l">Latest on npm</div>
+          </div>
+          <div class="stat">
+            <div class="n">164</div>
+            <div class="l">Weekly downloads</div>
+          </div>
+          <div class="stat">
+            <div class="n">⭐ 2</div>
+            <div class="l">GitHub stars — be the next</div>
+          </div>
+          <div class="stat savings">
+            <div class="n">MIT</div>
+            <div class="l">Licence — free, commercial-friendly</div>
+          </div>
+          <div class="stat">
+            <div class="n">Node 18+</div>
+            <div class="l">Runtime · macOS · Linux · Windows</div>
+          </div>
+        </div>
+        <p class="note" style="margin-top: 16px">
+          📊 Package and repository figures were captured on <strong>25 July 2026</strong>. Live
+          numbers are on
+          <a href="https://www.npmjs.com/package/@integratex/mailman" target="_blank" rel="noopener"
+            >npm</a
+          >
+          and
+          <a href="https://github.com/indianic/mailman" target="_blank" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ GLOSSARY ============ -->
+    <section id="words">
+      <div class="wrap">
+        <p class="eyebrow">In plain words</p>
+        <h2 class="section-title">Eight terms you'll hear — decoded.</h2>
+        <p class="lead">
+          You don't need to be technical to understand or demo this. Here's what each word means, in
+          one line — with the engineering detail underneath if you want it.
+        </p>
+        <div class="glossary">
+          <div class="term">
+            <h4><span class="word">MCP</span> Model Context Protocol</h4>
+            <p>
+              The standard plug socket that lets an AI assistant use real tools instead of only
+              talking. Think USB, but for AI.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — an open JSON-RPC spec for tool discovery and invocation, now
+              supported by Claude Code, Cursor, Windsurf, Gemini CLI and Codex.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">MCP server</span> what MailMan is</h4>
+            <p>
+              A small program that plugs into that socket and offers a set of abilities. MailMan's
+              abilities are all about email.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — a Node.js stdio server your editor spawns per session via
+              <code>npx -y @integratex/mailman</code>. No daemon, no port, no cloud.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">Tool</span> one thing the AI can do</h4>
+            <p>
+              Each ability is a separate, named tool — “draft an email”, “search the inbox”. MailMan
+              ships 23 of them.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — each returns plain JSON, so any MCP host renders it its own
+              way. Errors are structured <code>{ code, message }</code>, not prose.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">Draft → confirm</span> the safety flow</h4>
+            <p>
+              MailMan prepares the email and shows it to you first. A second, separate step actually
+              sends it — only after your “yes”.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — <code>draft_email</code> creates a short-lived draft (10-min
+              TTL); <code>confirm_send</code> is the only tool that dispatches mail, and it's
+              idempotent.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">App Password</span> the simple login</h4>
+            <p>
+              A 16-character code Google gives you for one specific app. Your real password is never
+              involved and you can revoke it any time.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — used for SMTP/IMAP. Google disabled plain-password SMTP login
+              in 2022, so this or OAuth2 are the only options.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">OAuth2</span> the passwordless login</h4>
+            <p>
+              “Sign in with browser.” You approve access on Google's own page — useful if you use
+              passkeys or your admin turned App Passwords off.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — your own Google Cloud <em>Desktop app</em> client, loopback
+              redirect, refresh token stored encrypted. Unlocks the Gmail REST API and Contacts.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">OS keychain</span> where secrets live</h4>
+            <p>
+              The vault your operating system already uses for passwords. MailMan keeps its
+              encryption key there — never in a file you could accidentally copy.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — macOS Keychain / Windows Credential Manager / Linux Secret
+              Service via <code>keytar</code>; AES-256-GCM over the stored account file.
+            </p>
+          </div>
+          <div class="term">
+            <h4><span class="word">Template</span> a tone, not a form letter</h4>
+            <p>
+              182 ready message types — FYI, follow-up, EOD report, apology. They shape the tone; the
+              AI still writes the actual words for your situation.
+            </p>
+            <p class="deep">
+              <b>Under the hood</b> — a template is a subject prefix + a one-line structural hint
+              across 23 categories. Only <code>fwd</code>/<code>reply</code> are mechanical.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section id="how">
+      <div class="wrap">
+        <p class="eyebrow">How MailMan works</p>
+        <h2 class="section-title">Two doors, one safety gate.</h2>
+        <p class="lead">
+          The single most important idea: <strong>you</strong> type commands to set things up, and
+          <strong>your AI</strong> handles everyday mail. Anything sensitive stays out of the AI's
+          reach by design.
+        </p>
+
+        <div class="grid g3" style="margin-top: 28px">
+          <div class="card">
+            <span class="ico">🗣️</span>
+            <h3>The AI door</h3>
+            <p>
+              Send, read, search, schedule — all in plain English, from inside your editor.
+              <strong>This is the door you use every day.</strong>
+            </p>
+            <p style="font-size: 13.5px">
+              <em>“mailman, email this build to the QA team.”</em>
+            </p>
+          </div>
+          <div class="card">
+            <span class="ico">⌨️</span>
+            <h3>The terminal door</h3>
+            <p>
+              Setup, accounts, credentials, diagnostics.
+              <strong>Only you can open this one</strong> — the AI has no access to it at all.
+            </p>
+            <p style="font-size: 13.5px"><em><code>mailman init</code>, <code>mailman doctor</code></em></p>
+          </div>
+          <div class="card" style="border-color: var(--accent)">
+            <span class="ico">🛑</span>
+            <h3>The safety gate</h3>
+            <p>
+              Between “compose” and “sent” sits an explicit confirmation.
+              <strong>Nothing leaves your machine until you approve the preview.</strong>
+            </p>
+            <p style="font-size: 13.5px">
+              <em>Preview shows From, To, Subject, attachments and signature.</em>
+            </p>
+          </div>
+        </div>
+
+        <!-- FLOW DIAGRAM -->
+        <div
+          class="flow"
+          role="img"
+          aria-label="Flow: you ask in plain English, the AI composes, MailMan drafts a preview, you confirm, and only then is it sent — with a desktop notification."
+        >
+          <div class="flow-row">
+            <div class="fstep">
+              <div class="badge">🗣️</div>
+              <h4>1 · Ask</h4>
+              <p>“Send the checklist to Kalpesh”</p>
+              <span class="tool">you</span>
+            </div>
+            <div class="farrow" aria-hidden="true">
+              <svg width="30" height="18" viewBox="0 0 30 18" fill="none">
+                <path
+                  d="M1 9h24m0 0-6-6m6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="fstep">
+              <div class="badge">🤖</div>
+              <h4>2 · Compose</h4>
+              <p>AI resolves the files, writes subject &amp; body</p>
+              <span class="tool">your AI</span>
+            </div>
+            <div class="farrow" aria-hidden="true">
+              <svg width="30" height="18" viewBox="0 0 30 18" fill="none">
+                <path
+                  d="M1 9h24m0 0-6-6m6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="fstep gate">
+              <div class="badge">👀</div>
+              <h4>3 · Preview</h4>
+              <p>Exactly what will go out — nothing sent yet</p>
+              <span class="tool">draft_email</span>
+            </div>
+            <div class="farrow" aria-hidden="true">
+              <svg width="30" height="18" viewBox="0 0 30 18" fill="none">
+                <path
+                  d="M1 9h24m0 0-6-6m6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="fstep">
+              <div class="badge">✅</div>
+              <h4>4 · Confirm</h4>
+              <p>You say “yes” — it sends, and only then</p>
+              <span class="tool">confirm_send</span>
+            </div>
+            <div class="farrow" aria-hidden="true">
+              <svg width="30" height="18" viewBox="0 0 30 18" fill="none">
+                <path
+                  d="M1 9h24m0 0-6-6m6 6-6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="fstep">
+              <div class="badge">🔔</div>
+              <h4>5 · Sent</h4>
+              <p>Desktop notification confirms delivery</p>
+              <span class="tool">notify</span>
+            </div>
+          </div>
+          <p class="flow-note">
+            🔒 <strong>Step 3 is not skippable.</strong> <code>confirm_send</code> refuses to
+            dispatch anything that wasn't drafted and shown first — and it's idempotent, so a retry
+            after a flaky connection returns the original send instead of mailing twice.
+          </p>
+        </div>
+
+        <div class="grid g2" style="margin-top: 24px">
+          <div class="card">
+            <span class="ico">🔌</span>
+            <h3>Where it runs</h3>
+            <p>
+              On your machine, nowhere else. Your editor starts MailMan when a session begins and
+              stops it when the session ends. There is no MailMan cloud, no account to create, and no
+              server holding your mail.
+            </p>
+            <p style="font-size: 13.5px; margin-top: 10px">
+              <b style="color: var(--accent)">Under the hood</b> — stdio JSON-RPC between host and
+              server; Gmail is reached over SMTP/IMAP (App Password) or the Gmail REST API (OAuth2),
+              normalised to one output shape.
+            </p>
+          </div>
+          <div class="card">
+            <span class="ico">🔐</span>
+            <h3>How your credentials are held</h3>
+            <p>
+              Encrypted, and <strong>bound to this machine</strong>. Copy the config file to another
+              computer and it's useless ciphertext — MailMan there refuses to decrypt rather than
+              quietly degrade.
+            </p>
+            <p style="font-size: 13.5px; margin-top: 10px">
+              <b style="color: var(--accent)">Under the hood</b> — AES-256-GCM over
+              <code>accounts.json</code>; the master key lives in the OS keychain via
+              <code>keytar</code>. Every call appends to a local <code>activity.log</code> — tool
+              name and metadata only, never bodies or secrets.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ QUICK START ============ -->
+    <section id="quickstart">
+      <div class="wrap">
+        <p class="eyebrow">Quick start</p>
+        <h2 class="section-title">From nothing to sending mail — about 30 seconds.</h2>
+        <p class="lead">
+          Two commands and a restart. You'll need a Gmail address and either a Google
+          <a
+            href="https://myaccount.google.com/apppasswords"
+            target="_blank"
+            rel="noopener"
+            >App Password</a
+          >
+          (fastest) or the browser sign-in option the wizard offers.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="num" aria-hidden="true"></div>
+            <div>
+              <h4>Install it globally</h4>
+              <p>One package, one binary. Use whichever package manager you already have.</p>
+              <div class="codewrap">
+                <pre class="code" id="qs1"><span class="c"># npm</span>
+npm install -g @integratex/mailman
+
+<span class="c"># or pnpm / yarn / bun</span>
+pnpm add -g @integratex/mailman
+yarn global add @integratex/mailman
+bun add -g @integratex/mailman</pre>
+                <button class="copy" type="button" data-copy-target="qs1">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num" aria-hidden="true"></div>
+            <div>
+              <h4>Run the setup wizard</h4>
+              <p>
+                It adds your Gmail account, encrypts the credentials into your OS keychain, and
+                writes the MCP config into whichever AI tools you tick. Safe to re-run any time.
+              </p>
+              <div class="codewrap">
+                <pre class="code" id="qs2">mailman init
+
+<span class="c">┌  mailman — setup</span>
+<span class="c">│</span>
+<span class="c">◆  connect method</span>
+<span class="c">│  › App Password  (paste a 16-char code)</span>
+<span class="c">│    Sign in with browser (OAuth2)</span>
+<span class="c">│</span>
+<span class="c">◆  register with AI tools</span>
+<span class="c">│  ◼ Claude Code   ◼ Cursor   ◻ Gemini CLI   ◻ Windsurf   ◻ Codex</span>
+<span class="c">│</span>
+<span class="c">└  ready</span></pre>
+                <button class="copy" type="button" data-copy-text="mailman init">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num" aria-hidden="true"></div>
+            <div>
+              <h4>Restart your AI tool, then just ask</h4>
+              <p>
+                No CLI from here on — you talk to your assistant. This is the whole product, and it
+                works the same in Claude Code, Cursor, Gemini CLI, Windsurf and Codex.
+              </p>
+              <div class="chat">
+                <div class="line you">
+                  <span class="who">You</span>
+                  <span class="msg">mailman, send the release notes to kalpesh@indianic.com</span>
+                </div>
+                <div class="line ai">
+                  <span class="who">AI</span>
+                  <span class="msg"
+                    >Draft ready — <em>To: kalpesh@indianic.com · Subject: “Release notes — v1.1.2”
+                    · 1 attachment (CHANGELOG.md, 8 KB)</em>. Send it?</span
+                  >
+                </div>
+                <div class="line you"><span class="who">You</span><span class="msg">yes</span></div>
+                <div class="line ai">
+                  <span class="who">AI</span><span class="msg">✅ Sent.</span>
+                </div>
+                <div class="sep"></div>
+                <div class="line you">
+                  <span class="who">You</span
+                  ><span class="msg">show my last 10 emails</span>
+                </div>
+                <div class="line you">
+                  <span class="who">You</span
+                  ><span class="msg">search for invoices from last month</span>
+                </div>
+                <div class="line you">
+                  <span class="who">You</span
+                  ><span class="msg"
+                    >send this tomorrow at 9am instead <em>— goes out even if the editor is
+                    closed</em></span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="num" aria-hidden="true"></div>
+            <div>
+              <h4>Something not working? One command tells you why</h4>
+              <p>
+                <code>doctor</code> runs a live login for every configured account plus a full
+                environment pre-flight — so a password revoked last week surfaces here, not on your
+                next silent send.
+              </p>
+              <div class="codewrap">
+                <pre class="code" id="qs4">mailman doctor        <span class="c"># live checks: keychain, Node, Gmail reachability, logins</span>
+mailman status        <span class="c"># what's configured right now</span>
+mailman register -i   <span class="c"># add more AI tools later</span></pre>
+                <button class="copy" type="button" data-copy-target="qs4">Copy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note">
+          🧩 <strong>Prefer to wire it up by hand?</strong> The MCP config carries
+          <em>no secrets</em> — credentials live in your OS keychain, so this block is safe to commit
+          or share:
+          <code>{ "mcpServers": { "mailman": { "command": "npx", "args": ["-y",
+          "@integratex/mailman"] } } }</code>. For Claude Code, the one-liner is
+          <code>claude mcp add mailman -- npx -y @integratex/mailman</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COMPATIBILITY ============ -->
+    <section id="compat">
+      <div class="wrap">
+        <p class="eyebrow">Works with</p>
+        <h2 class="section-title">Five AI tools set up for you. Everything else, by hand.</h2>
+        <p class="lead">
+          <code>mailman init</code> and <code>mailman register</code> write the config themselves for
+          the five below. MailMan is a standard stdio MCP server, so
+          <strong>any</strong> MCP-capable host works — you just paste the block yourself.
+        </p>
+
+        <div class="api-wrap">
+          <table class="api">
+            <thead>
+              <tr>
+                <th scope="col">AI tool</th>
+                <th scope="col">Setup</th>
+                <th scope="col">Config it writes</th>
+                <th scope="col">Scope</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="sym">Claude Code</td>
+                <td class="grp">✅ Automatic</td>
+                <td class="desc"><code>~/.claude.json</code> — or <code>./.mcp.json</code> per project</td>
+                <td class="grp">Global or project</td>
+              </tr>
+              <tr>
+                <td class="sym">Cursor</td>
+                <td class="grp">✅ Automatic</td>
+                <td class="desc">
+                  <code>~/.cursor/mcp.json</code> — or <code>./.cursor/mcp.json</code> per project
+                </td>
+                <td class="grp">Global or project</td>
+              </tr>
+              <tr>
+                <td class="sym">Gemini CLI</td>
+                <td class="grp">✅ Automatic</td>
+                <td class="desc"><code>~/.gemini/settings.json</code></td>
+                <td class="grp">User-level only</td>
+              </tr>
+              <tr>
+                <td class="sym">Windsurf</td>
+                <td class="grp">✅ Automatic</td>
+                <td class="desc"><code>~/.codeium/windsurf/mcp_config.json</code></td>
+                <td class="grp">User-level only</td>
+              </tr>
+              <tr>
+                <td class="sym">Codex <span style="color: var(--muted); font-weight: 400">(OpenAI)</span></td>
+                <td class="grp">✅ Automatic</td>
+                <td class="desc"><code>~/.codex/config.toml</code> — TOML, not JSON</td>
+                <td class="grp">User-level only</td>
+              </tr>
+              <tr>
+                <td class="sym">Claude Desktop</td>
+                <td class="grp">✋ Manual</td>
+                <td class="desc">
+                  <code>claude_desktop_config.json</code> — paste the block below
+                </td>
+                <td class="grp">App-level</td>
+              </tr>
+              <tr>
+                <td class="sym">Zed · Cline · Continue · VS Code…</td>
+                <td class="grp">✋ Manual</td>
+                <td class="desc">
+                  That host's own MCP config file — same block, same behaviour
+                </td>
+                <td class="grp">Varies</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid g2" style="margin-top: 24px">
+          <div class="card">
+            <span class="ico">📋</span>
+            <h3>The manual block</h3>
+            <p>
+              Identical for every JSON-based host. It carries
+              <strong>no secrets</strong> — credentials live in your OS keychain — so it's safe to
+              commit or share.
+            </p>
+            <div class="codewrap" style="margin-top: 12px">
+              <pre class="code" id="mcpblock">{
+  <span class="s">"mcpServers"</span>: {
+    <span class="s">"mailman"</span>: {
+      <span class="s">"command"</span>: <span class="u">"npx"</span>,
+      <span class="s">"args"</span>: [<span class="u">"-y"</span>, <span class="u">"@integratex/mailman"</span>]
+    }
+  }
+}</pre>
+              <button class="copy" type="button" data-copy-target="mcpblock">Copy</button>
+            </div>
+          </div>
+          <div class="card">
+            <span class="ico">🎯</span>
+            <h3>Picking tools from the terminal</h3>
+            <p>
+              Register some now and more later — it's idempotent, so re-running is always safe.
+            </p>
+            <div class="codewrap" style="margin-top: 12px">
+              <pre class="code" id="regcmds">mailman register --tools claude,cursor
+mailman register --tools all --scope global
+mailman register -i        <span class="c"># interactive picker</span>
+mailman register           <span class="c"># just print the claude one-liner</span></pre>
+              <button class="copy" type="button" data-copy-target="regcmds">Copy</button>
+            </div>
+            <p style="margin-top: 12px; font-size: 13.5px">
+              Gemini CLI, Windsurf and Codex ignore <code>--scope</code> — they only support a single
+              user-level config, so MailMan writes there regardless.
+            </p>
+          </div>
+        </div>
+
+        <div class="note">
+          ⚠️ <strong>Two things people assume wrongly.</strong>
+          <strong>“Claude” means Claude Code</strong>, the CLI — the
+          <em>Claude Desktop app</em> is a separate host and is <em>not</em> auto-registered; paste
+          the block into its config yourself. And <strong>“OpenAI” means Codex</strong>, OpenAI's
+          CLI — the ChatGPT app isn't a stdio MCP host, so there's nothing to register there.
+          <br />
+          🔁 <strong>Always restart the AI tool after registering.</strong> MCP servers are spawned
+          per session, so a running session keeps the old configuration.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section id="features">
+      <div class="wrap">
+        <p class="eyebrow">What's in the box</p>
+        <h2 class="section-title">Everything email, hands-free.</h2>
+        <p class="lead">
+          Plain-English capability first, the engineering note underneath. Nothing here is a
+          roadmap item — it all ships in v1.1.2.
+        </p>
+
+        <div class="feat">
+          <article class="f">
+            <span class="fe">✍️</span>
+            <h4>Natural-language send</h4>
+            <p>
+              Describe the email; your AI composes subject and body, resolves who “Kalpesh” is, and
+              hands you a preview.
+            </p>
+            <p class="hood"><b>tools</b> draft_email · confirm_send</p>
+          </article>
+          <article class="f">
+            <span class="fe">🛑</span>
+            <h4>Draft → preview → confirm</h4>
+            <p>
+              The safety flow is structural, not a prompt instruction. There is exactly one tool that
+              can send mail, and it needs a draft you've seen.
+            </p>
+            <p class="hood"><b>guarantee</b> idempotent · 10-min draft TTL</p>
+          </article>
+          <article class="f">
+            <span class="fe">📎</span>
+            <h4>Attachments that understand you</h4>
+            <p>
+              Attach a file, a whole folder, or a wildcard like <code>*.pdf</code>. Check what would
+              be attached before drafting anything.
+            </p>
+            <p class="hood"><b>guard</b> refuses to exceed Gmail's ~25 MB cap</p>
+          </article>
+          <article class="f">
+            <span class="fe">📚</span>
+            <h4>182 message templates</h4>
+            <p>
+              FYI, follow-up, blocker, EOD report, apology, congrats… Pick a tone and the AI writes
+              the words — never a canned form letter.
+            </p>
+            <p class="hood"><b>catalog</b> 23 categories · list_templates</p>
+          </article>
+          <article class="f">
+            <span class="fe">⏰</span>
+            <h4>Scheduled sends</h4>
+            <p>
+              “Send this tomorrow at 9am.” It goes out on time even if your editor — and your AI
+              session — are long closed.
+            </p>
+            <p class="hood"><b>via</b> launchd / cron / Task Scheduler</p>
+          </article>
+          <article class="f">
+            <span class="fe">📥</span>
+            <h4>Read, search &amp; triage the inbox</h4>
+            <p>
+              List recent mail, open one in full, search by sender, subject, date or
+              <code>has:attachment</code>, or pull a whole mailbox overview in one go.
+            </p>
+            <p class="hood"><b>via</b> Gmail API (OAuth2) · IMAP (App Password)</p>
+          </article>
+          <article class="f">
+            <span class="fe">👥</span>
+            <h4>Contacts &amp; smart suggestions</h4>
+            <p>
+              Everyone you email is remembered. Say “email John” and MailMan ranks the Johns it knows
+              — and asks you which, rather than guessing.
+            </p>
+            <p class="hood"><b>sources</b> recents · manual · Google Contacts</p>
+          </article>
+          <article class="f">
+            <span class="fe">👤</span>
+            <h4>Multi-account, with identity</h4>
+            <p>
+              Add as many Gmail accounts as you like; one is default. Each carries its own “From
+              Name” and signature, applied automatically.
+            </p>
+            <p class="hood"><b>rule</b> one email = one account · duplicate rejected</p>
+          </article>
+          <article class="f">
+            <span class="fe">🔐</span>
+            <h4>Machine-bound credentials</h4>
+            <p>
+              Not just encrypted — tied to this computer. A stolen config file decrypts to nothing
+              anywhere else.
+            </p>
+            <p class="hood"><b>crypto</b> AES-256-GCM · key in OS keychain</p>
+          </article>
+          <article class="f">
+            <span class="fe">🔔</span>
+            <h4>Desktop notifications</h4>
+            <p>
+              A native “email sent” notification after every successful send, interactive or
+              scheduled. On by default, one setting to turn off.
+            </p>
+            <p class="hood"><b>native</b> osascript · notify-send · toast</p>
+          </article>
+          <article class="f">
+            <span class="fe">🧰</span>
+            <h4>Registers into five AI tools</h4>
+            <p>
+              Claude Code, Cursor, Gemini CLI, Windsurf and Codex — configured for you, idempotently,
+              at global or project scope.
+            </p>
+            <p class="hood"><b>cmd</b> mailman register --tools claude,cursor</p>
+          </article>
+          <article class="f">
+            <span class="fe">🖥️</span>
+            <h4>Genuinely cross-platform</h4>
+            <p>
+              Pure Node.js — identical behaviour on macOS, Linux and Windows, including the scheduler
+              and notifications.
+            </p>
+            <p class="hood"><b>needs</b> Node ≥18 · a keyring on Linux</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ WHY IT SAVES TIME ============ -->
+    <section id="value">
+      <div class="wrap">
+        <p class="eyebrow">Why it saves time</p>
+        <h2 class="section-title">The same five minutes, before and after.</h2>
+        <p class="lead">
+          The cost of email at work isn't typing — it's the context switch. Every trip to the browser
+          tab costs you the thread you were holding in your head.
+        </p>
+
+        <div class="cmp-wrap">
+          <table class="cmp">
+            <thead>
+              <tr>
+                <th scope="col">A routine task</th>
+                <th scope="col">🐌 Before — the browser tab</th>
+                <th scope="col" class="new">⚡ After — MailMan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric">Send a file you just built</td>
+                <td class="old">
+                  Find it in Finder, switch to Gmail, compose, attach, hunt for the address, send
+                </td>
+                <td class="win">
+                  <b>One sentence</b> — the AI already knows which file you mean, and confirms before
+                  sending
+                </td>
+              </tr>
+              <tr>
+                <td class="metric">Write the same kind of email again</td>
+                <td class="old">Re-type an FYI / follow-up / EOD update from scratch each time</td>
+                <td class="win"><b>182 templates</b> set the tone; the AI writes for the situation</td>
+              </tr>
+              <tr>
+                <td class="metric">Remember someone's address</td>
+                <td class="old">Search old threads, or ask a colleague</td>
+                <td class="win"><b>“email John”</b> — ranked suggestions, ambiguity flagged not guessed</td>
+              </tr>
+              <tr>
+                <td class="metric">Check what came in</td>
+                <td class="old">Open the inbox tab — and lose 10 minutes to everything else in it</td>
+                <td class="win"><b>“show my last 10”</b> — summarised in place, no tab, no rabbit hole</td>
+              </tr>
+              <tr>
+                <td class="metric">Send something at 9am tomorrow</td>
+                <td class="old">Gmail's scheduler — if you remember to open Gmail at all</td>
+                <td class="win"><b>Say when.</b> An OS timer fires it whether or not anything is running</td>
+              </tr>
+              <tr>
+                <td class="metric">Attach a folder of reports</td>
+                <td class="old">Drag files one at a time, hope you got them all</td>
+                <td class="win"><b>A path or a glob</b> — previewed, size-checked, before you commit</td>
+              </tr>
+              <tr>
+                <td class="metric">Trust that nothing sends by accident</td>
+                <td class="old">Hope you didn't hit Send on the wrong draft</td>
+                <td class="win"><b>Structurally impossible</b> — one tool sends, and only after your yes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="levers">
+          <div class="lever">
+            <span class="li">🎯</span>
+            <div>
+              <h4>No context switch</h4>
+              <p>
+                Email happens in the window you're already in. The thread you were holding stays
+                held.
+              </p>
+            </div>
+          </div>
+          <div class="lever">
+            <span class="li">🧠</span>
+            <div>
+              <h4>The AI already has the context</h4>
+              <p>
+                It knows the file you just built, the bug you just fixed, the PR you just opened —
+                so “send that to QA” is enough.
+              </p>
+            </div>
+          </div>
+          <div class="lever">
+            <span class="li">🛡️</span>
+            <div>
+              <h4>Safe by construction, not by trust</h4>
+              <p>
+                The confirm gate is a separate tool call, not an instruction a model can skim past.
+              </p>
+            </div>
+          </div>
+          <div class="lever">
+            <span class="li">🧳</span>
+            <div>
+              <h4>Configure once, works everywhere</h4>
+              <p>
+                One global setup serves every project and every AI tool on the machine — nothing
+                per-repo.
+              </p>
+            </div>
+          </div>
+          <div class="lever">
+            <span class="li">🆓</span>
+            <div>
+              <h4>No subscription, no middleman</h4>
+              <p>
+                MIT-licensed and self-hosted by definition. Your mail goes straight from your machine
+                to Gmail.
+              </p>
+            </div>
+          </div>
+          <div class="lever">
+            <span class="li">🔍</span>
+            <div>
+              <h4>Auditable</h4>
+              <p>
+                Open source, and every action lands in a local activity log you can read — tool name
+                and metadata, never content.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ API TABLE ============ -->
+    <section id="api">
+      <div class="wrap">
+        <p class="eyebrow">API surface</p>
+        <h2 class="section-title">23 MCP tools and 20 CLI commands.</h2>
+        <p class="lead">
+          A compact index of everything MailMan exposes. Full input/output schemas, error codes and
+          notes live in the repo.
+        </p>
+
+        <div class="tblcap">
+          <h3>🤖 MCP tools — what your AI calls</h3>
+          <span class="cnt">23</span>
+          <span>All return plain JSON; errors are structured <code>{ code, message }</code>.</span>
+        </div>
+        <div class="api-wrap">
+          <table class="api">
+            <thead>
+              <tr>
+                <th scope="col">Tool</th>
+                <th scope="col">Group</th>
+                <th scope="col">What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="sym">draft_email</td>
+                <td class="grp">Sending</td>
+                <td class="desc">
+                  Resolve recipients, attachments and account; return a preview. <b>Does not send.</b>
+                </td>
+              </tr>
+              <tr class="danger">
+                <td class="sym">confirm_send</td>
+                <td class="grp">Sending</td>
+                <td class="desc">
+                  Dispatch the exact draft you approved — the only tool that sends. Idempotent.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">cancel_draft</td>
+                <td class="grp">Sending</td>
+                <td class="desc">Discard a pending draft without sending.</td>
+              </tr>
+              <tr>
+                <td class="sym">list_templates</td>
+                <td class="grp">Sending</td>
+                <td class="desc">
+                  Browse the 182 message templates by category or search; feeds
+                  <code>draft_email</code>'s <code>template</code>.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">preview_attachments</td>
+                <td class="grp">Sending</td>
+                <td class="desc">
+                  Resolve a path, glob or folder and report the file list and total size — no draft
+                  created.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">schedule_send</td>
+                <td class="grp">Scheduling</td>
+                <td class="desc">
+                  Queue an approved draft for a future instant; installs the OS timer if needed.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">list_scheduled</td>
+                <td class="grp">Scheduling</td>
+                <td class="desc">Pending, sent and failed scheduled sends with attempt counts.</td>
+              </tr>
+              <tr>
+                <td class="sym">cancel_scheduled</td>
+                <td class="grp">Scheduling</td>
+                <td class="desc">Cancel a queued send before it fires.</td>
+              </tr>
+              <tr>
+                <td class="sym">list_recent_emails</td>
+                <td class="grp">Reading</td>
+                <td class="desc">
+                  Recent inbox or sent mail, paged. Limit capped at 50 to bound context cost.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">read_email</td>
+                <td class="grp">Reading</td>
+                <td class="desc">
+                  Full body and metadata for one message; bodies capped at ~20k chars with a
+                  <code>truncated</code> flag.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">search_emails</td>
+                <td class="grp">Reading</td>
+                <td class="desc">
+                  Search inbox, sent or all mail. OAuth2 gets Gmail's full query syntax; App Password
+                  a simpler subset.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">get_mailbox_overview</td>
+                <td class="grp">Reading</td>
+                <td class="desc">
+                  Sent + inbox + unread and attachment counts in a single call.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">suggest_recipients</td>
+                <td class="grp">Contacts</td>
+                <td class="desc">
+                  Ranked address candidates for a partial name; flags ambiguity instead of picking.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">list_contacts</td>
+                <td class="grp">Contacts</td>
+                <td class="desc">
+                  The full address book, merged with Google Contacts on OAuth2 accounts.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">add_contact</td>
+                <td class="grp">Contacts</td>
+                <td class="desc">Add an address to the local book manually.</td>
+              </tr>
+              <tr>
+                <td class="sym">remove_contact</td>
+                <td class="grp">Contacts</td>
+                <td class="desc">Remove an address from the local book.</td>
+              </tr>
+              <tr>
+                <td class="sym">list_accounts</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">Configured sender aliases and their capabilities — no secrets returned.</td>
+              </tr>
+              <tr>
+                <td class="sym">configure_account</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">
+                  Add or update an account; credentials are verified with a live Gmail login before
+                  anything is stored.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">update_account_profile</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">
+                  Change the “From Name” or signature without touching encrypted credentials.
+                </td>
+              </tr>
+              <tr class="danger">
+                <td class="sym">remove_account</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">
+                  Delete an account; gated by <code>confirmRemoval</code> if it's the default or the
+                  last one.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">get_settings</td>
+                <td class="grp">Settings</td>
+                <td class="desc">
+                  Current globals — default account, draft TTL, body type, notifications.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">update_settings</td>
+                <td class="grp">Settings</td>
+                <td class="desc">Change one or more of those globals.</td>
+              </tr>
+              <tr>
+                <td class="sym">get_status</td>
+                <td class="grp">Diagnostics</td>
+                <td class="desc">
+                  Configured accounts, security state, MCP registration and recent activity counts.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="tblcap">
+          <h3>⌨️ CLI commands — what you type</h3>
+          <span class="cnt">20</span>
+          <span>Setup, credentials and anything destructive — deliberately out of the AI's reach.</span>
+        </div>
+        <div class="api-wrap">
+          <table class="api">
+            <thead>
+              <tr>
+                <th scope="col">Command</th>
+                <th scope="col">Group</th>
+                <th scope="col">What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="sym">mailman init</td>
+                <td class="grp">Setup</td>
+                <td class="desc">
+                  First-run wizard — account, encryption, AI-tool registration. Idempotent. Start
+                  here.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman register</td>
+                <td class="grp">Setup</td>
+                <td class="desc">
+                  Wire MailMan into Claude Code, Cursor, Gemini CLI, Windsurf or Codex.
+                  <code>-i</code> for the picker.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman account add</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">Add another Gmail account — App Password or browser OAuth2.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman account list</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">Table of configured accounts: alias, method, default, read access.</td>
+              </tr>
+              <tr class="danger">
+                <td class="sym">mailman account remove</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">Remove an account; needs <code>--yes</code> if it's the default or last.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman account set-default</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">Choose which account is used when none is named.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman account profile</td>
+                <td class="grp">Accounts</td>
+                <td class="desc">Show or change the “From Name” and signature recipients see.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman auth login</td>
+                <td class="grp">Auth</td>
+                <td class="desc">
+                  OAuth2 browser consent for an alias; prints an <code>ssh -L</code> tunnel on
+                  headless boxes.
+                </td>
+              </tr>
+              <tr class="danger">
+                <td class="sym">mailman auth rotate-key</td>
+                <td class="grp">Auth</td>
+                <td class="desc">
+                  Generate a new master key and re-encrypt every stored secret. CLI-only, never an
+                  MCP tool.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman contacts list/add/remove</td>
+                <td class="grp">Contacts</td>
+                <td class="desc">Manage the local address book from the terminal.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman settings get</td>
+                <td class="grp">Settings</td>
+                <td class="desc">Print current globals.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman settings set</td>
+                <td class="grp">Settings</td>
+                <td class="desc">
+                  Change one — e.g. <code>defaultBodyType html</code>,
+                  <code>desktopNotifications false</code>.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman doctor</td>
+                <td class="grp">Diagnostics</td>
+                <td class="desc">
+                  Pre-flight plus a live login per account. <code>--offline</code> skips the network
+                  checks.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman status</td>
+                <td class="grp">Diagnostics</td>
+                <td class="desc">What's configured right now, rendered as a tree.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman scheduled list</td>
+                <td class="grp">Scheduling</td>
+                <td class="desc">Read-only view of pending, sent and failed scheduled sends.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman send-scheduled --due</td>
+                <td class="grp">Scheduling</td>
+                <td class="desc">
+                  The OS ticker's dispatch target. Invoked by launchd/cron/Task Scheduler — never by
+                  hand.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman update</td>
+                <td class="grp">Maintenance</td>
+                <td class="desc">
+                  Self-update in place using whichever package manager installed it.
+                </td>
+              </tr>
+              <tr class="danger">
+                <td class="sym">mailman reset</td>
+                <td class="grp">Maintenance</td>
+                <td class="desc">
+                  Wipe all config and the keychain entry for a clean re-setup. Requires
+                  <code>--yes</code>.
+                </td>
+              </tr>
+              <tr>
+                <td class="sym">mailman help / examples</td>
+                <td class="grp">Help</td>
+                <td class="desc">The command list, or worked examples of what to say to your AI.</td>
+              </tr>
+              <tr>
+                <td class="sym">mailman --version</td>
+                <td class="grp">Help</td>
+                <td class="desc">Bare version string, scriptable.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          📖 <strong>Full documentation lives in the repo:</strong>
+          <a
+            href="https://github.com/indianic/mailman/blob/main/docs/SKILLS.md"
+            target="_blank"
+            rel="noopener"
+            >SKILLS.md</a
+          >
+          (every tool's input/output schema and error codes) ·
+          <a
+            href="https://github.com/indianic/mailman/blob/main/docs/CLI.md"
+            target="_blank"
+            rel="noopener"
+            >CLI.md</a
+          >
+          (every command and flag) ·
+          <a
+            href="https://github.com/indianic/mailman/blob/main/docs/FEATURES.md"
+            target="_blank"
+            rel="noopener"
+            >FEATURES.md</a
+          >
+          (the plain-English + technical tour) ·
+          <a
+            href="https://github.com/indianic/mailman/blob/main/docs/PLAN.md"
+            target="_blank"
+            rel="noopener"
+            >PLAN.md</a
+          >
+          (architecture) ·
+          <a
+            href="https://github.com/indianic/mailman/blob/main/docs/CROSS-OS.md"
+            target="_blank"
+            rel="noopener"
+            >CROSS-OS.md</a
+          >
+          (per-OS support matrix).
+          <br />
+          <strong>Deliberately not exposed to the AI:</strong> key rotation, config wipe, and any way
+          to send mail without a preview you approved.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ WHO IT'S FOR ============ -->
+    <section id="who">
+      <div class="wrap">
+        <p class="eyebrow">Who it's for</p>
+        <h2 class="section-title">Five people who get value on day one.</h2>
+        <div class="seg-grid">
+          <div class="seg">
+            <h4>👩‍💻 Developers living in an AI editor</h4>
+            <p>
+              You already spend the day in Claude Code or Cursor. Ship a build, send the link, mail
+              the failing log — without opening a browser or losing the thread you were on.
+            </p>
+          </div>
+          <div class="seg">
+            <h4>📋 PMs, BAs &amp; delivery leads</h4>
+            <p>
+              End-of-day updates, status recaps, meeting notes and follow-ups — dictated in one
+              sentence, drafted with a fitting template, previewed before anything reaches a client.
+            </p>
+          </div>
+          <div class="seg">
+            <h4>🤖 Agent &amp; automation builders</h4>
+            <p>
+              You need an email capability that won't send by accident. MailMan's confirm gate is a
+              separate tool call, so an over-eager agent physically cannot skip it.
+            </p>
+          </div>
+          <div class="seg">
+            <h4>🔒 Security-minded teams</h4>
+            <p>
+              No cloud service, no third-party relay, no vendor account. Credentials are
+              machine-bound in the OS keychain and the whole thing is MIT-licensed and readable.
+            </p>
+          </div>
+          <div class="seg">
+            <h4>🧑‍🏫 New hires &amp; non-technical staff</h4>
+            <p>
+              One setup wizard, then plain English. Nobody has to learn a CLI to send an email with
+              the right attachment to the right person.
+            </p>
+          </div>
+          <div class="seg">
+            <h4>🛠️ Open-source contributors</h4>
+            <p>
+              A focused, well-documented TypeScript codebase with a clear architecture doc — a
+              genuinely approachable first MCP server to contribute to.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section id="faq">
+      <div class="wrap">
+        <p class="eyebrow">Questions you'll get asked</p>
+        <h2 class="section-title">Straight answers.</h2>
+        <p class="lead">The concerns that come up every time — and what to say.</p>
+        <div class="faq">
+          <details class="q">
+            <summary>
+              “Can the AI send an email without me knowing?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              <strong>No.</strong> Sending is split across two separate tools.
+              <code>draft_email</code> can only prepare and preview; <code>confirm_send</code> is the
+              only thing that actually dispatches mail, and it needs the id of a draft you've been
+              shown. This is a structural split in the code, not a polite instruction in a prompt —
+              so there's nothing for a model to skim past or be talked around.
+            </p>
+          </details>
+          <details class="q">
+            <summary>“Where do my Gmail credentials go?”<span class="qm">+</span></summary>
+            <p class="a">
+              Into an encrypted file on your own machine, with the encryption key held in your
+              operating system's native store — macOS Keychain, Windows Credential Manager, or the
+              Linux Secret Service. They are <strong>machine-bound</strong>: copy the config to
+              another computer and it decrypts to nothing. Nothing is transmitted anywhere except
+              directly to Google when you send or read mail. There is no MailMan server.
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “Why can't I just use my Gmail password?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              Google removed that option in 2022 — regular passwords no longer work for SMTP or IMAP
+              at all. Your two choices are an <strong>App Password</strong> (a 16-character code
+              scoped to one app, revocable from your Google account page — the default and simplest
+              path) or <strong>OAuth2 browser sign-in</strong>, which is what you want if you use
+              passkeys or your Workspace admin disabled App Passwords. The setup wizard offers both
+              on the first screen.
+            </p>
+          </details>
+          <details class="q">
+            <summary>“Does it read my whole mailbox?”<span class="qm">+</span></summary>
+            <p class="a">
+              It <em>can</em> — reading the inbox is half the point of the product — but only when a
+              tool is called, and only the messages that call asked for. Nothing is indexed, synced, cached
+              or uploaded. Every call is appended to a local <code>activity.log</code> recording the
+              tool name and non-sensitive metadata; <strong>message bodies and credentials are never
+              logged</strong>. If you only want to send, simply never ask it to read.
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “Which AI tools does it work with?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              <strong>Five are configured for you</strong> by <code>mailman init</code> /
+              <code>mailman register</code>: Claude Code, Cursor, Gemini CLI, Windsurf and Codex.
+              Beyond those, MailMan is a standard stdio MCP server — <strong>any</strong> MCP-capable
+              host works once you paste the config block in, including Claude Desktop, Zed, Cline and
+              Continue. Its tools return plain JSON with no host-specific formatting, precisely so
+              every host can render them its own way. Note that
+              <strong>“Claude” here means Claude Code, the CLI</strong> — the Claude Desktop app is a
+              separate host and isn't auto-registered. See
+              <a href="#compat">Works with</a> for the full table and config paths.
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “Only Gmail? What about Outlook or our company mail server?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              Gmail and Google Workspace today — both via App Password (SMTP/IMAP) and OAuth2 (Gmail
+              REST API). Generic SMTP/IMAP providers aren't supported in v1.1.2. It's a reasonable
+              feature request; open an issue on GitHub and say which provider, since the transport
+              layer is already abstracted behind an account "method".
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “Is it really free? What's the catch?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              MIT-licensed, free for commercial use, no account, no telemetry, no paid tier. The
+              catch — such as it is — is that <strong>you</strong> supply the Gmail account and, if
+              you choose OAuth2, your own Google Cloud client. MailMan is plumbing between your AI
+              and your mail; it never sits in the middle as a service.
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “What happens if the send fails, or I retry?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              Failures come back as structured errors your AI can act on — it re-asks you on an
+              ambiguous account, backs off on a rate limit, tells you plainly on a bad credential.
+              And <code>confirm_send</code> is <strong>idempotent</strong>: calling it again with the
+              same draft after a successful send returns the original result rather than mailing
+              twice. Scheduled sends retry to a cap and are marked <code>failed</code>, never
+              silently dropped.
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “I'm on Linux / on a headless server — does it work?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              Yes, with one requirement: Linux needs a running Secret Service provider
+              (gnome-keyring or kwallet) so credentials can be stored properly. If there isn't one,
+              setup <strong>fails with instructions rather than falling back to plaintext</strong>.
+              For OAuth2 on a box with no browser, <code>auth login</code> prints the consent URL
+              plus an <code>ssh -L</code> tunnel command to complete it from your laptop. See
+              <a
+                href="https://github.com/indianic/mailman/blob/main/docs/CROSS-OS.md"
+                target="_blank"
+                rel="noopener"
+                >CROSS-OS.md</a
+              >.
+            </p>
+          </details>
+          <details class="q">
+            <summary>
+              “Why is there a <code>mcp-mailman</code> command too?”<span class="qm">+</span>
+            </summary>
+            <p class="a">
+              Because GNU Mailman — the mailing-list manager — already ships a
+              <code>/usr/bin/mailman</code> on some Linux servers. Both names point at the same
+              binary; use <code>mcp-mailman</code> on such a host to be unambiguous.
+              <strong>Everywhere else, <code>mailman</code> is the name to use.</strong> The npm
+              package itself is <code>@integratex/mailman</code>.
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COMMUNITY / FEEDBACK ============ -->
+    <section id="community">
+      <div class="wrap">
+        <p class="eyebrow">Feedback &amp; community</p>
+        <h2 class="section-title">It's open source — help shape it.</h2>
+        <p class="lead">
+          Bugs, feature ideas, provider support, docs fixes: all welcome, and all in the open. You
+          don't need to write code to be useful — a clear issue is worth a lot.
+        </p>
+
+        <div class="comm">
+          <div class="commcard">
+            <span class="ce">⭐</span>
+            <h4>Star the repo</h4>
+            <p>
+              The cheapest way to help. Stars are how other developers find a young project — and
+              this one is at 2, so yours genuinely moves the needle.
+            </p>
+            <a class="btn" href="https://github.com/indianic/mailman" target="_blank" rel="noopener"
+              >Star on GitHub ↗</a
+            >
+          </div>
+          <div class="commcard">
+            <span class="ce">🐞</span>
+            <h4>Report an issue</h4>
+            <p>
+              A guided template asks for exactly what's needed: what you asked your AI, your
+              <code>mailman doctor</code> output, which AI tool, and the error code. Never paste
+              credentials — <code>doctor</code> prints none.
+            </p>
+            <a
+              class="btn ghost"
+              href="https://github.com/indianic/mailman/issues/new?template=bug_report.yml"
+              target="_blank"
+              rel="noopener"
+              >Report a bug ↗</a
+            >
+          </div>
+          <div class="commcard">
+            <span class="ce">💬</span>
+            <h4>Ask or suggest</h4>
+            <p>
+              Want Outlook support, a new template category, or another AI tool registered? Open a
+              feature request, or start a discussion if you're not sure yet — direction is decided in
+              the open.
+            </p>
+            <a
+              class="btn ghost"
+              href="https://github.com/indianic/mailman/discussions"
+              target="_blank"
+              rel="noopener"
+              >Discussions ↗</a
+            >
+          </div>
+        </div>
+
+        <div class="note">
+          🔐 <strong>Found something with security impact?</strong> Credential exposure, or a way to
+          send mail without the confirmation gate — <strong>don't open a public issue.</strong> Email
+          <a href="mailto:kalpesh.gamit@indianic.com">kalpesh.gamit@indianic.com</a> and we'll
+          coordinate a fix and disclosure.
+        </div>
+
+        <div class="panel">
+          <h3>🛠️ Contributing — anyone can open a PR</h3>
+          <p>
+            You don't need commit access. Fork it, branch, push to your fork, open a pull request —
+            the standard GitHub flow. TypeScript, strict mode, no build magic, and the whole
+            development loop is four scripts. Full detail in
+            <a
+              href="https://github.com/indianic/mailman/blob/main/CONTRIBUTING.md"
+              target="_blank"
+              rel="noopener"
+              >CONTRIBUTING.md</a
+            >.
+          </p>
+          <div class="codewrap">
+            <pre class="code" id="contrib"><span class="c"># 1 · fork on GitHub, then clone your fork</span>
+git clone https://github.com/&lt;you&gt;/mailman.git
+cd mailman &amp;&amp; npm install
+<span class="c">#     Linux also needs: sudo apt-get install -y libsecret-1-dev</span>
+
+<span class="c"># 2 · branch for the change</span>
+git checkout -b fix/imap-quoted-printable
+
+<span class="c"># 3 · the loop — exactly what CI runs</span>
+npm run dev         <span class="c"># run the MCP server from source</span>
+npm run lint        <span class="c"># eslint</span>
+npm run typecheck   <span class="c"># strict tsc, no emit</span>
+npm test            <span class="c"># node --test via tsx</span>
+
+<span class="c"># 4 · push to your fork and open a PR against main</span>
+git push -u origin fix/imap-quoted-printable</pre>
+            <button class="copy" type="button" data-copy-target="contrib">Copy</button>
+          </div>
+          <p style="margin: 16px 0 0">
+            <strong>Green local run = green PR.</strong> CI on every pull request runs lint,
+            typecheck, build and tests on Node 20 — the same four commands. A PR template walks you
+            through the rest.
+          </p>
+          <p style="margin: 10px 0 0">
+            <strong>Good first contributions:</strong> a new message template or category (plain data
+            in <code>src/mail/templates.ts</code>), an extra AI tool in the register command (one
+            entry in <code>EDITORS</code>), a docs fix, or a <code>CROSS-OS.md</code> note for a
+            distro or Windows version you actually tested on.
+          </p>
+          <p style="margin: 10px 0 0">
+            <strong>One thing that won't be merged:</strong> any change that lets mail send without a
+            confirmed draft, or exposes key rotation or credential export as an MCP tool. That's the
+            product, not an oversight —
+            <a
+              href="https://github.com/indianic/mailman/blob/main/docs/PLAN.md"
+              target="_blank"
+              rel="noopener"
+              >PLAN.md</a
+            >
+            explains why.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="cta-band">
+      <div class="wrap">
+        <h2>Two commands away.</h2>
+        <p class="lead">
+          Install it, run <code>mailman init</code>, and the next email you send can start with
+          “mailman, …”.
+        </p>
+        <div class="installbox" style="margin: 0 auto 26px">
+          <div class="cmdrow">
+            <span class="dollar" aria-hidden="true">$</span>
+            <code id="ctaCmd">npm i -g @integratex/mailman &amp;&amp; mailman init</code>
+            <button class="copy" type="button" data-copy-target="ctaCmd">Copy</button>
+          </div>
+        </div>
+        <div class="hero-cta">
+          <a class="btn" href="https://github.com/indianic/mailman" target="_blank" rel="noopener"
+            >⭐ Star on GitHub ↗</a
+          >
+          <a
+            class="btn ghost"
+            href="https://www.npmjs.com/package/@integratex/mailman"
+            target="_blank"
+            rel="noopener"
+            >npm package ↗</a
+          >
+          <a class="btn ghost" href="https://mailman.indianic.dev" target="_blank" rel="noopener"
+            >mailman.indianic.dev ↗</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="foot-in">
+        <span
+          ><span class="wordmark"><span class="a">Mail</span><span class="b">Man</span></span> —
+          Product &amp; Capability Guide · MIT licence · v1.1.2</span
+        >
+        <span>
+          <a href="https://github.com/indianic/mailman" target="_blank" rel="noopener"
+            >github.com/indianic/mailman</a
+          >
+          ·
+          <a href="https://www.npmjs.com/package/@integratex/mailman" target="_blank" rel="noopener"
+            >@integratex/mailman</a
+          >
+          ·
+          <a href="https://mailman.indianic.dev" target="_blank" rel="noopener"
+            >mailman.indianic.dev</a
+          >
+        </span>
+      </div>
+    </footer>
+
+    <script>
+      /* ---------- Theme toggle: system default, manual override, persisted ---------- */
+      (function () {
+        var root = document.documentElement;
+        var btn = document.getElementById('themeBtn');
+        var icon = document.getElementById('themeIcon');
+        var stored = null;
+        try {
+          stored = localStorage.getItem('mailman-guide-theme');
+        } catch (e) {}
+        if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
+
+        function systemDark() {
+          return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        function isDark() {
+          var t = root.getAttribute('data-theme');
+          return t ? t === 'dark' : systemDark();
+        }
+        function paint() {
+          icon.textContent = isDark() ? '☀️' : '🌙';
+          btn.setAttribute('aria-label', isDark() ? 'Switch to light theme' : 'Switch to dark theme');
+        }
+        paint();
+        btn.addEventListener('click', function () {
+          var next = isDark() ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          try {
+            localStorage.setItem('mailman-guide-theme', next);
+          } catch (e) {}
+          paint();
+        });
+        if (window.matchMedia) {
+          var mq = window.matchMedia('(prefers-color-scheme: dark)');
+          var onChange = function () {
+            if (!root.getAttribute('data-theme')) paint();
+          };
+          if (mq.addEventListener) mq.addEventListener('change', onChange);
+          else if (mq.addListener) mq.addListener(onChange);
+        }
+      })();
+
+      /* ---------- Package-manager tabs ---------- */
+      (function () {
+        var CMDS = {
+          npm: 'npm install -g @integratex/mailman',
+          pnpm: 'pnpm add -g @integratex/mailman',
+          yarn: 'yarn global add @integratex/mailman',
+          bun: 'bun add -g @integratex/mailman',
+        };
+        var out = document.getElementById('installCmd');
+        var tabs = [].slice.call(document.querySelectorAll('.pmtab'));
+        tabs.forEach(function (tab) {
+          tab.addEventListener('click', function () {
+            tabs.forEach(function (t) {
+              t.setAttribute('aria-selected', String(t === tab));
+            });
+            out.textContent = CMDS[tab.dataset.pm];
+          });
+        });
+      })();
+
+      /* ---------- Copy buttons ---------- */
+      (function () {
+        function copyText(text) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+          }
+          return new Promise(function (resolve, reject) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+              document.execCommand('copy') ? resolve() : reject();
+            } catch (e) {
+              reject(e);
+            }
+            document.body.removeChild(ta);
+          });
+        }
+        [].slice.call(document.querySelectorAll('.copy')).forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var text = btn.dataset.copyText;
+            var src = text ? null : document.getElementById(btn.dataset.copyTarget);
+            if (!text && !src) return;
+            if (src) text = src.innerText;
+            copyText(text).then(
+              function () {
+                btn.textContent = '✓ Copied';
+                btn.classList.add('done');
+                setTimeout(function () {
+                  btn.textContent = 'Copy';
+                  btn.classList.remove('done');
+                }, 1600);
+              },
+              function () {
+                btn.textContent = 'Press ⌘C';
+                setTimeout(function () {
+                  btn.textContent = 'Copy';
+                }, 1600);
+              }
+            );
+          });
+        });
+      })();
+
+      /* ---------- Ambient hero backdrop: envelopes drifting like mail in flight ---------- */
+      (function () {
+        var reduce =
+          window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var canvas = document.getElementById('stamps');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var w, h, dpr, mail, raf;
+
+        function accentRGB() {
+          var t = document.documentElement.getAttribute('data-theme');
+          var dark = t
+            ? t === 'dark'
+            : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          return dark ? '129,140,248' : '99,102,241';
+        }
+
+        function resize() {
+          dpr = Math.min(window.devicePixelRatio || 1, 2);
+          w = canvas.clientWidth;
+          h = canvas.clientHeight;
+          canvas.width = w * dpr;
+          canvas.height = h * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function init() {
+          resize();
+          var count = Math.max(8, Math.min(22, Math.floor(w / 78)));
+          mail = [];
+          for (var i = 0; i < count; i++) {
+            mail.push({
+              x: Math.random() * w,
+              y: Math.random() * h,
+              s: Math.random() * 12 + 9,
+              vx: Math.random() * 0.28 + 0.08,
+              vy: (Math.random() - 0.5) * 0.14,
+              a: Math.random() * 0.3 + 0.12,
+              rot: (Math.random() - 0.5) * 0.34,
+            });
+          }
+        }
+
+        function envelope(m, rgb) {
+          var s = m.s,
+            r = s * 0.62;
+          ctx.save();
+          ctx.translate(m.x, m.y);
+          ctx.rotate(m.rot);
+          ctx.strokeStyle = 'rgba(' + rgb + ',' + m.a.toFixed(3) + ')';
+          ctx.lineWidth = 1.2;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.rect(-s / 2, -r / 2, s, r);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-s / 2, -r / 2);
+          ctx.lineTo(0, r * 0.18);
+          ctx.lineTo(s / 2, -r / 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        function draw() {
+          var rgb = accentRGB();
+          ctx.clearRect(0, 0, w, h);
+          for (var i = 0; i < mail.length; i++) {
+            var m = mail[i];
+            m.x += m.vx;
+            m.y += m.vy;
+            if (m.x - m.s > w) {
+              m.x = -m.s;
+              m.y = Math.random() * h;
+            }
+            if (m.y < -m.s) m.y = h + m.s;
+            if (m.y > h + m.s) m.y = -m.s;
+            envelope(m, rgb);
+          }
+          raf = requestAnimationFrame(draw);
+        }
+
+        function still() {
+          var rgb = accentRGB();
+          ctx.clearRect(0, 0, w, h);
+          for (var i = 0; i < mail.length; i++) envelope(mail[i], rgb);
+        }
+
+        init();
+        if (reduce) still();
+        else draw();
+
+        window.addEventListener('resize', function () {
+          if (raf) cancelAnimationFrame(raf);
+          init();
+          if (reduce) still();
+          else draw();
+        });
+      })();
+    </script>
+  </body>
+</html>
