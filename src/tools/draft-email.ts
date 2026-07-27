@@ -6,13 +6,17 @@ import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
 import { resolveAttachments } from './resolve-attachments.js';
 import { formatFromAddress, appendSignature, wrapPolished } from '../mail/compose.js';
+import { normalizeRecipientFields } from '../mail/recipients.js';
 import { getTemplate, applySubjectPrefix, buildForwardedBody } from '../mail/templates.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({
-  to: z.union([z.string().email(), z.array(z.string().email()).min(1)]),
-  cc: z.array(z.string().email()).optional(),
-  bcc: z.array(z.string().email()).optional(),
+  // Shape only — the addresses themselves are validated by
+  // normalizeRecipientFields, which also accepts the separated-string and
+  // "Name <addr>" forms that a bare z.string().email() rejects outright.
+  to: z.union([z.string(), z.array(z.string()).min(1)]),
+  cc: z.union([z.string(), z.array(z.string())]).optional(),
+  bcc: z.union([z.string(), z.array(z.string())]).optional(),
   subject: z.string().optional(),
   body: z.string(),
   bodyType: z.enum(['text', 'html']).optional(),
@@ -69,7 +73,11 @@ async function handler(rawArgs: Record<string, unknown>) {
     return toolError('INVALID_INPUT', `Unknown template "${input.template}". Call list_templates to see available keys.`);
   }
 
-  const to = Array.isArray(input.to) ? input.to : [input.to];
+  const recipients = normalizeRecipientFields({ to: input.to, cc: input.cc, bcc: input.bcc });
+  if (!recipients.ok) {
+    return toolError('INVALID_INPUT', recipients.message);
+  }
+
   const settings = await getSettings();
   const bodyType = input.bodyType ?? settings.defaultBodyType;
 
@@ -109,9 +117,9 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const draft = createDraft({
     account: account.alias,
-    to,
-    cc: input.cc,
-    bcc: input.bcc,
+    to: recipients.to,
+    cc: recipients.cc,
+    bcc: recipients.bcc,
     subject,
     body,
     bodyType,
@@ -152,9 +160,19 @@ export const draftEmailTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        to: { description: 'Recipient email address, or an array of addresses' },
-        cc: { type: 'array', items: { type: 'string' } },
-        bcc: { type: 'array', items: { type: 'string' } },
+        to: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description:
+            'Recipients. An array is clearest for several: ["alice@example.com","bob@example.com"]. One comma- or semicolon-separated string works too, as does "Name <alice@example.com>". Every address given lands in To — never move an extra recipient to cc to work around a rejection.',
+        },
+        cc: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description: 'Same accepted forms as `to`.',
+        },
+        bcc: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description: 'Same accepted forms as `to`.',
+        },
         subject: { type: 'string', description: 'Optional — a minimal default is filled in if omitted' },
         body: { type: 'string' },
         bodyType: { type: 'string', enum: ['text', 'html'] },

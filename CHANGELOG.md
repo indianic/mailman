@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+- fix: `draft_email` no longer rejects multiple recipients in `to`. A comma/semicolon-separated string (`"alice@example.com, bob@example.com"`) and the `"Name <alice@example.com>"` form are now accepted for `to`/`cc`/`bcc` — previously only an exact bare address or array passed, so callers hit `INVALID_INPUT` and worked around it by demoting a recipient to `cc`. `cc`/`bcc` also accept a bare string now, matching `to`. Unparseable addresses still fail, with an error naming the field and entry.
+
 ## [1.1.2] - 2026-07-21
 
 - Fix public build: package name (editor MCP configs, scheduled-send ticker, self-update) now resolved from package.json at runtime, so the public @integratex/mailman build no longer references the private @indianic package. Public npmjs install is now the documented path on GitHub; private-registry docs moved to INTERNAL.md (excluded from the mirror).
