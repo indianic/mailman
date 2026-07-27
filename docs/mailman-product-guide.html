@@ -1891,6 +1891,16 @@ yarn global add @integratex/mailman
 bun add -g @integratex/mailman</pre>
                 <button class="copy" type="button" data-copy-target="qs1">Copy</button>
               </div>
+              <p class="note" style="margin-top: 16px">
+                🧱 <strong>Install stopped with <code>EEXIST: file already exists</code>?</strong>
+                Another package already owns the <code>mailman</code> command — usually an older
+                install of this same tool under a previous name. npm checks that before it runs
+                anything from the new package, so run
+                <code>npx -y @integratex/mailman doctor --offline</code>: its
+                <strong>CLI command</strong> check names the culprit and prints the fix. Remove the
+                old package first, then install — <code>--force</code> relinks, but uninstalling the
+                old one later takes the shared command with it.
+              </p>
             </div>
           </div>
 

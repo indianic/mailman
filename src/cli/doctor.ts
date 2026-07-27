@@ -3,6 +3,7 @@ import { intro, outro } from '@clack/prompts';
 import { getTickerStatus } from '../scheduler/ticker-install.js';
 import { listAccounts, getDecryptedCredentials, getDefaultAlias } from '../accounts.js';
 import { verifyCredentials } from '../auth/verify.js';
+import { inspectCliBinary } from './bin-conflict.js';
 import { section, check, detail } from './tree.js';
 
 interface CheckResult {
@@ -116,6 +117,12 @@ export async function runDoctor(args: string[]): Promise<void> {
 
   const results = [
     checkNodeVersion(),
+    // Which `mailman` the shell runs. Fails loudly when another package name
+    // owns the command — the state npm leaves behind after an `EEXIST: file
+    // already exists` install, which npm itself can only describe as a path
+    // collision. Reachable via `npx -y <pkg> doctor` while that install is
+    // still blocked.
+    { name: 'CLI command', ...inspectCliBinary() },
     await checkKeyringBackend(),
     await checkTicker(),
     await checkTcpReachable('SMTP reachability', 'smtp.gmail.com', 465),
