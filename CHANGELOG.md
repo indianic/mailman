@@ -2,9 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.3] - 2026-07-27
 
 - fix: `draft_email` no longer rejects multiple recipients in `to`. A comma/semicolon-separated string (`"alice@example.com, bob@example.com"`) and the `"Name <alice@example.com>"` form are now accepted for `to`/`cc`/`bcc` — previously only an exact bare address or array passed, so callers hit `INVALID_INPUT` and worked around it by demoting a recipient to `cc`. `cc`/`bcc` also accept a bare string now, matching `to`. Unparseable addresses still fail, with an error naming the field and entry.
+- `mailman doctor` now reports which `mailman` the shell actually runs. When another package name owns that command (`@indianic/mailman`, `mcp-mailman`) or a non-npm binary shadows it (GNU Mailman's `/usr/bin/mailman`), the check fails and prints the uninstall-then-install fix — the state behind npm's bare `EEXIST: file already exists` install error, which npm raises before any of the incoming package's scripts can run. Reachable as `npx -y @integratex/mailman doctor --offline` while a global install is still blocked.
 
 ## [1.1.2] - 2026-07-21
 
