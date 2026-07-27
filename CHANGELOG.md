@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.3] - 2026-07-27
 
 - fix: `draft_email` no longer rejects multiple recipients in `to`. A comma/semicolon-separated string (`"alice@example.com, bob@example.com"`) and the `"Name <alice@example.com>"` form are now accepted for `to`/`cc`/`bcc` — previously only an exact bare address or array passed, so callers hit `INVALID_INPUT` and worked around it by demoting a recipient to `cc`. `cc`/`bcc` also accept a bare string now, matching `to`. Unparseable addresses still fail, with an error naming the field and entry.
 
