@@ -101,9 +101,17 @@ spacing) stays consistent instead of drifting command by command.
 Resolves recipients/attachments/account and returns a preview. **Does not
 send.**
 
-- **Input**: `{ to: string | string[], cc?: string[], bcc?: string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string }`
+- **Input**: `{ to: string | string[], cc?: string | string[], bcc?: string | string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string }`
 - **Output**: `{ draftId: string, expiresAt: string, preview: { from, to, cc, bcc, subject, bodyPreview, attachments: [{ name, sizeBytes, mimeType }] }, next_steps?: string[] }`
-- **Notes**: `subject` is optional — if omitted, mailman fills a minimal
+- **Notes**: each of `to`/`cc`/`bcc` accepts one address, an array, or a
+  single comma/semicolon-separated string, and tolerates the
+  `"Name <addr>"` form (the display name is dropped — drafts carry bare
+  addresses so scheduled entries and contact auto-upsert stay valid).
+  Every address passed to `to` ends up in `To`; duplicates within a field
+  collapse case-insensitively. An address that can't be parsed fails the
+  call with `INVALID_INPUT` naming the field and the offending entry —
+  recipients are never silently dropped or shuffled to another field.
+  `subject` is optional — if omitted, mailman fills a minimal
   templated default. `attachments` accepts explicit paths, a glob, or a
   directory (expanded non-recursively unless `recursive: true`). `next_steps`
   is a belt-and-suspenders hint (e.g. "show this preview and get explicit
