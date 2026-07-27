@@ -48,6 +48,41 @@ pnpm add -g @integratex/mailman
 
 (No registry configuration needed — it's a regular public package on [npmjs.com](https://www.npmjs.com/package/@integratex/mailman). `mailman update` later upgrades in place with whichever manager you used.)
 
+### If the install fails with `EEXIST: file already exists`
+
+```
+npm error code EEXIST
+npm error path /opt/homebrew/bin/mailman
+npm error File exists: /opt/homebrew/bin/mailman
+```
+
+Something else already owns the `mailman` command — usually an older install of
+this same tool under a different package name (`@indianic/mailman`, or the
+unscoped `mcp-mailman` it originally shipped as). npm never overwrites a
+command it didn't create, and it checks this *before* running any of the
+incoming package's scripts, so the package itself can't turn that into a
+friendlier message. Diagnose it with a one-off run, which needs no global
+install and so works while the install is still blocked:
+
+```
+npx -y @integratex/mailman doctor --offline
+```
+
+Its **CLI command** check names the package holding `mailman` and prints the
+fix. For the usual case, remove the old package *first*, then install:
+
+```
+npm uninstall -g @indianic/mailman     # whichever package the check named
+npm install -g @integratex/mailman
+```
+
+Prefer that over `npm install -g --force`: force relinks successfully, but
+uninstalling the old package afterwards deletes the shared `mailman` command
+along with it and leaves you with none.
+
+If the check reports a non-npm binary instead (GNU Mailman ships its own
+`/usr/bin/mailman`), keep both and use this tool's `mcp-mailman` alias.
+
 ## Usage
 
 ```

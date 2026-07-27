@@ -38,3 +38,14 @@ export function installGlobalCommand(pm: PkgManager, spec: string): { cmd: strin
   if (pm === 'yarn') return { cmd: 'yarn', args: ['global', 'add', spec] };
   return { cmd: 'npm', args: ['install', '-g', spec] };
 }
+
+/**
+ * The global-uninstall invocation — the other half of the pair, used by the
+ * `mailman`-command-ownership check in doctor to spell out the exact removal
+ * step when an older package name still owns the binary (src/cli/bin-conflict.ts).
+ */
+export function uninstallGlobalCommand(pm: PkgManager, name: string): { cmd: string; args: string[] } {
+  if (pm === 'pnpm') return { cmd: 'pnpm', args: ['remove', '-g', name] };
+  if (pm === 'yarn') return { cmd: 'yarn', args: ['global', 'remove', name] };
+  return { cmd: 'npm', args: ['uninstall', '-g', name] };
+}
