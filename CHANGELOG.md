@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.4] - 2026-07-28
 
 - fix: a blocked TLS handshake is no longer reported as a wrong password. On machines with corporate TLS inspection or antivirus HTTPS scanning — routine on managed Windows — setup failed with `self-signed certificate in certificate chain` under the headline "Gmail rejected these credentials", sending users off to regenerate an App Password that Gmail had never seen. Verification now distinguishes certificate-trust, network, anti-abuse and genuine credential failures, headlines each one accurately, and for a trust failure prints the fix (`NODE_OPTIONS=--use-system-ca` in the right shell syntax for the platform, or `NODE_EXTRA_CA_CERTS`) — Node ships its own CA list and never reads the Windows certificate store, which is why the browser works and mailman doesn't. The retry menu now offers "keep the App Password I entered" first whenever the password was never actually checked.
 - `mailman doctor`'s SMTP/IMAP reachability checks now complete a fully verified TLS handshake instead of a bare TCP connect. Both Gmail ports are implicit TLS, so the old check reported "reachable ✓" on exactly the machines where nothing could connect; on a trust failure it now names the root CA the chain ends at and prints the same fix once below the checks.
