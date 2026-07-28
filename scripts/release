@@ -157,14 +157,24 @@ fi
 log "GitHub — credentials"
 command -v gh >/dev/null 2>&1 || fail "gh CLI not found — install it (brew install gh) or run the GitHub steps by hand."
 
+# Token sources in order: an explicit GH_TOKEN, then whatever `gh auth login`
+# stored (the OS keychain — better than an exported plaintext env var, and it
+# keeps the token out of shell history), then a prompt. The stored one is only
+# used if it can actually push: `gh` is often logged in as a read-only account.
 if [ -z "${GH_TOKEN:-}" ]; then
-    if [ -t 0 ]; then
-        # -s: never echoed. Deliberately not cached anywhere — a release token
-        # written to the repo or to git config is a token that leaks.
+    STORED=$(gh auth token 2>/dev/null || true)
+    if [ -n "$STORED" ] && [ "$(GH_TOKEN="$STORED" gh api "repos/$REPO" --jq .permissions.push 2>/dev/null)" = "true" ]; then
+        GH_TOKEN="$STORED"
+        ok "Using the token from \`gh auth login\` ($(GH_TOKEN="$STORED" gh api user --jq .login 2>/dev/null))"
+    elif [ -t 0 ]; then
+        [ -n "$STORED" ] && warn "The \`gh auth login\` account cannot push to $REPO — asking for a token instead"
+        # -s: never echoed. Not cached anywhere by this script — a release
+        # token written to the repo or to git config is a token that leaks.
         read -rsp "  GitHub token with write access to $REPO: " GH_TOKEN
         echo
     else
-        fail "GH_TOKEN is not set and there is no terminal to prompt on.
+        fail "No usable GitHub token: GH_TOKEN is unset, \`gh auth login\` has none that can
+    push to $REPO, and there is no terminal to prompt on.
     Run: GH_TOKEN=<token> ./scripts/release"
     fi
 fi
