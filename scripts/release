@@ -223,6 +223,11 @@ else
     did "Release $TAG created"
 fi
 
-echo -e "\n${GREEN}Done — $PUBLIC_NAME@$VERSION is live.${NC}"
-echo "  npm      https://www.npmjs.com/package/$PUBLIC_NAME"
-echo "  release  https://github.com/$REPO/releases/tag/$TAG"
+if [ -n "$DRY_RUN" ]; then
+    echo -e "\n${GREEN}Dry run complete — nothing was published, pushed or created.${NC}"
+    echo "  Re-run without --dry-run to ship $VERSION."
+else
+    echo -e "\n${GREEN}Done — $PUBLIC_NAME@$VERSION is live.${NC}"
+    echo "  npm      https://www.npmjs.com/package/$PUBLIC_NAME"
+    echo "  release  https://github.com/$REPO/releases/tag/$TAG"
+fi
