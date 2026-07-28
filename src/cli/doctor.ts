@@ -1,15 +1,19 @@
-import net from 'node:net';
+import tls from 'node:tls';
+import type { PeerCertificate, DetailedPeerCertificate } from 'node:tls';
 import { intro, outro } from '@clack/prompts';
 import { getTickerStatus } from '../scheduler/ticker-install.js';
 import { listAccounts, getDecryptedCredentials, getDefaultAlias } from '../accounts.js';
 import { verifyCredentials } from '../auth/verify.js';
+import { isTlsTrustError, tlsTrustGuidance } from '../auth/tls-trust.js';
 import { inspectCliBinary } from './bin-conflict.js';
-import { section, check, detail } from './tree.js';
+import { section, check, detail, attention } from './tree.js';
 
 interface CheckResult {
   name: string;
   ok: boolean;
   detail: string;
+  /** Long-form fix printed once below the checks, not inline per row. */
+  guidance?: string;
 }
 
 const MIN_NODE_MAJOR = 18;
@@ -55,17 +59,87 @@ async function checkTicker(): Promise<CheckResult> {
   };
 }
 
-function checkTcpReachable(name: string, host: string, port: number, timeoutMs = 5000): Promise<CheckResult> {
+/**
+ * Walk a peer chain to the root and name whoever signed it. A chain that ends
+ * at something other than a Google/GlobalSign root is the single clearest
+ * evidence of TLS interception, and naming it ("ESET SSL Filter CA") turns an
+ * abstract certificate error into something the user recognises as installed
+ * on their own machine.
+ */
+export function rootIssuerName(cert: DetailedPeerCertificate | PeerCertificate | undefined, host: string): string | undefined {
+  let node = cert as DetailedPeerCertificate | undefined;
+  // Self-signed roots point `issuerCertificate` back at themselves; the depth
+  // cap is the guard against that loop and against pathological chains.
+  for (let depth = 0; node && depth < 10; depth += 1) {
+    const parent = node.issuerCertificate;
+    if (!parent || parent === node) break;
+    node = parent;
+  }
+  // `O` is typed as string | string[] — a certificate may carry several
+  // organisation values, and only the first is worth naming.
+  const first = (value: string | string[] | undefined): string | undefined =>
+    Array.isArray(value) ? value[0] : value;
+  const name = first(node?.subject?.CN) ?? first(node?.subject?.O) ?? first(node?.issuer?.CN);
+  // A chain that terminates at the hostname itself is a bare self-signed leaf:
+  // no root was presented, so there is no interceptor to name and saying
+  // 'issued by "smtp.gmail.com", not by Google' would be nonsense. Fall back
+  // to the generic explanation instead of inventing a culprit.
+  return name && name !== host ? name : undefined;
+}
+
+/**
+ * Second pass, run only after a verified handshake has already failed: reopen
+ * the connection without verification purely to read the chain we were served,
+ * so the guidance can name the interceptor instead of describing it in the
+ * abstract. Deliberately cannot influence the pass/fail verdict — that is
+ * decided in `checkTlsReachable` below by a fully verified handshake — and
+ * nothing is ever written to this socket, so no credentials can reach whatever
+ * answered. Resolves undefined if the chain can't be read; naming is a bonus.
+ */
+function probeInterceptorName(host: string, port: number, timeoutMs: number): Promise<string | undefined> {
   return new Promise((resolve) => {
-    const socket = net.connect({ host, port, timeout: timeoutMs });
-    const finish = (ok: boolean, detail: string) => {
+    const socket = tls.connect({ host, port, servername: host, rejectUnauthorized: false, timeout: timeoutMs });
+    const finish = (issuer?: string) => {
       socket.destroy();
-      resolve({ name, ok, detail });
+      resolve(issuer);
     };
-    socket.once('connect', () => finish(true, `reachable (${host}:${port})`));
-    socket.once('timeout', () => finish(false, `timed out connecting to ${host}:${port}`));
-    socket.once('error', (err) => finish(false, `unreachable (${host}:${port}): ${err.message}`));
+    socket.once('secureConnect', () => finish(rootIssuerName(socket.getPeerCertificate(true), host)));
+    socket.once('timeout', () => finish(undefined));
+    socket.once('error', () => finish(undefined));
   });
+}
+
+/**
+ * Both Gmail ports are implicit TLS, so the bare TCP connect this check used to
+ * do proved almost nothing: an intercepting proxy or antivirus SSL scanner
+ * accepts the socket and reports "reachable" while every real connection dies
+ * at the handshake. Completing a *verified* handshake is what lets doctor
+ * explain the `self-signed certificate in certificate chain` failure users hit
+ * during setup — the certificate is checked exactly as strictly as a real send
+ * would check it.
+ */
+async function checkTlsReachable(name: string, host: string, port: number, timeoutMs = 8000): Promise<CheckResult> {
+  const outcome = await new Promise<{ ok: boolean; trust: boolean; reason: string }>((resolve) => {
+    const socket = tls.connect({ host, port, servername: host, timeout: timeoutMs });
+    const finish = (result: { ok: boolean; trust: boolean; reason: string }) => {
+      socket.destroy();
+      resolve(result);
+    };
+    socket.once('secureConnect', () => finish({ ok: true, trust: false, reason: '' }));
+    socket.once('timeout', () => finish({ ok: false, trust: false, reason: `timed out connecting to ${host}:${port}` }));
+    socket.once('error', (err) => finish({ ok: false, trust: isTlsTrustError(err), reason: err.message }));
+  });
+
+  if (outcome.ok) return { name, ok: true, detail: `reachable, certificate verified (${host}:${port})` };
+  if (!outcome.trust) return { name, ok: false, detail: `unreachable (${host}:${port}): ${outcome.reason}` };
+
+  const issuer = await probeInterceptorName(host, port, timeoutMs);
+  return {
+    name,
+    ok: false,
+    detail: `${host}:${port} answers, but its certificate is not trusted — ${outcome.reason}${issuer ? ` (chain ends at "${issuer}")` : ''}`,
+    guidance: tlsTrustGuidance(outcome.reason, { issuer }),
+  };
 }
 
 /**
@@ -125,14 +199,19 @@ export async function runDoctor(args: string[]): Promise<void> {
     { name: 'CLI command', ...inspectCliBinary() },
     await checkKeyringBackend(),
     await checkTicker(),
-    await checkTcpReachable('SMTP reachability', 'smtp.gmail.com', 465),
-    await checkTcpReachable('IMAP reachability', 'imap.gmail.com', 993),
+    await checkTlsReachable('SMTP reachability', 'smtp.gmail.com', 465),
+    await checkTlsReachable('IMAP reachability', 'imap.gmail.com', 993),
   ];
 
   section('checks');
   for (const r of results) {
     check(r.ok, `${r.name}: ${r.detail}`);
   }
+
+  // Printed once, not per row: SMTP and IMAP fail together when the machine
+  // intercepts TLS, and the fix is the same paragraph both times.
+  const guidance = results.find((r) => !r.ok && r.guidance)?.guidance;
+  if (guidance) attention(guidance);
 
   // Live account logins are the slow, network-bound part — run them in their
   // own section, and let `--offline` skip them for a fast environment-only run.

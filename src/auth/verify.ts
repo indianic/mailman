@@ -1,6 +1,16 @@
 import { createAppPasswordTransport, type AppPasswordCredentials } from './app-password.js';
 import { getAccessToken, type OAuth2Credentials } from './oauth2.js';
+import { isTlsTrustError, tlsFailureReason, tlsTrustGuidance } from './tls-trust.js';
 import { verifyImapConnection } from '../mail/imap-client.js';
+
+/**
+ * Why a live credential check failed. The caller needs this, not just a
+ * message: only `auth` means "the password is wrong", and only for `auth` is
+ * "re-enter the App Password" the right thing to offer. A `tls` failure never
+ * reached Gmail's login at all, so re-typing the password is guaranteed
+ * wasted effort.
+ */
+export type VerifyFailureKind = 'auth' | 'tls' | 'network' | 'throttled' | 'unknown';
 
 /**
  * Result of a live credential check against Gmail.
@@ -13,27 +23,45 @@ import { verifyImapConnection } from '../mail/imap-client.js';
  */
 export interface VerifyResult {
   ok: boolean;
+  kind?: VerifyFailureKind;
   error?: string;
   imapWarning?: string;
 }
 
-/** Turn a transport/IMAP failure into a short, actionable line for the terminal. */
-function describe(err: unknown): string {
+/** Turn a transport/IMAP failure into a cause plus a short, actionable line for the terminal. */
+export function classifyVerifyError(err: unknown): { kind: VerifyFailureKind; error: string } {
   const e = err as { code?: string; responseCode?: number; response?: string; message?: string };
   const msg = e?.response || e?.message || String(err);
+
+  // Certificate trust first: an intercepted handshake fails before authentication
+  // is ever attempted, yet its message ("self-signed certificate in certificate
+  // chain") reads to the auth branch below like a credentials complaint. See
+  // ./tls-trust.ts.
+  if (isTlsTrustError(err)) {
+    return { kind: 'tls', error: tlsTrustGuidance(tlsFailureReason(err)) };
+  }
+
   // Google's anti-abuse temporary block — kicks in after several failed
   // sign-ins from one IP, so a *correct* password can be refused for minutes.
   // Distinct message so the user waits (or saves anyway) instead of assuming
   // their App Password is wrong.
   if (/too many|rate.?limit|temporarily|try again later|unusual activity|suspicious|4\.7\.0/i.test(msg)) {
-    return 'Google is temporarily blocking sign-in attempts (an anti-abuse measure that triggers after several tries). Wait a few minutes and try again — or, if you\'re sure the App Password is correct, save it anyway.';
+    return {
+      kind: 'throttled',
+      error:
+        'Google is temporarily blocking sign-in attempts (an anti-abuse measure that triggers after several tries). Wait a few minutes and try again — or, if you\'re sure the App Password is correct, save it anyway.',
+    };
   }
   if (
     e?.code === 'EAUTH' ||
     e?.responseCode === 535 ||
     /invalid|username|password|credential|badcredentials|authentication failed/i.test(msg)
   ) {
-    return 'Gmail rejected these credentials. Check the address, and that the App Password is the 16-character one from https://myaccount.google.com/apppasswords (2-Step Verification must be on). A regular account password will not work.';
+    return {
+      kind: 'auth',
+      error:
+        'Gmail rejected these credentials. Check the address, and that the App Password is the 16-character one from https://myaccount.google.com/apppasswords (2-Step Verification must be on). A regular account password will not work.',
+    };
   }
   if (
     e?.code === 'ETIMEDOUT' ||
@@ -41,10 +69,12 @@ function describe(err: unknown): string {
     e?.code === 'ENOTFOUND' ||
     /timeout|network|getaddrinfo|econnreset/i.test(msg)
   ) {
-    return `Couldn't reach Gmail — network issue: ${msg}. Check your connection and try again.`;
+    return { kind: 'network', error: `Couldn't reach Gmail — network issue: ${msg}. Check your connection and try again.` };
   }
-  return msg;
+  return { kind: 'unknown', error: msg };
 }
+
+const describe = (err: unknown): string => classifyVerifyError(err).error;
 
 /**
  * Prove an App Password actually works before we store it. SMTP `verify()` is
@@ -57,7 +87,7 @@ export async function verifyAppPasswordCredentials(creds: AppPasswordCredentials
   try {
     await transport.verify();
   } catch (err) {
-    return { ok: false, error: describe(err) };
+    return { ok: false, ...classifyVerifyError(err) };
   } finally {
     try {
       transport.close();
@@ -88,17 +118,27 @@ export async function verifyOAuth2Credentials(creds: OAuth2Credentials): Promise
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Ahead of the network branch below: an intercepted handshake surfaces
+    // through fetch as a bare `fetch failed`, which reads as a plain outage.
+    if (isTlsTrustError(err)) {
+      return { ok: false, kind: 'tls', error: tlsTrustGuidance(tlsFailureReason(err)) };
+    }
     if (/invalid_grant|invalid_client|unauthorized|400|401|refresh token/i.test(msg)) {
       return {
         ok: false,
+        kind: 'auth',
         error:
           'Google rejected these OAuth2 credentials — the refresh token may be revoked/expired, or the client ID/secret is wrong. Re-run `mailman auth login <alias>` to get a fresh token.',
       };
     }
     if (/timeout|network|getaddrinfo|econnreset|fetch failed/i.test(msg)) {
-      return { ok: false, error: `Couldn't reach Google's token endpoint — network issue: ${msg}. Check your connection and try again.` };
+      return {
+        ok: false,
+        kind: 'network',
+        error: `Couldn't reach Google's token endpoint — network issue: ${msg}. Check your connection and try again.`,
+      };
     }
-    return { ok: false, error: msg };
+    return { ok: false, kind: 'unknown', error: msg };
   }
 }
 

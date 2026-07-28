@@ -14,7 +14,7 @@ import {
 } from '../accounts.js';
 import { updateSettings } from '../settings.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
-import { verifyAppPasswordCredentials } from '../auth/verify.js';
+import { verifyAppPasswordCredentials, type VerifyFailureKind } from '../auth/verify.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
@@ -140,6 +140,20 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
 }
 
 /**
+ * What the spinner says when verification fails. Keyed by cause because the
+ * headline is the first thing the user reads and acts on — "Gmail rejected
+ * these credentials" printed over an intercepted TLS handshake is simply
+ * false, and costs people an afternoon of regenerating App Passwords.
+ */
+const VERIFY_FAILURE_HEADLINE: Record<VerifyFailureKind, string> = {
+  auth: 'Gmail rejected these credentials',
+  tls: "Couldn't establish a trusted connection to Gmail — credentials not sent",
+  network: "Couldn't reach Gmail",
+  throttled: 'Google is temporarily blocking sign-in attempts',
+  unknown: "Couldn't verify with Gmail",
+};
+
+/**
  * Prompt for an App Password and verify it live against Gmail — shared by the
  * add wizard and `account password`. A failed verify is NEVER a dead end:
  * after each rejection the user picks retry / save-anyway / cancel. "Save
@@ -148,27 +162,34 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
  * is best-effort. Returns the (space-stripped) password to store.
  */
 async function promptVerifiedAppPassword(email: string): Promise<string> {
-  for (;;) {
-    const passInput = await password({
-      message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
-      validate: (v) => (v.trim().length > 0 ? undefined : 'App Password is required'),
-    });
-    if (isCancel(passInput)) {
-      cancel('Cancelled.');
-      process.exit(1);
-    }
-    // Gmail shows App Passwords grouped as "abcd efgh ijkl mnop"; users paste
-    // them with spaces, which SMTP rejects. Strip.
-    const pass = String(passInput).replace(/\s+/g, '');
+  // Carried across iterations so a failure that never reached Gmail's login
+  // (a blocked handshake, a dropped connection) can be retried with the same
+  // password instead of forcing the user to type all 16 characters again.
+  let pass: string | null = null;
 
-    // Catches the #1 mistake: a regular account password (which Google refuses
-    // for SMTP/IMAP) instead of the 16-char App Password.
-    if (pass.length !== 16) {
-      log.warn(
-        `That's ${pass.length} characters — a Gmail App Password is exactly 16. ` +
-          'Your normal account password will NOT work here (Google blocks it for SMTP/IMAP). ' +
-          'Generate an App Password at https://myaccount.google.com/apppasswords (needs 2-Step Verification on).',
-      );
+  for (;;) {
+    if (pass === null) {
+      const passInput = await password({
+        message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
+        validate: (v) => (v.trim().length > 0 ? undefined : 'App Password is required'),
+      });
+      if (isCancel(passInput)) {
+        cancel('Cancelled.');
+        process.exit(1);
+      }
+      // Gmail shows App Passwords grouped as "abcd efgh ijkl mnop"; users paste
+      // them with spaces, which SMTP rejects. Strip.
+      pass = String(passInput).replace(/\s+/g, '');
+
+      // Catches the #1 mistake: a regular account password (which Google refuses
+      // for SMTP/IMAP) instead of the 16-char App Password.
+      if (pass.length !== 16) {
+        log.warn(
+          `That's ${pass.length} characters — a Gmail App Password is exactly 16. ` +
+            'Your normal account password will NOT work here (Google blocks it for SMTP/IMAP). ' +
+            'Generate an App Password at https://myaccount.google.com/apppasswords (needs 2-Step Verification on).',
+        );
+      }
     }
 
     const s = spinner();
@@ -179,17 +200,26 @@ async function promptVerifiedAppPassword(email: string): Promise<string> {
       if (result.imapWarning) log.warn(result.imapWarning);
       return pass;
     }
-    s.stop('Gmail rejected these credentials ✗');
+    // Only `auth` means Gmail looked at the password and said no. Announcing a
+    // rejection for a blocked TLS handshake or a dead network sends the user
+    // off to regenerate an App Password that was never the problem.
+    s.stop(`${VERIFY_FAILURE_HEADLINE[result.kind ?? 'unknown']} ✗`);
     log.error(result.error ?? 'Verification failed.');
 
+    // Credentials reached Gmail and were refused → the password is the thing to
+    // change. Anything else → it was never checked, so offer the cheap retry first.
+    const isAuthFailure = result.kind === 'auth';
     const next = await select({
       message: 'What next?',
       options: [
+        ...(isAuthFailure
+          ? []
+          : [{ value: 'recheck', label: 'Try again — keep the App Password I entered' }]),
         { value: 'retry', label: 'Re-enter the App Password' },
         { value: 'save', label: "Save it anyway without verifying (I'm sure it's correct)" },
         { value: 'cancel', label: 'Cancel' },
       ],
-      initialValue: 'retry',
+      initialValue: isAuthFailure ? 'retry' : 'recheck',
     });
     if (isCancel(next) || next === 'cancel') {
       cancel('Cancelled — no changes made.');
@@ -202,7 +232,8 @@ async function promptVerifiedAppPassword(email: string): Promise<string> {
       );
       return pass;
     }
-    // retry → loop again
+    if (next === 'retry') pass = null;
+    // recheck → loop again with the same password
   }
 }
 

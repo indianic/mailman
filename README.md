@@ -83,6 +83,45 @@ along with it and leaves you with none.
 If the check reports a non-npm binary instead (GNU Mailman ships its own
 `/usr/bin/mailman`), keep both and use this tool's `mcp-mailman` alias.
 
+### If setup says `self-signed certificate in certificate chain`
+
+Common on managed Windows machines. Setup shows the App Password being
+rejected, but the connection never got as far as logging in — Gmail never saw
+the password, and generating a new one will not help.
+
+Corporate TLS inspection (Zscaler, Netskope, Palo Alto) and antivirus "scan
+encrypted connections" (Kaspersky, ESET, Avast, Bitdefender) terminate the
+connection and re-sign it with their own root CA. Windows trusts that root, so
+your browser is fine — but Node ships its own CA list and never reads the
+Windows store, so the handshake fails.
+
+Let Node trust the Windows certificate store, then run the command again:
+
+```
+# PowerShell
+$env:NODE_OPTIONS = "--use-system-ca"
+
+# cmd.exe
+set NODE_OPTIONS=--use-system-ca
+
+# permanent (reopen the terminal afterwards)
+setx NODE_OPTIONS "--use-system-ca"
+```
+
+macOS/Linux: `export NODE_OPTIONS=--use-system-ca`. The flag needs a Node built
+with it — `mailman doctor` says so explicitly if yours is too old, and
+upgrading Node is the simplest fix.
+
+If it still fails, the root CA isn't in the OS store either. Export it
+(Windows: `certmgr.msc` → Trusted Root Certification Authorities → export as
+Base-64 `.cer`) and point Node at the file with
+`NODE_EXTRA_CA_CERTS=C:\path\to\root.cer` — or turn off HTTPS/SSL scanning in
+the antivirus for `smtp.gmail.com:465` and `imap.gmail.com:993`.
+
+`mailman doctor` diagnoses this directly: its **SMTP/IMAP reachability** checks
+complete a fully verified TLS handshake and name the root CA the chain actually
+ends at.
+
 ## Usage
 
 ```
