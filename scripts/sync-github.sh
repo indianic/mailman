@@ -61,8 +61,13 @@ git worktree add --quiet --detach "$WT" "$SRC_BRANCH"
   git commit -q -m "build: package-only tree for GitHub (exclude ${EXCLUDE[*]})"
   "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" HEAD:refs/heads/main
   if [ -n "$TAG" ]; then
-    git tag -f "$TAG"
-    "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" "$TAG"
+    # Push this worktree's commit STRAIGHT to the remote tag ref. Creating a
+    # real tag here (`git tag -f "$TAG"`) silently clobbered the caller's tag:
+    # tags are shared across worktrees, so tagging inside this throwaway one
+    # moved the release tag on main to a filtered commit that isn't even an
+    # ancestor of main — leaving `git describe`, the GitHub Release target and
+    # scripts/release's "tag is at HEAD" preflight all pointing at an orphan.
+    "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" "HEAD:refs/tags/$TAG"
   fi
 )
 
