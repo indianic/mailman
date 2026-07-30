@@ -44,13 +44,14 @@ export const searchEmailsTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        account: { type: 'string' },
-        query: { type: 'string' },
+        account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
+        query: { type: 'string', description: 'oauth2 accounts get Gmail query syntax verbatim (from:, subject:, after:, has:attachment). app-password accounts support a simpler subject/from/date subset.' },
         folder: { type: 'string', enum: ['inbox', 'sent', 'all'], description: 'Defaults to "inbox"' },
         limit: { type: 'number', description: 'Defaults to 10, capped at 50' },
-        pageToken: { type: 'string' },
+        pageToken: { type: 'string', description: 'nextPageToken from a previous call — page further instead of raising limit' },
       },
       required: ['query'],
+      additionalProperties: false,
     },
   },
   handler,

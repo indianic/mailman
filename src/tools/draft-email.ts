@@ -174,8 +174,8 @@ export const draftEmailTool: Tool = {
           description: 'Same accepted forms as `to`.',
         },
         subject: { type: 'string', description: 'Optional — a minimal default is filled in if omitted' },
-        body: { type: 'string' },
-        bodyType: { type: 'string', enum: ['text', 'html'] },
+        body: { type: 'string', description: 'The message body you compose. Plain text unless bodyType is "html".' },
+        bodyType: { type: 'string', enum: ['text', 'html'], description: 'Defaults to settings.defaultBodyType when omitted' },
         attachments: {
           type: 'array',
           items: { type: 'string' },
@@ -200,6 +200,7 @@ export const draftEmailTool: Tool = {
         forwardedBody: { type: 'string', description: 'fwd/reply: original body to quote' },
       },
       required: ['to', 'body'],
+      additionalProperties: false,
     },
   },
   handler,

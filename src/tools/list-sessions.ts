@@ -99,6 +99,8 @@ export const listSessionsTool: Tool = {
         projectsOnly: { type: 'boolean', description: 'Return only the per-project roll-up, no session rows' },
         refresh: { type: 'boolean', description: 'Force a full re-scan instead of using the cached index' },
       },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

@@ -24,10 +24,11 @@ export const addContactTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        email: { type: 'string' },
-        name: { type: 'string' },
+        email: { type: 'string', description: 'Contact email address to store in the local address book' },
+        name: { type: 'string', description: 'Optional display name for this contact' },
       },
       required: ['email'],
+      additionalProperties: false,
     },
   },
   handler,

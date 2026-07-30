@@ -20,8 +20,11 @@ export const removeContactTool: Tool = {
     description: 'Remove a contact from the local address book.',
     inputSchema: {
       type: 'object',
-      properties: { email: { type: 'string' } },
+      properties: {
+        email: { type: 'string', description: 'Email address to remove from the local address book' },
+      },
       required: ['email'],
+      additionalProperties: false,
     },
   },
   handler,

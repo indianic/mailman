@@ -96,6 +96,7 @@ export const readSessionDigestTool: Tool = {
         includeTurns: { type: 'boolean', description: 'Set false for facts only (files, commits, tool counts) — much cheaper' },
       },
       required: ['sessionIds'],
+      additionalProperties: false,
     },
   },
   handler,

@@ -128,13 +128,14 @@ export const confirmSendTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        draftId: { type: 'string' },
+        draftId: { type: 'string', description: 'The draftId returned by draft_email' },
         confirm: {
           type: 'boolean',
           description: 'Set true ONLY after the user has explicitly approved this exact draft. Required to send while alwaysConfirm is on.',
         },
       },
       required: ['draftId'],
+      additionalProperties: false,
     },
   },
   handler,

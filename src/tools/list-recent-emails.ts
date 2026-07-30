@@ -41,11 +41,13 @@ export const listRecentEmailsTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        account: { type: 'string' },
+        account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
         folder: { type: 'string', enum: ['inbox', 'sent'], description: 'Defaults to "inbox"' },
         limit: { type: 'number', description: 'Defaults to 10, capped at 50' },
-        pageToken: { type: 'string' },
+        pageToken: { type: 'string', description: 'nextPageToken from a previous call — page further instead of raising limit' },
       },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

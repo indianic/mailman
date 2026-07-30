@@ -27,9 +27,10 @@ export const cancelDraftTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        draftId: { type: 'string' },
+        draftId: { type: 'string', description: 'The draftId returned by draft_email' },
       },
       required: ['draftId'],
+      additionalProperties: false,
     },
   },
   handler,

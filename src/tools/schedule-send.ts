@@ -58,10 +58,11 @@ export const scheduleSendTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        draftId: { type: 'string' },
+        draftId: { type: 'string', description: 'The draftId returned by draft_email' },
         sendAt: { type: 'string', description: 'Absolute ISO-8601 instant — resolve relative phrases before calling' },
       },
       required: ['draftId', 'sendAt'],
+      additionalProperties: false,
     },
   },
   handler,

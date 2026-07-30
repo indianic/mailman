@@ -35,11 +35,12 @@ export const updateAccountProfileTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        alias: { type: 'string' },
+        alias: { type: 'string', description: 'Alias of the account to update (see list_accounts)' },
         displayName: { type: ['string', 'null'], description: '"From Name" shown to recipients, e.g. "Kalpesh Gamit"' },
         signature: { type: ['string', 'null'], description: 'Appended to every draft from this account' },
       },
       required: ['alias'],
+      additionalProperties: false,
     },
   },
   handler,

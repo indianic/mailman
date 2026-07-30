@@ -51,17 +51,20 @@ async function handler(rawArgs: Record<string, unknown>) {
 export const updateSettingsTool: Tool = {
   definition: {
     name: 'update_settings',
-    description: 'Update one or more global settings.',
+    description:
+      'Update one or more global settings — default account, draft TTL, the confirm-before-send gate, default body type, HTML theme, desktop notifications. Only the fields you pass change; returns the full updated settings.',
     inputSchema: {
       type: 'object',
       properties: {
-        defaultAccount: { type: ['string', 'null'] },
-        draftTtlMinutes: { type: 'number' },
-        alwaysConfirm: { type: 'boolean' },
-        defaultBodyType: { type: 'string', enum: ['text', 'html'] },
+        defaultAccount: { type: ['string', 'null'], description: 'Alias used when draft_email gets no explicit account. null clears it.' },
+        draftTtlMinutes: { type: 'number', description: 'How long a draft stays confirmable before it expires' },
+        alwaysConfirm: { type: 'boolean', description: "Require confirm_send's `confirm` flag on every send (default true)" },
+        defaultBodyType: { type: 'string', enum: ['text', 'html'], description: "What draft_email falls back to when a call omits bodyType" },
         emailTheme: { type: 'string', enum: ['plain', 'polished'], description: 'polished = branded MailMan shell + IndiaNIC footer on HTML emails' },
-        desktopNotifications: { type: 'boolean' },
+        desktopNotifications: { type: 'boolean', description: 'Fire a native OS notification after each successful send (default true)' },
       },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

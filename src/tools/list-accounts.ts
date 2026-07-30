@@ -24,7 +24,7 @@ export const listAccountsTool: Tool = {
   definition: {
     name: 'list_accounts',
     description: 'List configured sender aliases (no secrets returned).',
-    inputSchema: { type: 'object', properties: {} },
+    inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false },
   },
   handler,
 };

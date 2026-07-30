@@ -36,10 +36,11 @@ export const removeAccountTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        alias: { type: 'string' },
-        confirmRemoval: { type: 'boolean' },
+        alias: { type: 'string', description: 'Alias of the account to remove (see list_accounts)' },
+        confirmRemoval: { type: 'boolean', description: 'Required to proceed when this is the last account or the current default' },
       },
       required: ['alias'],
+      additionalProperties: false,
     },
   },
   handler,

@@ -26,8 +26,11 @@ export const cancelScheduledTool: Tool = {
     description: 'Cancel a pending scheduled send before it fires.',
     inputSchema: {
       type: 'object',
-      properties: { scheduledId: { type: 'string' } },
+      properties: {
+        scheduledId: { type: 'string', description: 'The scheduledId returned by schedule_send (see list_scheduled)' },
+      },
       required: ['scheduledId'],
+      additionalProperties: false,
     },
   },
   handler,
