@@ -29,6 +29,8 @@ Ask your AI in plain English. MailMan **drafts, previews, and only sends on your
 - **182 message templates** + `list_templates` (FYI, follow-up, meeting, forward/reply and more — a subject prefix + a hint your AI composes from)
 - Attachments (files, folders, `*.pdf` globs), **scheduled sends** via an OS timer, inbox list / read / search, contacts + recipient suggestions
 - Multi-account, machine-bound encrypted credentials (OS keychain), desktop notifications on send
+- **Session reports** — search your past AI coding sessions by project or date, digest one or many, and email the summary. Tool output is dropped and secrets redacted before a word is composed
+- `mailman doctor` verifies your whole environment and every configured account; **`--fix`** prints the exact install command for anything missing, per platform
 - Installs into **Claude Code, Cursor, Gemini CLI, Windsurf, Codex** (`mailman register`) — cross-platform Win/Mac/Linux
 - 25 MCP tools, exposed to your AI over MCP
 

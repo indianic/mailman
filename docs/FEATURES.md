@@ -162,9 +162,44 @@ flowchart LR
   when a newer version is published (cached daily, never slows you down).
 - **Self-update** — `mailman update` upgrades the global install in place.
 
-### 4.10 Diagnostics & maintenance
-- `mailman doctor` — pre-flight checks (Node version, keychain reachable,
-  Gmail SMTP/IMAP reachable, scheduler installed).
+### 4.10 Session reports
+- **Turn past AI sessions into an email** — search this machine's own
+  transcripts by project, branch or date, digest one or several, and send the
+  summary. Useful for end-of-day reports and handovers.
+- **`list_sessions`** returns metadata only (id, title, project, dates) —
+  never transcript content. Call it with `projectsOnly: true` first for a
+  per-project roll-up.
+- **`read_session_digest`** returns a compact, scrubbed skeleton of up to 10
+  sessions.
+- **`mailman session list` / `session report`** do the same from the terminal,
+  with a two-step picker (project, then sessions).
+
+> **Under the hood:** the skeleton drops **every tool result** — both the bulk
+> of a transcript's bytes and where pasted secrets land — keeping only prompts,
+> one truncated line per reply, and each tool call's name + target. On a real
+> 986 KB session that is a 51× cut to 19 KB. What survives is then scrubbed for
+> known token shapes (API keys, GitHub/npm/Slack tokens, JWTs, `KEY=value`
+> pairs, private-key blocks) and home paths shortened to `~`.
+>
+> **Neither tool summarizes.** They extract; the calling Claude session
+> composes and sends through `draft_email` → preview → `confirm_send`. The CLI
+> has no model, so `session report` prints a *mechanical* digest — files
+> touched, commits, counts — and says so rather than pretending otherwise.
+
+### 4.11 Diagnostics & maintenance
+- `mailman doctor` — pre-flight checks in two parts: a **dependencies**
+  section (Node, npm, and on Linux `libsecret`) and the environment checks
+  (keychain reachable, Gmail SMTP/IMAP reachable with a verified TLS
+  handshake, scheduler installed, plus a live login for every configured
+  account). `--offline` skips the network checks.
+- **`mailman doctor --fix`** — prints the exact install command for anything
+  missing, per platform. It distinguishes two Linux failures that look
+  identical from the outside: `libsecret` absent
+  (`sudo apt install libsecret-1-0`) versus present-but-no-running-Secret-
+  Service-daemon (`sudo apt install gnome-keyring`). Commands are **printed,
+  never executed** — installing a system library needs root, and a CLI that
+  silently `sudo`s to fix its own prerequisite is acting on a machine it does
+  not own.
 - `mailman status` — what’s configured right now, as a clean tree.
 - `mailman reset` — wipe everything for a clean re-setup (requires `--yes`).
 

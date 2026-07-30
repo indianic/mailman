@@ -678,3 +678,86 @@ version of this list.
 7. Reading/listing/searching mail (Gmail API for OAuth2 accounts, IMAP for App Password accounts)
 8. Scheduled sends (`scheduled.json`, per-OS ticker install, `schedule_send`/`list_scheduled`/`cancel_scheduled`, `send-scheduled` CLI dispatch)
 9. Polish & publish (README finalized, npm publish, `claude mcp add` docs, cross-OS testing)
+
+---
+
+# Post-plan architecture
+
+Everything above is the original 10-phase design. This section covers design
+decisions made *after* that plan closed, so the document stays an accurate
+picture of how mailman is actually built rather than how it was first drawn.
+
+## Session reports — reading the host's own transcripts
+
+`list_sessions` and `read_session_digest` let a session (or a week of them) be
+turned into an email. The design question was never "how do we summarize" — it
+was "how do we hand a model something small enough to summarize, without
+leaking".
+
+**Nothing here summarizes.** That is the same division of labour the rest of
+the server follows (see the Output format section): mailman extracts, the
+calling Claude session composes. A `summarize_session` tool would need a model
+inside an MCP server that has no model dependency at all.
+
+**Scale forced the shape.** Measured on a real store: 75 project directories,
+2,258 sessions, 946 MB, largest single session 50.9 MB. Two consequences:
+
+- A full re-scan per invocation is too slow, so metadata is cached in the
+  config dir keyed on **mtime + size**; only changed transcripts are re-read.
+  Cold build ~4.4s, cached ~0.2s. Fields are pulled with cheap `includes()`
+  pre-filters before any regex or `JSON.parse` — parsing every line to read one
+  field is the difference between seconds and minutes at this size.
+- A session is far too large to load, so extraction **drops every tool
+  RESULT**. Results are simultaneously the bulk of a transcript's bytes and the
+  place pasted secrets and `.env` contents land. What survives is intent: user
+  prompts, one truncated line per reply, and each tool call's name + target. On
+  a real 986 KB session that is a 51× cut to 19 KB.
+
+**Redaction is a backstop, not the mechanism.** Dropping results is what
+actually protects secrets; the regex pass over surviving text (API keys,
+GitHub/npm/Slack tokens, JWTs, `KEY=value`, private-key blocks) exists for the
+case where someone pasted a credential into a *prompt*. Verified against three
+transcripts containing 11 real credential-shaped strings: zero reached the
+skeleton, all having sat in dropped results.
+
+One redaction rule is worth recording because the obvious version is wrong: the
+`KEY=value` pattern requires an explicit `=` or `:`. An earlier version accepted
+bare whitespace and rewrote ordinary English — *"fix the release script token
+handling"* became *"…token [redacted]"*. Session prompts use "token", "secret"
+and "password" as nouns constantly, so the loose rule corrupted almost every
+digest.
+
+**The CLI half has no model**, so `mailman session report` prints a
+*mechanical* digest — titles, files touched, commits, tool counts — and says so
+in its output rather than implying a summary. Prose only exists on the MCP
+path, where a Claude session is in the loop.
+
+## Tool schemas are a contract, not validation
+
+Nothing validates a tool's arguments against its `inputSchema` before dispatch:
+`index.ts` finds the tool and calls the handler, and each handler runs its own
+zod `safeParse`, which *strips* unknown keys. So the JSON Schema is the only
+place the closed-object contract can be stated at all. Without
+`additionalProperties: false`, a model that invents an argument gets a success
+it should not have and never learns the parameter does not exist.
+
+Both `additionalProperties: false` and an explicit `required` array are
+therefore **required by the `ToolDefinition` type**, so `tsc` rejects a new tool
+that omits them. That deliberately moves enforcement off code review and into
+the compiler; the local eval tier is a backstop, not the gate.
+
+## Two verification tiers beyond `test/`
+
+`npm test` answers *"does this function compute the right value?"*. Two further
+questions needed different tiers, both kept out of the default fast path:
+
+- **Surface rubrics** — is what we hand a model still correct, safe and
+  self-consistent? Offline, static, no network. Covers the draft → confirm gate
+  being real, schema quality, doc claims matching code, and CLI coherence.
+- **Artifact smoke** — does the tarball npm would publish actually install and
+  work on a clean OS? Needs a container and the network, so it sits outside
+  the fast path. Distinct from `docker/test-linux.sh`, which tests the
+  *credential store* (keyring up vs headless) rather than the *package*.
+
+Both live outside version control on the development machine by choice; see
+`docs/CROSS-OS.md` for the committed Linux harness.

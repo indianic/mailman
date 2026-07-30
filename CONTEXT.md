@@ -14,11 +14,16 @@ and multi-account support. Registered globally, so it works the same way
 from any project directory on macOS, Linux, or Windows — not something you
 set up per-repo.
 
+It exposes **25 MCP tools** and ships as `@integratex/mailman` on the public
+npm registry (currently **1.2.1**). The tool list lives in
+[docs/SKILLS.md](docs/SKILLS.md); the human CLI is in
+[docs/CLI.md](docs/CLI.md).
+
 ## Status
 
-**All 10 phases (0–9) complete and committed**, plus one post-launch
-addition. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the full
-phase-by-phase build order and exactly what's been verified vs. what's
+**All 10 phases (0–9) complete and committed**, plus the post-launch
+additions listed below. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
+full phase-by-phase build order and exactly what's been verified vs. what's
 still pending.
 
 - **Verified for real**: registered globally via `claude mcp add`, a real
@@ -34,13 +39,37 @@ still pending.
   `defaultBodyType` setting — `draft_email` now sends a proper
   `"Name <email>"` From header and appends the account's signature, and
   falls back to `defaultBodyType` when a call omits `bodyType`.
+- **Session reports (1.2.0)**: `list_sessions` and `read_session_digest`
+  read the *host's own* transcripts (`~/.claude/projects/**/*.jsonl`) so a
+  session — or a week of them — can be turned into an email. Neither tool
+  summarizes: they index and extract, the calling Claude session composes,
+  and it sends through the usual `draft_email` → preview → `confirm_send`
+  flow. The extractor drops every tool RESULT, which is both the bulk of a
+  transcript's bytes and where pasted secrets land, then redacts known token
+  shapes. Also `mailman session list` / `session report` on the CLI, which
+  print a *mechanical* digest (files, commits, counts) because the CLI has
+  no model — see [docs/CLI.md](docs/CLI.md).
+- **Tool-schema hardening (1.2.1)**: all 25 schemas now declare
+  `additionalProperties: false` and an explicit `required` array, and every
+  parameter carries a description. Both fields are required by
+  `ToolDefinition`, so the compiler — not a reviewer — rejects a new tool
+  that omits them.
+- **`mailman doctor` dependencies + `--fix` (1.2.1)**: doctor reported that
+  the keyring was unreachable but never *why*, and on Linux there are two
+  causes needing different fixes. It now checks `npm` and, on Linux only,
+  `libsecret`; `--fix` prints the exact platform command, distinguishing a
+  missing library from a missing Secret Service daemon.
+- **Since resolved**: `npm publish` has happened — `@integratex/mailman` is
+  on the public registry, currently 1.2.1, with matching GitHub releases.
+  The scheduled-send ticker is installed on the development machine
+  (`mailman doctor` reports `installed (launchd)`). Linux is covered by
+  `docker/test-linux.sh`, which runs the checklist twice — once with
+  gnome-keyring up and once headless — see [docs/CROSS-OS.md](docs/CROSS-OS.md).
 - **Still pending, deliberately not done automatically**: OAuth2
-  real-delivery verification (needs a real Google Cloud OAuth client),
-  cross-OS smoke testing (no Linux/Windows machine was available),
-  `npm publish` (a real, public, hard-to-reverse action), and actually
-  registering the scheduled-send OS ticker on a real machine (mutates
-  real system state outside this repo — `schedule_send` installs it the
-  first time it's actually used).
+  real-delivery verification (needs a real Google Cloud OAuth client) and
+  **Windows** verification. Windows containers require a Windows host, so no
+  amount of Docker on macOS or Linux substitutes for it — that needs either
+  real hardware or a `windows-latest` CI runner.
 
 ## Repo facts
 

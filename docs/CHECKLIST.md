@@ -143,3 +143,56 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, keychain backend, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy) — **wrapped 2026-07-02**: macOS fully verified (incl. a real end-to-end `mailman init` wizard run); **Linux verified via Docker** (see the `docker/` harness, task #94 — surfaced the keytar↔keyring cross-read note); Windows implemented but hardware verification not pursued (accepted as-is). Per-OS support matrix + verification checklist in [docs/CROSS-OS.md](CROSS-OS.md)
 - [x] ~~`npm publish` as `mcp-mailman`~~ — **descoped 2026-07-02** (user decision): an unscoped `mcp-mailman` release is not needed; a public scoped build has since shipped as `@integratex/mailman` on npmjs.
 - [x] Document `claude mcp add mailman -- npx -y @integratex/mailman` as the standard install step
+
+---
+
+## Post-launch (after the 10 phases)
+
+Additions made after the original plan closed. Each was driven by a real gap
+hit in use rather than by the plan, which is why they sit outside the phases.
+
+### `get_mailbox_overview` — 1.1.x
+- [x] One call returning sent + inbox + attachment metadata, after repeatedly
+      composing `list_recent_emails` (sent) + `list_recent_emails` (inbox) +
+      `read_email`-per-attachment by hand in conversation
+
+### Session reports — 1.2.0
+- [x] `src/sessions/index.ts` — index the host's own transcripts
+      (`~/.claude/projects/**/*.jsonl`, overridable via `MAILMAN_SESSIONS_DIR`),
+      cached on mtime+size so only changed files are re-read
+- [x] `src/sessions/skeleton.ts` — extraction that drops every tool RESULT,
+      then redacts known token shapes and shortens home paths
+- [x] `list_sessions` / `read_session_digest` MCP tools — metadata and skeleton
+      only; neither summarizes
+- [x] `mailman session list` / `session report` — reuses `account remove`'s
+      clack picker for one and `register -i`'s multiselect for many
+- [x] `session-report` message template
+- [x] Verified on a real store: 75 projects, 2,258 sessions, 946 MB. Cold index
+      ~4.4s, cached ~0.2s. A 986 KB session becomes a 19 KB skeleton
+- [x] Verified against three transcripts holding 11 real credential-shaped
+      strings — **zero** reached the skeleton, all having sat in dropped results
+- [ ] The interactive pickers are still unexercised at runtime (needs a TTY);
+      every non-interactive path is covered
+
+### Tool-schema hardening — 1.2.1
+- [x] All 25 schemas declare `additionalProperties: false` and an explicit
+      `required` array; all 34 previously undescribed parameters documented
+- [x] Both fields made **required by `ToolDefinition`**, so `tsc` rejects a new
+      tool that omits them — enforcement moved off review and into the compiler
+- [x] Confirmed no runtime behaviour changes: `index.ts` never validated args
+      against these schemas, so this is purely the contract a model reads
+
+### `doctor` dependencies + `--fix` — 1.2.1
+- [x] A `dependencies` section: `npm`, and on Linux only `libsecret`
+- [x] `--fix` prints the platform install command, distinguishing a missing
+      library from a missing Secret Service daemon — verified against two real
+      containers (`node:20-slim` vs the smoke base image)
+- [x] `installHint` is pure and takes `platform` explicitly, so the Windows and
+      Linux strings are unit-tested from macOS
+
+### Publishing
+- [x] `@integratex/mailman` live on the public npm registry (1.2.1), with
+      matching GitHub releases and the filtered source mirror
+- [ ] OAuth2 real-delivery verification — needs a real Google Cloud OAuth client
+- [ ] Windows verification — Windows containers need a Windows host, so this
+      needs real hardware or a `windows-latest` runner
