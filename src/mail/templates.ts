@@ -27,7 +27,7 @@ export const CORE_KEYS = new Set([
   'quick-question', 'action-required', 'approval-request', 'feedback-request',
   'review-request', 'meeting-request', 'reschedule', 'status-update', 'eod-report',
   'blocker', 'decision-needed', 'intro', 'thank-you', 'congrats', 'apology',
-  'announcement', 'fwd', 'reply',
+  'announcement', 'fwd', 'reply', 'session-report',
 ]);
 
 export const TEMPLATES: EmailTemplate[] = [
@@ -94,6 +94,7 @@ export const TEMPLATES: EmailTemplate[] = [
   { key: 'kickoff', category: 'reporting', subjectPrefix: 'Project kickoff:', hint: 'Start a project: goals, scope, roles, timeline.', kind: 'hint' },
   { key: 'wrap-up', category: 'reporting', subjectPrefix: 'Project wrap-up:', hint: 'Close a project: outcomes, learnings, thanks.', kind: 'hint' },
   { key: 'handover', category: 'reporting', subjectPrefix: 'Handover:', hint: 'Transfer ownership: state, access, open items, contacts.', kind: 'hint' },
+  { key: 'session-report', category: 'reporting', subjectPrefix: 'Session report:', hint: 'Summarize AI coding sessions (see read_session_digest): what changed, files touched, commits, open items. Group by project when several.', kind: 'hint' },
 
   // ── Decisions & approvals ───────────────────────────────────────────────
   { key: 'decision', category: 'decisions', subjectPrefix: 'Decision:', hint: 'Communicate a decision and the reasoning briefly.', kind: 'hint' },
