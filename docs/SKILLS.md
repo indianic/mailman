@@ -134,6 +134,23 @@ send.**
 - **Example trigger**: *"mailman, send those docs to kalpesh.gamit@indianic.com"*
   → Claude resolves "those docs" to paths, composes subject/body, calls this.
 
+## `list_templates`
+
+Lists message templates — a `subjectPrefix` plus a one-line structural `hint`
+you compose from. mailman never substitutes text; the template shapes *your*
+writing.
+
+- **Input**: `{ category?: string, search?: string, all?: boolean }`
+- **Output**: `{ total, returned, view?: "core" | "all", categories: string[], templates: [{ key, category, subjectPrefix, hint, kind }], next_steps }`
+- **Notes**: with no filter and no `all: true` this returns only the tight
+  **core** set, to keep the response high-signal — the full catalog (177+
+  templates) is one `all: true` away. `kind` is `"hint"` for the vast majority;
+  the only `"mechanical"` templates are `fwd`/`reply`, which build a real quoted
+  block via `draft_email`'s `forwarded*` fields. Pass a chosen `key` as
+  `draft_email`'s `template`.
+- **Example trigger**: *"send this as a status update"* → Claude looks up the
+  `status-update` template and follows its hint when composing.
+
 ## `confirm_send`
 
 Dispatches the exact draft produced by `draft_email`.
