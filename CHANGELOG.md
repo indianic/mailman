@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.2.0] - 2026-07-30
 
 - Session reports: turn past AI coding sessions into an email. Two new MCP tools — `list_sessions` (search this machine's own transcripts by project, text, branch or recency; metadata only, never transcript content) and `read_session_digest` (a compact, secret-scrubbed skeleton of up to 10 sessions) — plus `mailman session list` / `mailman session report` in the CLI and a `session-report` template. Neither tool summarizes: they extract, and the calling Claude session composes, then sends through the usual `draft_email` → preview → `confirm_send` flow. The skeleton drops every tool result, which is both the bulk of a transcript's bytes and where pasted secrets land — a 986 KB session becomes 19 KB, and across three real transcripts holding 11 credential-shaped strings none reached the skeleton. Surviving text is scrubbed for known token shapes. Indexing is cached on mtime+size, so a first build over 2,258 sessions takes ~4.4s and later runs ~0.2s.
 
