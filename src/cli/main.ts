@@ -10,6 +10,7 @@ import { runSettingsGet, runSettingsSet } from './settings.js';
 import { runContactsList, runContactsAdd, runContactsRemove } from './contacts.js';
 import { runSendScheduled } from './send-scheduled.js';
 import { runScheduledList } from './scheduled.js';
+import { runSessionList, runSessionReport } from './session.js';
 import { runRegister } from './register.js';
 import { runReset } from './reset.js';
 import { runUpdate } from './update.js';
@@ -49,6 +50,9 @@ const COMMANDS: Record<string, CommandEntry> = {
   scheduled: { handler: null, summary: 'see `scheduled list`' },
   'scheduled list': { handler: runScheduledList, summary: 'List pending/sent/failed scheduled sends' },
   'send-scheduled': { handler: runSendScheduled, summary: "Scheduler ticker's dispatch target (--due)" },
+  session: { handler: null, summary: 'see `session list` / `session report`' },
+  'session list': { handler: runSessionList, summary: 'Find past AI sessions (--project, --since, --search, --all)' },
+  'session report': { handler: runSessionReport, summary: 'Pick sessions and build a digest to email (--out, --json)' },
   status: { handler: runStatus, summary: 'Show configured state as a tree' },
   update: { handler: runUpdate, summary: 'Self-update the global install to the latest version' },
   upgrade: { handler: runUpdate, summary: 'Alias of `update`' },
@@ -112,6 +116,12 @@ function printExamples(): void {
   detail('mailman settings set desktopNotifications false            turn off the "email sent" desktop pop-up (on by default)');
   detail('mailman settings set desktopNotifications true             turn it back on');
 
+  section('session reports — turn past AI sessions into an email');
+  detail('mailman session list                                 recent sessions, grouped by project');
+  detail('mailman session list --project mailman --since 7d    narrow to one project and window');
+  detail('mailman session report                               pick project, then sessions, then digest');
+  detail('mailman session report --out report.md               write the digest to a file');
+
   section('inside your AI tool (Claude Code, Cursor, ...), in plain English');
   detail('"mailman, send those docs to kalpesh@example.com"');
   detail('"mailman, list my last 10 emails"');
@@ -119,6 +129,7 @@ function printExamples(): void {
   detail('"read the latest email from AWS"');
   detail('"mailman, send this tomorrow at 9am instead of now"');
   detail('"get my contacts"');
+  detail('"summarize my last 3 mailman sessions and email them to kalpesh@example.com"');
 
   section('safety');
   detail('Every send shows a preview first — nothing leaves the machine until you confirm.');
