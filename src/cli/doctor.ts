@@ -1,4 +1,5 @@
 import tls from 'node:tls';
+import { execFileSync } from 'node:child_process';
 import type { PeerCertificate, DetailedPeerCertificate } from 'node:tls';
 import { intro, outro } from '@clack/prompts';
 import { getTickerStatus } from '../scheduler/ticker-install.js';
@@ -28,6 +29,78 @@ function checkNodeVersion(): CheckResult {
       ? `v${process.versions.node} (>= ${MIN_NODE_MAJOR} required)`
       : `v${process.versions.node} — mailman requires Node >= ${MIN_NODE_MAJOR}`,
   };
+}
+
+/** First line of `<cmd> --version`, or null when the command isn't on PATH. */
+function versionOf(cmd: string): string | null {
+  try {
+    return execFileSync(cmd, ['--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .split('\n')[0]
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Is libsecret actually present? Linux only — it is keytar's native backend
+ * there, and the one external library mailman genuinely needs.
+ *
+ * Returns null on macOS/Windows, where the credential store is provided by the
+ * OS (Keychain / Credential Manager) and there is nothing to install.
+ *
+ * `ldconfig -p` is the cheap, read-only way to ask. A missing `ldconfig`
+ * (musl/Alpine, minimal containers) is reported as "unknown" rather than
+ * "missing" — claiming a library is absent because the tool that lists
+ * libraries is absent would send people to install the wrong thing.
+ */
+function checkLibsecret(): CheckResult | null {
+  if (process.platform !== 'linux') return null;
+  try {
+    const out = execFileSync('ldconfig', ['-p'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const found = /libsecret-1\.so/.test(out);
+    return {
+      name: 'libsecret',
+      ok: found,
+      detail: found
+        ? 'present (keytar can reach the Secret Service)'
+        : 'NOT FOUND — keytar cannot store the master key without it',
+    };
+  } catch {
+    return {
+      name: 'libsecret',
+      // Not a failure: we could not determine it either way, and saying
+      // "missing" here would be a guess presented as a fact.
+      ok: true,
+      detail: 'could not verify (ldconfig unavailable) — the keyring probe below is the real test',
+    };
+  }
+}
+
+/**
+ * The copy-pasteable command that installs a missing prerequisite on this
+ * platform. Pure + exported so the per-platform strings are testable from any
+ * machine — the Windows and Linux branches are otherwise unverifiable here.
+ *
+ * These are PRINTED, never executed. Installing a system library needs
+ * administrator rights and a package manager; a CLI that silently runs
+ * `sudo apt install` to fix its own prerequisite is doing something the user
+ * did not ask for, on a machine it does not own.
+ */
+export function installHint(tool: string, platform: string = process.platform): string {
+  if (tool === 'libsecret') {
+    // Linux-only by construction; the other platforms ship a credential store.
+    return 'sudo apt install libsecret-1-0    (or: sudo dnf install libsecret, sudo pacman -S libsecret)';
+  }
+  if (tool === 'node' || tool === 'npm') {
+    if (platform === 'darwin') return 'brew install node    (or: https://nodejs.org)';
+    if (platform === 'win32') return 'winget install --id OpenJS.NodeJS.LTS -e    (or: https://nodejs.org)';
+    return 'see https://nodejs.org/en/download/package-manager';
+  }
+  if (tool === 'keyring-daemon') {
+    return 'sudo apt install gnome-keyring    (or: sudo dnf install gnome-keyring) — then log into a desktop session';
+  }
+  return `install ${tool} using your platform's package manager`;
 }
 
 async function checkKeyringBackend(): Promise<CheckResult> {
@@ -188,6 +261,37 @@ async function checkAccountCredentials(): Promise<CheckResult[]> {
 export async function runDoctor(args: string[]): Promise<void> {
   intro('mailman — doctor');
   const offline = args.includes('--offline');
+  const fix = args.includes('--fix');
+
+  // Prerequisites this machine must already have, checked before anything that
+  // depends on them. Deliberately NOT a copy of the sibling project's list:
+  // that one checks git because Baileys pulls libsignal from a git URL, and
+  // mailman has no git-URL dependency at all. What mailman actually needs is
+  // npm (self-update shells out to it) and, on Linux only, libsecret.
+  const missing: string[] = [];
+  const deps: CheckResult[] = [];
+
+  const npmVersion = versionOf('npm');
+  deps.push({
+    name: 'npm',
+    ok: Boolean(npmVersion),
+    detail: npmVersion
+      ? `${npmVersion.replace(/^v/, '')} (used by \`mailman update\`)`
+      : 'NOT FOUND — `mailman update` cannot self-update without a package manager',
+  });
+  if (!npmVersion) missing.push('npm');
+
+  const libsecret = checkLibsecret();
+  if (libsecret) {
+    deps.push(libsecret);
+    if (!libsecret.ok) missing.push('libsecret');
+  }
+
+  section('dependencies');
+  check(true, `node ${process.versions.node}`);
+  for (const d of deps) {
+    check(d.ok, `${d.name}: ${d.detail}`);
+  }
 
   const results = [
     checkNodeVersion(),
@@ -227,7 +331,27 @@ export async function runDoctor(args: string[]): Promise<void> {
     }
   }
 
-  const allOk = [...results, ...accountResults].every((r) => r.ok);
+  // A failing keyring probe on Linux usually means libsecret is present but no
+  // Secret Service daemon is running — a different fix from a missing library,
+  // so it gets its own entry rather than being folded into "install libsecret".
+  const keyringFailed = results.some((r) => r.name === 'Keyring backend' && !r.ok);
+  if (keyringFailed && process.platform === 'linux' && !missing.includes('libsecret')) {
+    missing.push('keyring-daemon');
+  }
+
+  if (missing.length > 0) {
+    section('how to fix');
+    if (fix) {
+      // Printed, never run — see installHint.
+      for (const tool of [...new Set(missing)]) detail(`${tool}:  ${installHint(tool)}`);
+      detail('');
+      detail('re-run `mailman doctor` once installed');
+    } else {
+      detail(`missing: ${[...new Set(missing)].join(', ')} — run: mailman doctor --fix`);
+    }
+  }
+
+  const allOk = [...results, ...accountResults].every((r) => r.ok) && deps.every((d) => d.ok);
   outro(allOk ? 'All checks passed' : 'Some checks failed — see above');
   if (!allOk) {
     process.exitCode = 1;

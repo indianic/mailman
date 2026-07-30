@@ -46,7 +46,7 @@ const COMMANDS: Record<string, CommandEntry> = {
   'settings get': { handler: runSettingsGet, summary: 'Print current global settings' },
   'settings set': { handler: runSettingsSet, summary: 'Update one setting' },
   register: { handler: runRegister, summary: 'Register with AI editors (--tools <a,b|all> [--scope], -i, or bare to print the command)' },
-  doctor: { handler: runDoctor, summary: 'Environment pre-flight checks' },
+  doctor: { handler: runDoctor, summary: 'Environment pre-flight checks (--offline to skip logins, --fix for install commands)' },
   scheduled: { handler: null, summary: 'see `scheduled list`' },
   'scheduled list': { handler: runScheduledList, summary: 'List pending/sent/failed scheduled sends' },
   'send-scheduled': { handler: runSendScheduled, summary: "Scheduler ticker's dispatch target (--due)" },
@@ -105,6 +105,7 @@ function printExamples(): void {
   detail('mailman register --tools claude,cursor    (re)write editor MCP configs without re-adding an account');
   detail("mailman status                            what's configured right now");
   detail('mailman doctor                            environment pre-flight checks');
+  detail('mailman doctor --fix                      print the exact install command for anything missing');
 
   section('from name & email signature');
   detail('mailman account profile                                    show the current From Name + signature');
