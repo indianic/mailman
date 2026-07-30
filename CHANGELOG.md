@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+- Session reports: turn past AI coding sessions into an email. Two new MCP tools — `list_sessions` (search this machine's own transcripts by project, text, branch or recency; metadata only, never transcript content) and `read_session_digest` (a compact, secret-scrubbed skeleton of up to 10 sessions) — plus `mailman session list` / `mailman session report` in the CLI and a `session-report` template. Neither tool summarizes: they extract, and the calling Claude session composes, then sends through the usual `draft_email` → preview → `confirm_send` flow. The skeleton drops every tool result, which is both the bulk of a transcript's bytes and where pasted secrets land — a 986 KB session becomes 19 KB, and across three real transcripts holding 11 credential-shaped strings none reached the skeleton. Surviving text is scrubbed for known token shapes. Indexing is cached on mtime+size, so a first build over 2,258 sessions takes ~4.4s and later runs ~0.2s.
+
 ## [1.1.4] - 2026-07-28
 
 - fix: a blocked TLS handshake is no longer reported as a wrong password. On machines with corporate TLS inspection or antivirus HTTPS scanning — routine on managed Windows — setup failed with `self-signed certificate in certificate chain` under the headline "Gmail rejected these credentials", sending users off to regenerate an App Password that Gmail had never seen. Verification now distinguishes certificate-trust, network, anti-abuse and genuine credential failures, headlines each one accurately, and for a trust failure prints the fix (`NODE_OPTIONS=--use-system-ca` in the right shell syntax for the platform, or `NODE_EXTRA_CA_CERTS`) — Node ships its own CA list and never reads the Windows certificate store, which is why the browser works and mailman doesn't. The retry menu now offers "keep the App Password I entered" first whenever the password was never actually checked.

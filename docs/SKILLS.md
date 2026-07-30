@@ -18,6 +18,15 @@ error-code table in
 branch on `code` (e.g. re-ask the user on `AMBIGUOUS_ACCOUNT`, back off and
 retry on `RATE_LIMITED`) instead of pattern-matching the message text.
 
+**Session summarization is not a tool, deliberately.** `read_session_digest`
+extracts a skeleton; it never writes the summary. Putting a
+`summarize_session` tool here would break the rule at the top of this file
+and would need a model inside an MCP server that currently has no model
+dependency at all. The `mailman session report` CLI is the same story from
+the other side: with no model in the process it prints a *mechanical*
+digest (files, commits, counts) and says so, rather than pretending to
+summarize.
+
 **Not exposed as MCP tools, deliberately**: key rotation
 (`mailman auth rotate-key`), the scheduled-send ticker's dispatch
 target (`mailman send-scheduled`), and attachment-content download are
@@ -373,3 +382,59 @@ folds that into one call.
   failing the whole call.
 - **Example trigger**: *"mailman, give me a mailbox overview"* / *"show me
   my recent sent and inbox mail with attachments."*
+
+## `list_sessions`
+
+Searches this machine's **past AI coding sessions** — the input side of a
+session-summary email. Reads the host's own transcripts
+(`~/.claude/projects/**/*.jsonl`; override with `MAILMAN_SESSIONS_DIR`).
+
+- **Input**: `{ project?: string, search?: string, since?: string, branch?: string, limit?: number, projectsOnly?: boolean, refresh?: boolean }`
+- **Output**: `{ total, returned, truncated?, projects?: [{ project, projectPath, sessions, lastActivity }], sessions: [{ id, title, project, projectPath, branch, startedAt, endedAt, messages, sizeBytes }], next_steps }`
+- **Notes**: **metadata only — no transcript content ever crosses this
+  boundary.** `since` takes `24h`/`7d`/`2w`/`3mo` or an ISO date; an
+  unparseable value is rejected with `INVALID_INPUT` rather than silently
+  ignored (a typo'd window that quietly returns everything is worse than an
+  error). `limit` defaults to 20 and is capped at 100, same
+  bounded-context convention as `list_recent_emails`. Call with
+  `projectsOnly: true` first for the cheap per-project roll-up, then drill
+  in with `project` — on a real store (2,258 sessions across 75 projects)
+  returning every session row is neither useful nor affordable. `title` is
+  the host's own generated session title, falling back to the first user
+  prompt. Backed by an mtime/size-keyed cache; `refresh: true` forces a
+  full re-scan.
+- **Example trigger**: *"what did I work on in mailman last week?"*
+
+## `read_session_digest`
+
+Returns a compact, secret-scrubbed **skeleton** of one or more sessions —
+the raw material a summary is written from.
+
+- **Input**: `{ sessionIds: string | string[], maxTurns?: number, includeTurns?: boolean }`
+- **Output**: `{ sessions: [{ id, title, project, branch, startedAt, endedAt, userPrompts, filesTouched, commits, toolCounts, truncated, turns? }], digest: string, redaction: string, next_steps }`
+- **Notes**: the reduction that makes this viable is that **every tool
+  RESULT is dropped**. Results are simultaneously the bulk of a
+  transcript's bytes and the place pasted secrets and `.env` contents
+  actually land — on a real 986 KB session the skeleton is 19 KB, a 51×
+  cut, and across three transcripts containing 11 real credential-shaped
+  strings, zero reached the skeleton because all 11 sat in results. What
+  survives is intent: user prompts, one truncated line per reply, and each
+  tool call's NAME + TARGET. Surviving text is then run through a redactor
+  for known token shapes (API keys, GitHub/npm/Slack tokens, JWTs, AWS
+  keys, `KEY=value` assignments, private-key blocks) and home paths are
+  shortened to `~`. Sub-agent (`isSidechain`) turns are dropped too.
+  Sessions longer than `maxTurns` (default 80, cap 200) keep the opening
+  and the close and drop the middle, flagged as `truncated: true`.
+  `includeTurns: false` returns facts only — much cheaper when the files/
+  commits/tool counts are enough. Max 10 sessions per call; beyond that,
+  digest in batches and combine the summaries yourself.
+- **This tool does not summarize.** Same division of labor as every other
+  tool here: mailman extracts, the calling Claude session composes. Send
+  the result with `draft_email` (`template: "session-report"`) → preview →
+  `confirm_send`.
+- **Never auto-send a session summary.** Even scrubbed, a digest carries
+  real project detail (file paths, branch names, commit subjects, what the
+  user asked for). `draft_email`'s mandatory preview is the gate — show the
+  full body and get explicit approval, exactly as with any other send.
+- **Example trigger**: *"summarize my last 3 mailman sessions and email
+  them to kalpesh@example.com"*
