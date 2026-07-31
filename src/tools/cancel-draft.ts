@@ -14,7 +14,10 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const draft = cancelDraft(parsed.data.draftId);
   if (!draft) {
-    return toolError(ErrorCodes.DRAFT_NOT_FOUND, `No such draft: ${parsed.data.draftId}`);
+    return toolError(
+      ErrorCodes.DRAFT_NOT_FOUND,
+      `No such draft: ${parsed.data.draftId} — it may have already expired or been cancelled; nothing is pending to discard.`,
+    );
   }
 
   return toolResponse({ cancelled: true });

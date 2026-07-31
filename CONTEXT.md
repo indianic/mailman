@@ -75,10 +75,10 @@ still pending.
 
 | | |
 |---|---|
-| Location | `/Users/kalpesh/Sites/IndiaNIC/Products/mailman/` (sibling to `sshmanager`, not nested in it) |
-| Branch | `dev-kalpesh` (all work happens here; `master` is the empty initial branch) |
-| Remote | none configured — commits are local-only until explicitly told to push |
-| Package name | `mcp-mailman` (npm, unpublished) |
+| Location | `/Users/kalpesh/Sites/IndiaNIC/Products/mailman/` (sibling to `mailman-site`, which is its own repo) |
+| Branch | `main` |
+| Remotes | `origin` → GitLab (`gitai.indianic.com:server7_development/mailman`) · `github` → the public mirror (`github.com/indianic/mailman`), pushed by `scripts/sync-github.sh` with `site/`, `docker/`, `scripts/` and `INTERNAL.md` stripped |
+| Package name | `@indianic/mailman` in the committed `package.json` (the internal identity, published to `npm.indianic.in`). CI **rewrites it to `@integratex/mailman` before `npm publish`** for the public build — the code reads its own name at runtime, so the rename has to happen before the tarball is packed |
 | Bin name | `mailman` (primary), with `mcp-mailman` kept as an alias to the same binary — the alias exists for hosts where GNU Mailman already owns `/usr/bin/mailman` and the bare name would collide |
 
 ## The decisions that shape everything else
@@ -133,3 +133,12 @@ still pending.
 - [docs/SKILLS.md](docs/SKILLS.md) — every MCP tool, called by Claude
 - [docs/CLI.md](docs/CLI.md) — every terminal command, run by you
 - [docs/CHECKLIST.md](docs/CHECKLIST.md) — the phased build order
+- [docs/CROSS-OS.md](docs/CROSS-OS.md) — what is verified on which OS, and what is only implemented
+
+## How this is verified
+
+`npm test` is the committed suite — 237 cases, offline, fast.
+
+Three further tiers exist on the maintainer's machine only and are **not in this
+repository**; they are described in `INTERNAL.md`, which is stripped from the
+public mirror along with them.

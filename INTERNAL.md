@@ -37,6 +37,43 @@ MCP registration on internal machines uses the internal package:
 claude mcp add mailman -- npx -y @indianic/mailman
 ```
 
+## The local-only verification tiers
+
+`npm test` is the committed suite. Three further tiers live on the maintainer's
+machine and are **deliberately not in the repository** — they are excluded via
+`.git/info/exclude` rather than `.gitignore`, because editing the tracked
+`.gitignore` would itself be a change to commit, which defeats "local only".
+Nothing in `package.json` or CI references them either, so the commands below
+are the entry points.
+
+That also means they never reach the public GitHub mirror — not because
+`scripts/sync-github.sh` strips them (it strips `site/`, `docker/`, `scripts/`
+and this file), but because they were never tracked to begin with.
+
+| Tier | Command | Question it answers | Needs |
+|---|---|---|---|
+| `eval/` | `npx tsx --test eval/*.eval.ts` | Is the surface we hand a model or a person still correct, safe and self-consistent — and are our stated claims still true? | Nothing — offline, <1s, **111 static rubrics** |
+| `smoke/` | `npx tsx --test smoke/*.test.ts` | Does the actual published tarball install and work on a real OS? | Docker + network |
+| watchable | `./smoke/check-terminal.sh` | The same question as `smoke/`, but in a window you can watch — and with a real TTY, so colour and the diamond tree are what a user actually sees | macOS + a live install |
+
+```bash
+npx tsx --test eval/*.eval.ts              # the fast rubrics
+npx tsx --test smoke/linux-container.test.ts   # npm pack → clean Linux box
+./smoke/check-terminal.sh --build          # watch the CLI run, against dist/
+./smoke/check-terminal.sh --docker         # all 31 commands, in the container
+node smoke/record-cast.mjs --redact        # a shareable PTY recording + player
+```
+
+**Before sharing anything these produce**, pass `--redact`. A recording of a
+live install is a recording of a real mailbox: `account list` prints every
+configured address and `contacts list` prints the whole address book. The
+masking is length-preserving so the column alignment the artefact exists to show
+is not itself altered, and both the recorder and the image renderer verify their
+own output afterwards and refuse to claim success if anything survived.
+
+`eval/README.md` lists the suites; `eval/PLAN.md` explains what the tier is
+organised around and what is deliberately left out of it.
+
 ## Releasing
 
 Bump, then ship — two commands:

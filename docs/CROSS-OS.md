@@ -108,6 +108,21 @@ macOS column of the matrix is filled from the real verification runs on
 2026-07-01/02 (see CHECKLIST.md Phases 1, 3, 7 and the `mailman init` run
 that wrote `~/.claude.json`).
 
+## File permissions where POSIX modes do not exist
+
+`accounts.json`, `settings.json`, `scheduled.json` and `activity.log` are all
+written owner-only (`0o600`), in a directory created `0o700`. On Windows,
+FAT/exFAT volumes and some network mounts those modes have no meaning and
+`fs.chmod` **throws** rather than silently doing nothing.
+
+So the mode is applied at **creation** — `writeFile`/`appendFile` take it
+directly — and the follow-up `chmod` is a re-assertion for a file that already
+existed (say, one written by an older build under a looser umask). That second
+call is wrapped and allowed to fail. Losing an entire config write, credentials
+included, because a permission bit could not be set would be far worse than
+relying on the mode the file was born with; and on Windows the user profile is
+restricted by other means anyway.
+
 ## Known risks / backlog
 
 - **keytar is unmaintained upstream** (the Atom project sunset it; repo
@@ -119,3 +134,8 @@ that wrote `~/.claude.json`).
   toolchain; document or ship a prebuild if container use becomes real.
 - **WSL**: behaves like headless Linux. If demand appears, document the
   `gnome-keyring-daemon` recipe explicitly rather than auto-starting one.
+- **CI covers one platform.** `.github/workflows/ci.yml` runs `ubuntu-latest`
+  only, so every 🟡 in the matrix above has no runtime backstop at all — the
+  Windows column is verified by unit tests and static rubrics and nothing else.
+  Adding `macos-latest` and `windows-latest` to the matrix is the fix; until
+  then, treat 🟡 as literally as the legend says.

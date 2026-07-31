@@ -190,6 +190,24 @@ hit in use rather than by the plan, which is why they sit outside the phases.
 - [x] `installHint` is pure and takes `platform` explicitly, so the Windows and
       Linux strings are unit-tested from macOS
 
+### Error-code and portability fixes — unreleased
+- [x] `schedule_send` returns `DRAFT_ALREADY_SENT` for a draft that has already
+      gone out, instead of `DRAFT_EXPIRED`. The code was declared and returned
+      by nothing, so a model branching on it had a permanently dead path — and
+      the two mean opposite things: expiry is recoverable by re-drafting,
+      "already sent" means doing that would send a second copy
+- [x] All three `DRAFT_NOT_FOUND` messages now carry a remedy, except
+      `cancel_draft`, where the honest answer is that nothing is pending
+- [x] `chmod` on the config files and the activity log tolerates a filesystem
+      without POSIX modes (Windows, FAT/exFAT, some network mounts). Both files
+      are created with `0o600` directly; the `chmod` is a re-assertion that is
+      allowed to fail rather than take the whole write down
+- [x] `docs/SKILLS.md` lists the error codes `schedule_send` and `cancel_draft`
+      can return, and which are worth branching on separately
+- [x] `docs/CROSS-OS.md` documents the file-permission behaviour, and records
+      that CI covers ubuntu only — so every 🟡 in the matrix has no runtime
+      backstop
+
 ### Publishing
 - [x] `@integratex/mailman` live on the public npm registry (1.2.1), with
       matching GitHub releases and the filtered source mirror

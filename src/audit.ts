@@ -50,8 +50,19 @@ export function appendActivity(entry: ActivityEntry): Promise<void> {
   return enqueue(logPath, async () => {
     await fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o700 });
     await rotateIfNeeded(logPath);
-    await fs.appendFile(logPath, `${JSON.stringify(entry)}\n`, 'utf8');
-    await fs.chmod(logPath, PRIVATE_FILE_MODE);
+    // `mode` applies when appendFile CREATES the file, which is the case that
+    // matters — a log born 0o600 never has a window where it is world-readable.
+    await fs.appendFile(logPath, `${JSON.stringify(entry)}\n`, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
+    // The chmod re-asserts it for a log that already existed (e.g. created by
+    // an older build under a looser umask). It is tolerated rather than
+    // required: POSIX modes do not exist on Windows, FAT/exFAT volumes or some
+    // network mounts, where chmod throws — and an audit-log write must never
+    // take down the tool call it is recording.
+    try {
+      await fs.chmod(logPath, PRIVATE_FILE_MODE);
+    } catch {
+      // no POSIX permissions here; the file was created with the mode above
+    }
   });
 }
 

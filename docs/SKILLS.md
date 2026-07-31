@@ -173,7 +173,9 @@ Dispatches the exact draft produced by `draft_email`.
 Discards a pending draft without sending.
 
 - **Input**: `{ draftId: string }`
-- **Output**: `{ cancelled: true }`
+- **Output**: `{ cancelled: true }`, or `DRAFT_NOT_FOUND` if there is no such
+  pending draft. That error needs no remedy and should not be retried: the
+  draft has already expired or been cancelled, so the goal is already met.
 
 ## `schedule_send`
 
@@ -191,6 +193,12 @@ actually fire it later. Nothing is sent by this call itself.
   TTL expires — once scheduled, the entry lives independently in
   `scheduled.json`, decoupled from the ephemeral draft store. One-time
   sends only; there's no recurring/repeating schedule support.
+- **Errors**: `DRAFT_NOT_FOUND` (drafts are in-memory and expire — call
+  `draft_email` again), `DRAFT_ALREADY_SENT` if the draft has already gone out,
+  and `DRAFT_EXPIRED` for a draft that lapsed or is already scheduled. The first
+  two are worth branching on separately: an expired draft can be recreated and
+  scheduled, whereas an already-sent one means the mail is gone and scheduling
+  it again would send a second copy.
 
 ## `list_scheduled`
 

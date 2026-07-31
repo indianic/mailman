@@ -34,7 +34,10 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const draft = getDraft(draftId);
   if (!draft) {
-    return toolError(ErrorCodes.DRAFT_NOT_FOUND, `No such draft: ${draftId}`);
+    return toolError(
+      ErrorCodes.DRAFT_NOT_FOUND,
+      `No such draft: ${draftId} — drafts are in-memory and expire; call draft_email again to create a new one.`,
+    );
   }
 
   // Idempotent replay: a retried confirm_send after an ambiguous prior

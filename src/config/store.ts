@@ -81,8 +81,18 @@ async function writeRaw<T>(filePath: string, schema: z.ZodType<T, z.ZodTypeDef, 
   // real path — a crash mid-write leaves the old file intact, never a
   // half-written blob. Mode is set explicitly rather than trusting umask.
   const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
-  await fs.writeFile(tmpPath, JSON.stringify(validated, null, 2), 'utf8');
-  await fs.chmod(tmpPath, PRIVATE_FILE_MODE);
+  await fs.writeFile(tmpPath, JSON.stringify(validated, null, 2), { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
+  // writeFile above already creates the temp file owner-only, so this is a
+  // re-assertion, not the guarantee. Tolerated rather than required: POSIX
+  // modes do not exist on Windows, FAT/exFAT volumes or some network mounts,
+  // where chmod throws — and losing the whole config write (credentials
+  // included) because a permission bit could not be set is far worse than
+  // relying on the mode the file was created with.
+  try {
+    await fs.chmod(tmpPath, PRIVATE_FILE_MODE);
+  } catch {
+    // no POSIX permissions here; the file was created with the mode above
+  }
   await fs.rename(tmpPath, filePath);
 }
 

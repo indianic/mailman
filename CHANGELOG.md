@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+- fix: `schedule_send` now returns `DRAFT_ALREADY_SENT` for a draft that has already gone out, instead of `DRAFT_EXPIRED`. The two mean opposite things to a caller deciding what to do next — an expired draft can be recreated and scheduled, whereas an already-sent one means the mail is gone and scheduling it again would send a second copy. `DRAFT_ALREADY_SENT` was declared in `ErrorCodes` and returned by nothing, so a model branching on it had a permanently dead path.
+- fix: `chmod` on the config files and the activity log no longer throws where POSIX permissions do not exist (Windows, FAT/exFAT volumes, some network mounts). Both files are now created with mode `0o600` directly and the `chmod` is a re-assertion that is allowed to fail — previously it could take down the surrounding write, credentials included, because a permission bit could not be set.
+- `DRAFT_NOT_FOUND` messages now say what to do about it. "No such draft: `<id>`" named the problem and left the caller with nowhere to go; each of the three sites now explains that drafts are in-memory and expire, except `cancel_draft`, where the honest answer is that nothing is pending and no action is needed.
+- Docs: `docs/SKILLS.md` now lists the error codes `schedule_send` and `cancel_draft` can return, and says which of them are worth branching on separately.
+
 ## [1.2.1] - 2026-07-30
 
 - `mailman doctor` gained a **dependencies** section and a `--fix` flag. It already reported that the keyring was unreachable but never why, and on Linux there are two causes that look identical from the outside and need different fixes. The section now checks `npm` (which `mailman update` shells out to) and, on Linux only, `libsecret` — keytar's native backend; macOS and Windows ship their own credential store, so nothing is checked or suggested there. `--fix` prints the exact platform command: `sudo apt install libsecret-1-0` when the library is absent, versus `sudo apt install gnome-keyring` when it is present but no Secret Service daemon is running. Both cases verified against real containers. Commands are printed, never executed — installing a system library needs root. Where `ldconfig` is unavailable (musl/Alpine) it reports "could not verify" rather than claiming the library is missing.
