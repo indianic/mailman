@@ -18,20 +18,23 @@ send (which needs live creds and stays the macOS-verified manual step).
 
 | Capability | macOS | Linux (desktop) | Linux (headless) | WSL | Windows |
 |---|---|---|---|---|---|
-| Credential store (master key) | ✅ Keychain (login) | ✅ Secret Service via libsecret / gnome-keyring (Docker) | ❌ by design — fails with instructions, never plaintext | ❌ like headless Linux (no Secret Service daemon by default) | 🟡 Credential Manager |
+| Credential store (master key) | ✅ Keychain (login) | ✅ Secret Service via libsecret / gnome-keyring (Docker) | ✅ **not needed** — `passphrase`/`env`/`file` keystores need no session bus (was ❌ by design before 1.3.0) | ✅ same as headless Linux | 🟡 Credential Manager |
 | Config dir | ✅ `~/Library/Application Support/mcp-mailman/` | ✅ `~/.config/mcp-mailman/` (Docker) | ✅ same | 🟡 same | 🟡 `%APPDATA%\mcp-mailman\` |
-| Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | ✅ ciphertext-only + decrypt roundtrip (Docker) | — | — | 🟡 same code path |
+| Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | ✅ ciphertext-only + decrypt roundtrip (Docker) | ✅ configure + decrypt via `passphrase`/`env`/`file` (Docker, incl. musl) | ✅ same as headless Linux | 🟡 same code path |
 | No-keyring failure mode (clear error, no plaintext fallback) | ✅ simulated (deleted keychain entry → clean `NO_MASTER_KEY`) | ✅ missing key → `NoMasterKeyError` (Docker) | ✅ configureAccount → `KeyringUnavailableError`, no accounts.json (Docker) | 🟡 | 🟡 |
-| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves the `mailman` bin (Docker) | ✅ same | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
+| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves the `mailman` bin (Docker) | ✅ same, and the line now carries `DBUS_SESSION_BUS_ADDRESS`/`XDG_RUNTIME_DIR`/`MAILMAN_KEYSTORE` | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) — **no env block**, so a non-default `MCP_MAILMAN_CONFIG_DIR` is not carried through |
 | CLI bins (`mailman` + `mcp-mailman` alias) | ✅ | ✅ both on PATH (Docker) | ✅ same | 🟡 | 🟡 npm `.cmd`/`.ps1` shims; no GNU collision |
 | MCP stdio server + editor config write | ✅ (Claude Code, real `~/.claude.json`) | ✅ `register --tools claude` wrote valid `~/.claude.json` (Docker) | ❌ interactive `init` needs a TTY (guard added) | 🟡 | 🟡 |
 | Real Gmail send + read | ✅ (App Password, live) | 🟡 not run in container (needs live creds) | — | — | 🟡 |
 
 ## How the credential store works per OS
 
-One code path (`src/config/keychain.ts`) — `keytar.setPassword('mcp-mailman',
-'master-key', <256-bit key>)` — backed by a different OS facility on each
-platform:
+`src/config/keychain.ts` is still the only master-key surface every caller uses,
+but since 1.3.0 it delegates to one of four **keystore backends**
+(`src/config/keystore/`) — see [HEADLESS-KEYSTORE.md](HEADLESS-KEYSTORE.md).
+`os-keychain` is the default wherever the OS store is reachable and behaves
+exactly as it always did: `keytar.setPassword('mcp-mailman', 'master-key',
+<256-bit key>)`, backed by a different OS facility on each platform:
 
 - **macOS** — the login Keychain. Inspect with Keychain Access → search
   "mcp-mailman". No extra setup.
@@ -115,7 +118,22 @@ that wrote `~/.claude.json`).
   cross-read of the real keytar-written entry verified in both directions
   on macOS (zero-migration swap), musl/Alpine prebuilds included. Full
   findings + phased plan: [KEYTAR-MIGRATION.md](KEYTAR-MIGRATION.md).
-- **musl/Alpine**: no prebuild → source build needs libsecret headers +
-  toolchain; document or ship a prebuild if container use becomes real.
-- **WSL**: behaves like headless Linux. If demand appears, document the
-  `gnome-keyring-daemon` recipe explicitly rather than auto-starting one.
+- **musl/Alpine**: ~~no prebuild → source build needs libsecret headers +
+  toolchain~~ — **resolved 2026-08-03, verified on node:20-alpine.**
+  `npm install -g` succeeds (keytar does ship a musl prebuild); the binary then
+  fails to *load* for want of libsecret, which the keystore backends make
+  survivable. `MAILMAN_KEYSTORE=passphrase` (or `env`) works end to end and
+  `doctor` reports the whole run green — libsecret is no longer counted as a
+  missing dependency when the active keystore has no use for it. Covered by
+  `./docker/test-headless-keystore.sh musl` (50 checks).
+- **WSL**: behaves like headless Linux — which since 1.3.0 means it works out
+  of the box with `MAILMAN_KEYSTORE=passphrase` or `env`. The
+  `gnome-keyring-daemon` recipe is deliberately still not documented or
+  auto-started: on a machine with no session it buys nothing a key file
+  doesn't.
+- **Windows Task Scheduler carries no environment.** `schtasks /TR` takes a bare
+  command, so unlike cron and launchd the ticker there does not inherit a
+  non-default `MCP_MAILMAN_CONFIG_DIR` or a pinned `MAILMAN_KEYSTORE`. Harmless
+  on a default install (Credential Manager is reachable from a task running as
+  the same user); it would bite an isolated profile. Not fixed because it cannot
+  be verified on this hardware — see the Windows column above.

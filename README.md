@@ -216,9 +216,50 @@ Scopes requested: `gmail.send`, `gmail.readonly`, `contacts.readonly`. (`gmail.r
 
 ## Security
 
-Credentials are **machine-bound**, not just encrypted: the encryption key lives in your OS's native store (macOS Keychain, Windows Credential Manager, Linux Secret Service via `keytar`), never in the config dir. Copying `accounts.json` to another machine yields useless ciphertext — `mailman` there refuses to decrypt rather than degrade. Every tool call is appended to a local `activity.log` (tool name + non-sensitive metadata only — never bodies/credentials).
+Credentials are encrypted at rest with AES-256-GCM, and the key is **never in the config dir**. Copying `accounts.json` to another machine yields useless ciphertext — `mailman` there refuses to decrypt rather than degrade. mailman never falls back to storing secrets in plaintext. Every tool call is appended to a local `activity.log` (tool name + non-sensitive metadata only — never bodies/credentials).
 
-> Linux headless needs a running Secret Service provider (gnome-keyring, kwallet). No keyring → setup fails with instructions rather than storing plaintext. See [docs/CROSS-OS.md](docs/CROSS-OS.md).
+Where the key itself lives is a **keystore backend**. On a desktop you never choose one — the OS credential store is the default and nothing changes:
+
+| Keystore | Where the key is | Protects against | Does **not** protect against |
+|---|---|---|---|
+| `os-keychain` *(default)* | macOS Keychain, Windows Credential Manager, Linux Secret Service | the config dir being copied anywhere; the key is bound to this machine and user | anything running as you on this machine while the keyring is unlocked |
+| `passphrase` | nowhere — derived with scrypt from a passphrase you type. Only a salt is stored | the config dir being copied *and* read; no key material exists at rest | someone who has both the config dir and the passphrase — unlike `os-keychain`, this is **not** machine-bound |
+| `env` | nowhere — handed to the process in `MAILMAN_MASTER_KEY` | whatever your platform's secret store protects; mailman persists nothing | anything that can read the process environment |
+| `file` | a 0600 file **outside** the config dir | the config dir being copied with the key left behind (rsync, `docker COPY`, a stray commit) | anything running as you that can read the file. **`doctor` reports this backend as degraded** |
+
+`mailman doctor` prints which one is active. To change it, move the key deliberately — never by just switching the setting:
+
+```bash
+mailman auth migrate-keystore --to passphrase   # re-encrypts, or moves the key, as appropriate
+```
+
+### Headless Linux, Docker, CI
+
+The OS credential store needs a **running Secret Service daemon**, not just the `libsecret` library — and a headless server has no desktop session to unlock one. Making `gnome-keyring` work there takes ~16 extra packages (`gcr4` pulls in GTK4), a `gnome-keyring-daemon --unlock` systemd user service fed a password file, and `loginctl enable-linger`. Don't. Pick a keystore that needs no session:
+
+```bash
+# A person is present at setup, and unattended runs read the passphrase from the environment
+MAILMAN_KEYSTORE=passphrase mailman init
+
+# Containers, CI, systemd — your platform already manages secrets, so let it
+export MAILMAN_MASTER_KEY="$(node -e 'console.log(require("crypto").randomBytes(32).toString("base64"))')"
+MAILMAN_KEYSTORE=env mailman init
+```
+
+This also makes **Alpine/musl** work, which it previously didn't: keytar installs there but its binary can't load without libsecret, and nothing else needs it. Verified on `node:20-alpine` — nothing to install, just pick a keystore.
+
+Be clear-eyed about the trade: on a headless box an auto-unlocked `gnome-keyring` is roughly equivalent to a root-owned key file, with far more moving parts. `passphrase` is stronger than either *only* while the passphrase is not sitting next to the ciphertext — which means a `MAILMAN_MASTER_PASSPHRASE` line in a crontab is a key file with extra steps, and a worse one, since a passphrase is likelier to be reused elsewhere than 32 random bytes are. For unattended sends prefer `env` (platform-managed) or accept `file` knowingly.
+
+**Scheduled sends on Linux** run from crontab, which has no D-Bus session. mailman writes `DBUS_SESSION_BUS_ADDRESS`, `XDG_RUNTIME_DIR`, `MCP_MAILMAN_CONFIG_DIR` and `MAILMAN_KEYSTORE` into the line it manages, and repairs an older line the next time you schedule something. It will **not** write your passphrase or key there — that is your call to make. On a server, also run `loginctl enable-linger $USER`, or `/run/user/$UID` disappears at logout and takes the session bus with it.
+
+| Env var | Purpose |
+|---|---|
+| `MAILMAN_KEYSTORE` | `os-keychain` \| `passphrase` \| `env` \| `file`. Overrides the recorded backend — unset it after migrating, or it keeps winning |
+| `MAILMAN_MASTER_PASSPHRASE` | passphrase for the `passphrase` keystore, for unattended runs |
+| `MAILMAN_MASTER_KEY` | base64 32-byte key for the `env` keystore |
+| `MAILMAN_MASTER_KEY_FILE` | overrides where the `file` keystore keeps its key |
+
+See [docs/HEADLESS-KEYSTORE.md](docs/HEADLESS-KEYSTORE.md) for the design and [docs/CROSS-OS.md](docs/CROSS-OS.md) for the per-OS matrix.
 
 ## Config location
 
