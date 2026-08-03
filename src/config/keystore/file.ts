@@ -71,9 +71,20 @@ export function fileBackend(record: KeystoreRecord | null): KeystoreBackend {
     // the key that a config dir on this machine is encrypted with, and
     // truncating it destroys those credentials with no way back.
     await fs.writeFile(keyFile, `${key.toString('base64')}\n`, { encoding: 'utf8', flag: exclusive ? 'wx' : 'w', mode: KEY_FILE_MODE });
-    // writeFile's `mode` only applies when it creates the file, so an existing
-    // file keeps whatever permissions it had.
-    await fs.chmod(keyFile, KEY_FILE_MODE);
+    // writeFile's `mode` only applies when it CREATES the file, so an existing
+    // file keeps whatever permissions it had — hence the re-assertion.
+    //
+    // Tolerated rather than required, matching config/store.ts: POSIX modes do
+    // not exist on Windows, FAT/exFAT volumes or some network mounts, where
+    // chmod throws. Losing the write — and with it the only copy of the master
+    // key — because a permission bit could not be set would be far worse. On
+    // such a filesystem there are no mode bits to leak through anyway, and
+    // read() warns on every load if the file is group/world readable.
+    try {
+      await fs.chmod(keyFile, KEY_FILE_MODE);
+    } catch {
+      // Best effort; the create-time mode above is the actual guarantee.
+    }
   };
 
   const recordSelf = (): Promise<void> =>

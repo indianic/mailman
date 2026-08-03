@@ -166,14 +166,38 @@ test('passphrase: rotation re-salts, so the same passphrase yields a different k
 
 test('passphrase: unattended with no passphrase available fails with instructions', async () => {
   await isolated(async () => {
-    // No PASSPHRASE_ENV, and the test runner's stdin is not a TTY — exactly the
-    // cron/CI case.
+    // No PASSPHRASE_ENV, and nothing has registered a prompter — which is the
+    // cron/CI case AND the MCP server case. Only src/cli/main.ts registers one,
+    // so the config layer cannot prompt by construction rather than by checking
+    // isTTY and hoping.
     await assert.rejects(() => adopt(passphraseBackend(null)), (err: unknown) => {
       assert.ok(err instanceof KeyringUnavailableError);
       assert.match(err.message, new RegExp(PASSPHRASE_ENV));
-      assert.match(err.message, /not a terminal/);
+      assert.match(err.message, /nothing registered a prompt/);
+      assert.match(err.message, /MCP server deliberately cannot prompt/);
       return true;
     });
+  });
+});
+
+test('passphrase: a registered prompter is used, and only the CLI registers one', async () => {
+  const { setPassphrasePrompter } = await import('../src/config/keystore/passphrase.js');
+  await isolated(async () => {
+    let asked = '';
+    setPassphrasePrompter((message) => {
+      asked = message;
+      return Promise.resolve('typed at a terminal');
+    });
+    try {
+      const key = await adopt(passphraseBackend(null));
+      assert.equal(key.length, 32);
+      assert.match(asked, /passphrase/i, 'the prompter must receive a human-readable message');
+      // And the derived key really came from what the prompter returned.
+      process.env[PASSPHRASE_ENV] = 'typed at a terminal';
+      assert.deepEqual(await passphraseBackend(await readKeystoreRecord()).read(), key);
+    } finally {
+      setPassphrasePrompter(undefined);
+    }
   });
 });
 

@@ -20,7 +20,8 @@ export function envBackend(): KeystoreBackend {
     if (!raw) {
       throw new KeyringUnavailableError(
         `The env keystore is selected but ${MASTER_KEY_ENV} is not set. Set it to a base64 ` +
-          `${MASTER_KEY_BYTES}-byte key (generate one with: node -e "console.log(require('crypto').randomBytes(${MASTER_KEY_BYTES}).toString('base64'))").`,
+          `${MASTER_KEY_BYTES}-byte key. Generate one with: ` +
+          `node -p "require('crypto').randomBytes(${MASTER_KEY_BYTES}).toString('base64')"`,
       );
     }
 

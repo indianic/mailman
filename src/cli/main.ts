@@ -1,4 +1,4 @@
-import { intro, outro } from '@clack/prompts';
+import { intro, outro, password as passwordPrompt, isCancel } from '@clack/prompts';
 import { section, detail, fail } from './tree.js';
 import { getPackageVersion } from '../version.js';
 import { runStatus } from './status.js';
@@ -16,6 +16,22 @@ import { runRegister } from './register.js';
 import { runReset } from './reset.js';
 import { runUpdate } from './update.js';
 import { maybeNotifyUpdate, refreshUpdateCache, REFRESH_COMMAND } from './update-notifier.js';
+import { setPassphrasePrompter } from '../config/keystore/passphrase.js';
+
+/**
+ * The passphrase keystore needs a way to ask a human, and the config layer must
+ * not import a prompt library — it is loaded by the MCP stdio server too, where
+ * there is nobody to ask and where stdout belongs to JSON-RPC. Registering it
+ * here, in the CLI entry point, is what makes the server structurally incapable
+ * of prompting rather than merely checking isTTY first.
+ */
+setPassphrasePrompter(async (message) => {
+  const answer = await passwordPrompt({ message });
+  if (isCancel(answer)) {
+    throw new Error('Cancelled — no passphrase entered, so no key could be unlocked.');
+  }
+  return answer;
+});
 
 type CommandHandler = (args: string[]) => Promise<void>;
 

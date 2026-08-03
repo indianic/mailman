@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import { password as passwordPrompt, isCancel } from '@clack/prompts';
 import { KeyringUnavailableError, KeystoreNotStorableError } from './errors.js';
 import { MASTER_KEY_BYTES, type KeystoreBackend, type PreparedKey, type KeyIntent } from './types.js';
 import { writeKeystoreRecord } from './pointer.js';
@@ -74,25 +73,40 @@ function newKdf(): KeystoreKdf {
   return { algorithm: 'scrypt', salt: crypto.randomBytes(SALT_BYTES).toString('base64'), ...SCRYPT_PARAMS };
 }
 
-function interactive(): boolean {
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+/**
+ * How to ask a human for the passphrase, injected by the CLI.
+ *
+ * The config layer must not import a prompt library. It is loaded by the MCP
+ * stdio server too, where there is no human and where anything written to stdout
+ * corrupts the JSON-RPC stream — an eval guards the boundary
+ * (eval/hygiene.eval.ts, "the prompt library is reached only from the CLI
+ * layer"). Leaving it unset is what makes the server structurally unable to
+ * prompt, which is stronger than the isTTY check this replaced.
+ *
+ * src/cli/main.ts registers the @clack implementation for terminal use.
+ */
+export type PassphrasePrompter = (message: string) => Promise<string>;
+
+let prompter: PassphrasePrompter | undefined;
+
+export function setPassphrasePrompter(fn: PassphrasePrompter | undefined): void {
+  prompter = fn;
 }
 
 function noPassphraseAvailable(action: string): KeyringUnavailableError {
   return new KeyringUnavailableError(
     `The passphrase keystore needs a passphrase to ${action}, and this process has no way to ask for one: ` +
-      `${PASSPHRASE_ENV} is not set and stdin is not a terminal. Set ${PASSPHRASE_ENV} for unattended runs ` +
-      '(cron, CI, containers), or run the command in a real terminal.',
+      `${PASSPHRASE_ENV} is not set and nothing registered a prompt (only the CLI does — the MCP server ` +
+      `deliberately cannot prompt). Set ${PASSPHRASE_ENV} for unattended runs (cron, CI, containers), or run ` +
+      'the command in a real terminal.',
   );
 }
 
 async function promptPassphrase(message: string): Promise<string> {
-  const answer = await passwordPrompt({
-    message,
-    validate: (value) => (value.length < MIN_PASSPHRASE_LENGTH ? `At least ${MIN_PASSPHRASE_LENGTH} characters.` : undefined),
-  });
-  if (isCancel(answer)) {
-    throw new KeyringUnavailableError('Cancelled — no passphrase entered, so no key could be unlocked.');
+  if (!prompter) throw noPassphraseAvailable('read a passphrase');
+  const answer = await prompter(message);
+  if (answer.length < MIN_PASSPHRASE_LENGTH) {
+    throw new KeyringUnavailableError(`The passphrase must be at least ${MIN_PASSPHRASE_LENGTH} characters.`);
   }
   return answer;
 }
@@ -101,7 +115,7 @@ async function promptPassphrase(message: string): Promise<string> {
 async function passphraseToUnlock(): Promise<string> {
   const fromEnv = process.env[PASSPHRASE_ENV];
   if (fromEnv) return fromEnv;
-  if (!interactive()) throw noPassphraseAvailable('unlock the master key');
+  if (!prompter) throw noPassphraseAvailable('unlock the master key');
   return promptPassphrase('Master passphrase');
 }
 
@@ -113,7 +127,7 @@ async function passphraseToUnlock(): Promise<string> {
 async function passphraseToCreate(): Promise<string> {
   const fromEnv = process.env[PASSPHRASE_ENV];
   if (fromEnv) return fromEnv;
-  if (!interactive()) throw noPassphraseAvailable('create a master key');
+  if (!prompter) throw noPassphraseAvailable('create a master key');
 
   const first = await promptPassphrase('Choose a master passphrase (nothing else can decrypt your credentials)');
   const second = await promptPassphrase('Confirm the master passphrase');

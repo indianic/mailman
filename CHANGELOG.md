@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-08-03
+
+### Fixed
+
+- **The `file` keystore threw on filesystems without POSIX permissions.** Its
+  `chmod` was unguarded, so Windows, FAT/exFAT volumes and some network mounts
+  would fail the write — losing the only copy of the master key over a permission
+  bit that cannot exist there. Now tolerated the same way `config/store.ts`
+  tolerates it: the create-time mode is the guarantee, the `chmod` is a
+  re-assertion, and `read()` still warns on every load if the file is
+  group/world readable. Introduced in 1.3.0 and caught by an eval that had no
+  runner.
+- **The passphrase keystore imported a prompt library into the config layer.**
+  `@clack/prompts` was reachable from `src/config/keystore/`, which the MCP stdio
+  server also loads — a layer where there is nobody to ask and where anything on
+  stdout corrupts the JSON-RPC stream. The prompt is now injected by the CLI
+  (`setPassphrasePrompter`, registered in `src/cli/main.ts`), so the server is
+  structurally incapable of prompting rather than relying on an `isTTY` check.
+
+### Internal
+
+- **`npm run eval` and `npm run verify` now exist.** `eval/` holds 10 files and
+  113 assertions and *nothing ran them* — no script, and the directory is
+  local-only. Five real defects had accumulated behind that gap, three of them
+  mine from 1.3.0–1.4.0. `verify` is lint + typecheck + build + test + eval.
+- Three evals were reading `src/config/keychain.ts` for code that moved into
+  `src/config/keystore/` in 1.3.0. They were not failing loudly — `indexOf`
+  returned -1 and the assertions passed against an empty string, which is worse.
+  Retargeted at the real files.
+- The test-isolation eval now accepts delegation to `test/support/isolate.ts`
+  instead of demanding the sandbox variable appear literally in every test file.
+- `privacy.eval.ts`'s "the master key must never leave the OS store" is
+  **restated, not dropped**: mailman now has an opt-in file keystore by design.
+  What is enforced instead is that writing key material is confined to that one
+  backend, that it is reachable only through the explicit `case 'file'` arm, and
+  that it reports itself as degraded.
+
 ## [1.4.0] - 2026-08-03
 
 ### Added
