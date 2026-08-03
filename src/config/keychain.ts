@@ -1,99 +1,73 @@
 import crypto from 'node:crypto';
-
-const MASTER_KEY_ACCOUNT = 'master-key';
-const KEY_LENGTH_BYTES = 32; // 256-bit
-
-export class NoMasterKeyError extends Error {}
-export class KeyringUnavailableError extends Error {}
+import { MASTER_KEY_BYTES } from './keystore/types.js';
+import { NoMasterKeyError } from './keystore/errors.js';
+import { resolveForRead, resolveForCreate } from './keystore/index.js';
 
 /**
- * Normally a fixed service name — one machine-bound key for the real
- * config dir. When MCP_MAILMAN_CONFIG_DIR is overridden (tests, or a
- * deliberately isolated profile), the keytar service name is namespaced
- * too, so isolated runs never read/write the real default keychain entry.
+ * The master-key surface every caller uses. Unchanged on purpose: `accounts.ts`,
+ * `status.ts`, `scheduler/store.ts`, `cli/rotate-key.ts`, `cli/reset.ts` and the
+ * `tools/*` error handlers all import from here and none of them had to change
+ * when backends arrived underneath.
+ *
+ * Which backend answers is decided in `keystore/index.ts` — see
+ * docs/HEADLESS-KEYSTORE.md for the resolution order and the rule that a
+ * missing key is never re-created onto a different backend.
  */
-export function getServiceName(): string {
-  const configDir = process.env.MCP_MAILMAN_CONFIG_DIR;
-  if (!configDir) {
-    return 'mcp-mailman';
-  }
-  const hash = crypto.createHash('sha256').update(configDir).digest('hex').slice(0, 12);
-  return `mcp-mailman-test-${hash}`;
-}
 
-// keytar's CJS named exports are unreliable under a dynamic ESM import
-// (static analysis misses some of its dynamically-assigned methods) — see
-// src/cli/doctor.ts, which hit the same issue. Always go through .default.
-async function getKeytar() {
-  const mod = await import('keytar');
-  return mod.default;
-}
+// Re-exported rather than redefined: a re-export keeps class identity, so every
+// `instanceof KeyringUnavailableError` already spread across tools/ and cli/
+// keeps matching what the backends throw.
+export { NoMasterKeyError, KeyringUnavailableError } from './keystore/errors.js';
 
-function describeKeyringFailure(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  return (
-    `Could not reach the OS credential store (${message}). On headless Linux this usually means no ` +
-    'Secret Service daemon (gnome-keyring/kwallet) is running. mailman will not fall back to storing ' +
-    'secrets in plaintext — fix the keyring and try again.'
-  );
-}
-
-async function readMasterKeyRaw(): Promise<string | null> {
-  const keytar = await getKeytar();
-  try {
-    return await keytar.getPassword(getServiceName(), MASTER_KEY_ACCOUNT);
-  } catch (err) {
-    throw new KeyringUnavailableError(describeKeyringFailure(err));
-  }
-}
+// keytar-specific pieces still live with the backend that uses keytar; kept
+// exported here because doctor.ts, reset.ts and the tests import them from this
+// path.
+export { getServiceName, withKeyring, type KeytarLike } from './keystore/os-keychain.js';
 
 /**
- * Generates a random 256-bit key on the first-ever call (no key stored
- * yet) and persists it via keytar; returns the existing key otherwise.
- * Only the write path (configureAccount) should call this — read paths
- * use getMasterKeyOrThrow() so a missing key is a hard error, not a
- * silent re-generation that would orphan already-encrypted secrets.
+ * Generates a random key on the first-ever call (no key stored yet) and persists
+ * it through the active backend; returns the existing key otherwise. Only the
+ * write path (configureAccount) should call this — read paths use
+ * getMasterKeyOrThrow() so a missing key is a hard error, not a silent
+ * re-generation that would orphan already-encrypted secrets.
  */
 export async function getOrCreateMasterKey(): Promise<Buffer> {
-  const existing = await readMasterKeyRaw();
+  const existing = await (await resolveForRead()).read();
   if (existing) {
-    return Buffer.from(existing, 'base64');
+    return existing;
   }
-
-  const key = crypto.randomBytes(KEY_LENGTH_BYTES);
-  const keytar = await getKeytar();
-  try {
-    await keytar.setPassword(getServiceName(), MASTER_KEY_ACCOUNT, key.toString('base64'));
-  } catch (err) {
-    throw new KeyringUnavailableError(describeKeyringFailure(err));
-  }
-  return key;
+  // resolveForCreate, not the read backend: the create path is the only one
+  // allowed to *choose* where a key lives, and it refuses to choose at all when
+  // there is existing ciphertext it might orphan.
+  const prepared = await (await resolveForCreate()).prepareKey('adopt');
+  await prepared.commit();
+  return prepared.key;
 }
 
 /**
  * Never falls back to plaintext. If `accounts.json` was copied to a
- * machine with no matching keychain entry, this throws NoMasterKeyError —
- * exactly the "useless ciphertext with no key nearby" property the
- * security model depends on.
+ * machine with no matching key, this throws NoMasterKeyError — exactly the
+ * "useless ciphertext with no key nearby" property the security model
+ * depends on.
  */
 export async function getMasterKeyOrThrow(): Promise<Buffer> {
-  const existing = await readMasterKeyRaw();
+  const existing = await (await resolveForRead()).read();
   if (!existing) {
     throw new NoMasterKeyError('No master key found for this machine — run `configure_account` again.');
   }
-  return Buffer.from(existing, 'base64');
+  return existing;
 }
 
-/** Overwrites the stored key unconditionally — only `auth rotate-key` should call this. */
+/**
+ * Overwrites the stored key unconditionally — only `auth rotate-key` should call
+ * this. Throws KeystoreNotStorableError on `passphrase`/`env`, which derive or
+ * receive their key and so cannot be handed one; rotation on those goes through
+ * the backend's own prepareRotation().
+ */
 export async function setMasterKey(key: Buffer): Promise<void> {
-  const keytar = await getKeytar();
-  try {
-    await keytar.setPassword(getServiceName(), MASTER_KEY_ACCOUNT, key.toString('base64'));
-  } catch (err) {
-    throw new KeyringUnavailableError(describeKeyringFailure(err));
-  }
+  await (await resolveForRead()).store(key);
 }
 
 export function generateMasterKey(): Buffer {
-  return crypto.randomBytes(KEY_LENGTH_BYTES);
+  return crypto.randomBytes(MASTER_KEY_BYTES);
 }

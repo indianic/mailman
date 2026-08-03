@@ -5,6 +5,7 @@ import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
 import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile, runAccountPassword } from './account.js';
 import { runRotateKey } from './rotate-key.js';
+import { runMigrateKeystore } from './migrate-keystore.js';
 import { runAuthLogin } from './auth-login.js';
 import { runSettingsGet, runSettingsSet } from './settings.js';
 import { runContactsList, runContactsAdd, runContactsRemove } from './contacts.js';
@@ -38,6 +39,7 @@ const COMMANDS: Record<string, CommandEntry> = {
   'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / email signature (--name, --signature, --clear-*)' },
   'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
+  'auth migrate-keystore': { handler: runMigrateKeystore, summary: 'Move the master key to another keystore (--to os-keychain|passphrase|env|file)' },
   contacts: { handler: null, summary: 'see `contacts list` / `contacts add` / `contacts remove`' },
   'contacts list': { handler: runContactsList, summary: 'Print the local address book' },
   'contacts add': { handler: runContactsAdd, summary: 'Add a contact manually' },
