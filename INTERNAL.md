@@ -108,6 +108,44 @@ Neither lives on this machine by default, and both fail misleadingly:
 Pass the GitHub token as `GH_TOKEN=<token> ./scripts/release`, or let the script
 prompt (input is never echoed and never written to disk).
 
+### Releasing without prompts — `scripts/release-auto`
+
+`./scripts/release` stops twice on a normal machine: `npm publish` under 2FA fails
+with `EOTP` and a browser URL, and GitHub has no token. `release-auto` wraps it and
+supplies both from a file, then hands off — every preflight, skip-if-done and
+ordering guarantee in `release` still applies.
+
+```bash
+mkdir -p ~/.config/mailman-release
+$EDITOR ~/.config/mailman-release/env      # NPM_TOKEN=... and GH_TOKEN=...
+chmod 600 ~/.config/mailman-release/env
+./scripts/release-auto                     # or --dry-run to just prove the tokens work
+```
+
+Read from `$MAILMAN_RELEASE_ENV`, then `~/.config/mailman-release/env`, then
+`<repo>/.release-env` (gitignored). Outside the repo is the default on purpose —
+a file in the working tree is one `git add -f` or one copied directory away from
+somewhere you did not intend.
+
+**`NPM_TOKEN` must be an *Automation* token.** It is the only npm token type that
+bypasses 2FA for publishing; a Publish or read-only token still demands an OTP.
+The npm credential is injected through a 0600 temp npmrc (a copy of `~/.npmrc`
+plus the token) that is deleted on every exit path — nothing is ever written to
+`~/.npmrc`, the repo, or anything that outlives the run. `release-auto` therefore
+must not `exec` the release script: `exec` replaces the process and the cleanup
+trap never fires, which left a live token in `/tmp` after every run until it was
+caught.
+
+Both tokens are verified before anything is packed — a bad npm token otherwise
+surfaces as `E404 Not Found - PUT`, and a wrong-account GitHub token as a `403`
+that reads like a missing scope.
+
+> Automation tokens are on borrowed time — that is the deprecation notice `npm
+> login` prints. The durable replacement is Trusted Publishing (OIDC) from a
+> workflow: no token at all, nothing to leak or expire. Note that
+> `sync-github.sh` excludes `.github/workflows` by default, so the mirror
+> currently runs no Actions at all; OIDC would need that changed too.
+
 ### Why the mirror is tagged, not the local commit
 
 `sync-github.sh` rebuilds a package-only tree in a throwaway worktree and tags

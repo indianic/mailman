@@ -6,3 +6,8 @@ dist/
 
 # packed tarball for the Docker cross-OS harness (regenerated each run)
 docker/mailman.tgz
+
+# Release credentials for scripts/release-auto. The DEFAULT location is
+# ~/.config/mailman-release/env, outside the repo — this entry only covers the
+# in-tree fallback, so a token here can never be committed by accident.
+.release-env
