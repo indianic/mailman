@@ -1,31 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import os from 'node:os';
-import path from 'node:path';
-import crypto from 'node:crypto';
 import { configureAccountTool } from '../src/tools/configure-account.js';
 import { listAccounts } from '../src/accounts.js';
-import { getServiceName } from '../src/config/keychain.js';
+import { withIsolatedConfig } from './support/isolate.js';
 
-// Same isolation pattern as accounts.test.ts — a throwaway config dir +
-// keychain namespace so nothing touches real config or the machine keychain.
-async function withIsolatedEnv(fn: () => Promise<void>): Promise<void> {
-  const dir = path.join(os.tmpdir(), `mailman-configacct-test-${crypto.randomBytes(6).toString('hex')}`);
-  const prior = process.env.MCP_MAILMAN_CONFIG_DIR;
-  process.env.MCP_MAILMAN_CONFIG_DIR = dir;
-  try {
-    await fn();
-  } finally {
-    try {
-      const keytar = (await import('keytar')).default;
-      await keytar.deletePassword(getServiceName(), 'master-key');
-    } catch {
-      // best-effort
-    }
-    if (prior === undefined) delete process.env.MCP_MAILMAN_CONFIG_DIR;
-    else process.env.MCP_MAILMAN_CONFIG_DIR = prior;
-  }
-}
+// Same isolation as accounts.test.ts — see test/support/isolate.ts.
+const withIsolatedEnv = (fn: () => Promise<void>) => withIsolatedConfig(() => fn());
 
 const parse = (res: { content: Array<{ text: string }> }) => JSON.parse(res.content[0].text);
 

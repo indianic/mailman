@@ -4,10 +4,45 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### mailman now works on headless Linux — servers, containers, CI, WSL
+
+Installing on a desktop-less Ubuntu box used to fail three times in a row: a raw `libsecret-1.so.0: cannot open shared object file` linker crash, then `Keyring backend: unreachable` once the library was installed, then `doctor --fix` advising you to "log into a desktop session" on a machine with no session to log into. Getting `gnome-keyring` working headlessly took ~16 extra packages, an `--unlock` systemd user service fed a password file, and `loginctl enable-linger`. That is not an install path for a mail CLI.
+
+The master key now lives behind a **keystore backend** (`src/config/keystore/`). `keychain.ts` keeps its exact public surface — `getOrCreateMasterKey`, `getMasterKeyOrThrow`, `setMasterKey`, `generateMasterKey`, `getServiceName`, `NoMasterKeyError`, `KeyringUnavailableError` — and every one of its callers is unchanged.
+
+- **`os-keychain`** (default, unchanged) — macOS Keychain, Windows Credential Manager, Linux Secret Service. Same service name, same account name, same storage location: **no existing install migrates or re-keys.**
+- **`passphrase`** — scrypt from `MAILMAN_MASTER_PASSPHRASE` or an interactive prompt, plus a random salt. **No key material at rest.** A wrong passphrase is rejected with a sentence rather than a GCM auth-tag failure from inside a send.
+- **`env`** — a base64 key handed over in `MAILMAN_MASTER_KEY`. Nothing is persisted; the platform owns the secret. The right answer for Docker/Kubernetes secrets, systemd `LoadCredential=`, and CI.
+- **`file`** — opt-in `0600` key file created with `O_EXCL`, **outside** the config dir so key and ciphertext are not copied together. Reported by `doctor` as degraded, not healthy.
+
+**Existing secrets are never orphaned.** A recorded backend always beats a probe, so a reachable keychain cannot silently take over a `passphrase` install. Setting `MAILMAN_KEYSTORE` to something other than where the key already lives is *refused* when credentials exist, rather than quietly minting a second key that leaves the first batch unreadable — the failure mode this whole design is arranged around. Where the key lives is recorded in a new `keystore.json` (backend name, scrypt salt, key-file path — **no key material**), because an unreachable Secret Service is otherwise indistinguishable from an empty one, and guessing wrong is what destroys credentials.
+
+- **New: `mailman auth migrate-keystore --to <backend>`** — the sanctioned way to move the key. A target that can hold a key receives the existing one and nothing is re-encrypted; a target that supplies its own key causes every stored credential to be rewritten under it. The key is read back out of the target and verified *before* the old copy is removed.
+- **`mailman auth rotate-key` works on every backend.** For `passphrase` that means a fresh salt against the same passphrase; `env` refuses, because there is nowhere for mailman to put a new key.
+- **`mailman reset` no longer orphans a `file` key.** It removes key material through the backend, so a key deliberately kept outside the config dir doesn't survive the wipe as 32 bytes of live secret in `~/.local/state`.
+
+### Fixed
+
+- **A missing `libsecret` produced a raw linker stack trace instead of the no-keyring guidance.** The keytar import sat *outside* the try/catch in all three of `keychain.ts`'s functions, so a native-load failure escaped as a bare `Error` and slipped past every `instanceof KeyringUnavailableError` handler in the codebase — the exact handlers that exist to explain this. (`--help`, `doctor` and `status` were always fine; keytar has been lazily imported for a long time.)
+- **`auth rotate-key` silently killed pending scheduled sends.** It re-encrypted `accounts.json` only, but `scheduled.json`'s message content uses the same master key. Every queued entry was left readable solely under the discarded key: `scheduled list` broke, and the ticker's GCM auth-tag failure was swallowed as a retryable error, so those sends died quietly after 5 attempts. Both files now rotate together, with an up-front dry run — an undecryptable *account* blocks the rotation before anything is written, an already-orphaned *scheduled* entry is reported and skipped so pre-existing damage can't block rotation forever.
+- **Scheduled sends on Linux failed at 3am with `Cannot autolaunch D-Bus without X11 $DISPLAY`.** The crontab line carried `PATH` and nothing else, and cron has no session bus. It now also carries `DBUS_SESSION_BUS_ADDRESS`, `XDG_RUNTIME_DIR`, `MCP_MAILMAN_CONFIG_DIR` and `MAILMAN_KEYSTORE`, and an older line is repaired the next time a send is scheduled. Secrets are deliberately *not* written there — `doctor` reports the passphrase-under-cron combination instead of quietly putting your passphrase in a crontab.
+- **`doctor` claimed `libsecret: present (keytar can reach the Secret Service)`** off a bare `ldconfig` grep. That is false on a headless box — present library, no daemon. Library and daemon are now separate rows, `--fix` routes off what the probe actually reported rather than what `ldconfig` guessed (fixing two mis-routings: a present-but-unusable library was told to install gnome-keyring, and an `ldconfig`-less image got no hint at all), and the credential store is only reported as *failed* when it is the store actually in use.
+- **`doctor`'s keyring probe wrote into the real keychain namespace** even under `MCP_MAILMAN_CONFIG_DIR`, which exists precisely to keep isolated profiles away from real credentials. It now probes under `getServiceName()`.
+- **`doctor --fix` sent headless servers further into the trap.** With no libsecret it printed only `sudo apt install libsecret-1-0`, which moves the machine from "no library" to "library, but no Secret Service daemon" — the next state in the same dead end, and the start of the 16-package detour. The `libsecret` hint now offers the keystore route too (and names `apk` for musl). Found on a real Ubuntu container; the unit tests could not see it because they never asked which of the two Linux failure modes was in play.
+- **A working headless setup was reported as broken.** libsecret is a dependency of exactly one backend, but it was reported as a missing dependency regardless — so on Alpine, where the `passphrase` keystore works end to end, `doctor` still printed `missing: libsecret` and "Some checks failed". It is now only counted when `os-keychain` is the active keystore.
 - fix: `schedule_send` now returns `DRAFT_ALREADY_SENT` for a draft that has already gone out, instead of `DRAFT_EXPIRED`. The two mean opposite things to a caller deciding what to do next — an expired draft can be recreated and scheduled, whereas an already-sent one means the mail is gone and scheduling it again would send a second copy. `DRAFT_ALREADY_SENT` was declared in `ErrorCodes` and returned by nothing, so a model branching on it had a permanently dead path.
 - fix: `chmod` on the config files and the activity log no longer throws where POSIX permissions do not exist (Windows, FAT/exFAT volumes, some network mounts). Both files are now created with mode `0o600` directly and the `chmod` is a re-assertion that is allowed to fail — previously it could take down the surrounding write, credentials included, because a permission bit could not be set.
 - `DRAFT_NOT_FOUND` messages now say what to do about it. "No such draft: `<id>`" named the problem and left the caller with nowhere to go; each of the three sites now explains that drafts are in-memory and expire, except `cancel_draft`, where the honest answer is that nothing is pending and no action is needed.
 - Docs: `docs/SKILLS.md` now lists the error codes `schedule_send` and `cancel_draft` can return, and says which of them are worth branching on separately.
+
+### Newly supported
+
+- **Alpine/musl works.** `docs/CROSS-OS.md` listed it as a known risk ("no prebuild → source build needs libsecret headers + toolchain"). Verified on `node:20-alpine`: `npm install -g` succeeds, keytar's binary then fails to *load* for want of libsecret, and `MAILMAN_KEYSTORE=passphrase` (or `env`) carries the whole flow with `doctor` reporting green.
+
+### Internal
+
+- `npm test` passes with **no OS keyring at all** (verified under a loader hook that makes `import('keytar')` fail exactly as a missing libsecret does). Tests default to the keyring-free `passphrase` keystore via a new shared `test/support/isolate.ts`; the 14 that are genuinely *about* the OS credential store are skipped rather than failed where none exists. `.gitlab-ci.yml` measured the old state as 25 failures with `libsecret` but no daemon — which is exactly what `.github/workflows/ci.yml` provides, so the mirror's `npm test` was red.
+- Full design, and the corrections the investigation made to the original bug report, in [docs/HEADLESS-KEYSTORE.md](docs/HEADLESS-KEYSTORE.md).
 
 ## [1.2.1] - 2026-07-30
 

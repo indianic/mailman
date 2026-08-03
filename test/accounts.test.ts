@@ -1,8 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import os from 'node:os';
-import path from 'node:path';
-import crypto from 'node:crypto';
 import {
   configureAccount,
   resolveAccount,
@@ -12,31 +9,14 @@ import {
   AccountRemovalConfirmationError,
 } from '../src/accounts.js';
 import { getSettings, updateSettings } from '../src/settings.js';
-import { getServiceName } from '../src/config/keychain.js';
+import { withIsolatedConfig } from './support/isolate.js';
 
-// Isolated per test: a fresh MCP_MAILMAN_CONFIG_DIR namespaces both the
-// config files and the keytar service name (see config/keychain.ts), so
-// these never touch real config or the real machine-wide keychain entry.
-async function withIsolatedEnv(fn: () => Promise<void>): Promise<void> {
-  const dir = path.join(os.tmpdir(), `mailman-accounts-test-${crypto.randomBytes(6).toString('hex')}`);
-  const prior = process.env.MCP_MAILMAN_CONFIG_DIR;
-  process.env.MCP_MAILMAN_CONFIG_DIR = dir;
-  try {
-    await fn();
-  } finally {
-    try {
-      const keytar = (await import('keytar')).default;
-      await keytar.deletePassword(getServiceName(), 'master-key');
-    } catch {
-      // best-effort cleanup
-    }
-    if (prior === undefined) {
-      delete process.env.MCP_MAILMAN_CONFIG_DIR;
-    } else {
-      process.env.MCP_MAILMAN_CONFIG_DIR = prior;
-    }
-  }
-}
+// Isolated per test, and on the keyring-free `passphrase` keystore by default
+// (see test/support/isolate.ts): a fresh MCP_MAILMAN_CONFIG_DIR namespaces the
+// config files, the keytar service name and the file-backend key path, so these
+// never touch real config or the real machine-wide keychain entry — and they run
+// on a CI runner with no OS credential store at all.
+const withIsolatedEnv = (fn: () => Promise<void>) => withIsolatedConfig(() => fn());
 
 function appPasswordInput(alias: string, setDefault?: boolean) {
   return {

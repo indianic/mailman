@@ -35,6 +35,15 @@ export function getSettingsPath(): string {
   return path.join(getConfigDir(), 'settings.json');
 }
 
+/**
+ * Which keystore backend holds the master key (see config/keystore/). Holds no
+ * key material — a scrypt salt is not a secret — so it belongs in the config dir
+ * with everything else, and inherits MCP_MAILMAN_CONFIG_DIR isolation for free.
+ */
+export function getKeystorePath(): string {
+  return path.join(getConfigDir(), 'keystore.json');
+}
+
 export function getScheduledPath(): string {
   return path.join(getConfigDir(), 'scheduled.json');
 }

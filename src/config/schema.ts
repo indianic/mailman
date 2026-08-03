@@ -148,3 +148,48 @@ export type ScheduledEntry = z.infer<typeof ScheduledEntrySchema>;
 export type ScheduledFile = z.infer<typeof ScheduledFileSchema>;
 
 export const DEFAULT_SCHEDULED_FILE: ScheduledFile = { schemaVersion: 1, entries: [] };
+
+// keystore.json — which backend holds the master key, and the non-secret inputs
+// needed to use it. Deliberately holds NO key material: a scrypt salt is not a
+// secret, and the file's whole job is to make backend resolution deterministic.
+//
+// Without it, a failed Secret Service probe is indistinguishable from "no key
+// was ever stored here" — and guessing wrong means minting a fresh key on
+// another backend while accounts.json stays encrypted under the old one. See
+// docs/HEADLESS-KEYSTORE.md.
+export const KeystoreKdfSchema = z.object({
+  algorithm: z.literal('scrypt'),
+  salt: z.string().min(1), // base64
+  N: z.number().int().positive(),
+  r: z.number().int().positive(),
+  p: z.number().int().positive(),
+  /**
+   * HMAC of the derived key, so a wrong passphrase is rejected with a sentence
+   * rather than a GCM auth-tag failure from inside a send. Not key material and
+   * not a weakening: accounts.json is already an oracle for candidate
+   * passphrases, and scrypt dominates the cost of a guess either way. Optional
+   * so a record written before this existed still parses.
+   */
+  verifier: z.string().min(1).optional(),
+});
+
+export const KeystoreRecordSchema = z.object({
+  backend: z.enum(['os-keychain', 'passphrase', 'env', 'file']),
+  /** `passphrase` only — the scrypt inputs the key is derived from. */
+  kdf: KeystoreKdfSchema.optional(),
+  /** `file` only — where the key file was written, so reset/migrate can find it. */
+  keyFile: z.string().min(1).optional(),
+  createdAt: z.string(),
+});
+
+export const KeystoreFileSchema = z.object({
+  schemaVersion: z.literal(1),
+  /** null on a legacy install that predates this file — resolution falls back to os-keychain. */
+  active: KeystoreRecordSchema.nullable(),
+});
+
+export type KeystoreKdf = z.infer<typeof KeystoreKdfSchema>;
+export type KeystoreRecord = z.infer<typeof KeystoreRecordSchema>;
+export type KeystoreFile = z.infer<typeof KeystoreFileSchema>;
+
+export const DEFAULT_KEYSTORE_FILE: KeystoreFile = { schemaVersion: 1, active: null };
