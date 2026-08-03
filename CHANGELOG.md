@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-08-03
+
+### Fixed
+
+- **HTML email signatures were broken two ways.** The account signature is a
+  plain-text field — `account profile --signature "Regards,\nKalpesh"` stores a
+  real newline — but it was dropped into an HTML body verbatim. Newlines
+  collapsed, so a multi-line signature arrived as one run-on line ("Regards,
+  Kalpesh Gamit IndiaNIC"), and markup characters were interpreted rather than
+  shown: a signature containing `<kalpesh@indianic.com>` **disappeared entirely**
+  because the browser read it as an unknown tag, and `Sales & Marketing` was an
+  invalid entity. Silent loss of content in every outgoing HTML email. The
+  signature is now escaped and then newline-converted (that order matters — the
+  reverse escapes the `<br>` it just inserted), CRLF/CR are normalised so a
+  signature typed on Windows breaks identically, and a stored signature can no
+  longer close the polished theme's card or open a tag that swallows the footer.
+  Text bodies are unchanged. The trade-off, stated plainly: a signature that
+  deliberately contained HTML now shows its tags literally instead of rendering —
+  correct for a field documented as plain text, and a visibly literal tag beats
+  content that vanishes.
+
 ## [1.3.1] - 2026-08-03
 
 Internal release tooling only — **no change to the published package.** `dist/`

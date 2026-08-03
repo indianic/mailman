@@ -22,14 +22,51 @@ export function mailmanHeaders(): Record<string, string> {
   return { 'X-Mailer': 'mcp-mailman' };
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** Exported for tests — the signature is the one place plain text meets HTML. */
+export function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+}
+
 /**
  * Appended at draft time (not send time) so the preview shown to the user
  * for confirmation matches exactly what confirm_send later dispatches.
+ *
+ * The signature is a PLAIN TEXT field — `account profile --signature
+ * "Regards,\nKalpesh"` stores a real newline, and docs/CLI.md documents it that
+ * way. Dropping it into an HTML body verbatim, which is what this used to do,
+ * broke it two ways:
+ *
+ *  - **Newlines vanished.** HTML collapses whitespace, so the documented
+ *    multi-line signature rendered as one run-on line: "Regards, Kalpesh Gamit
+ *    IndiaNIC". Only `<br><br>` between body and signature was ever emitted.
+ *  - **Markup characters were interpreted.** A signature containing
+ *    `<kalpesh@indianic.com>` disappeared entirely — the browser read it as an
+ *    unknown tag — and `Sales & Marketing` was an invalid entity. Silent loss,
+ *    which is worse than showing something wrong.
+ *
+ * So for HTML the signature is escaped first and *then* newlines become `<br>`.
+ * That order matters: escaping afterwards would turn the `<br>` into `&lt;br&gt;`.
+ *
+ * The trade-off, stated plainly: a signature that deliberately contains HTML now
+ * shows its tags literally instead of rendering. That is the correct reading of a
+ * field documented as plain text, and a visibly literal tag is a better failure
+ * than content that silently disappears.
  */
 export function appendSignature(body: string, signature: string | undefined, bodyType: 'text' | 'html'): string {
   if (!signature) return body;
-  const separator = bodyType === 'html' ? '<br><br>' : '\n\n';
-  return `${body}${separator}${signature}`;
+  if (bodyType === 'text') return `${body}\n\n${signature}`;
+
+  // Normalise CRLF/CR first so a signature typed on Windows breaks identically.
+  const asHtml = escapeHtml(signature.replace(/\r\n?/g, '\n')).replace(/\n/g, '<br>');
+  return `${body}<br><br>${asHtml}`;
 }
 
 /**
