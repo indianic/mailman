@@ -90,3 +90,42 @@ test('buildMailOptions maps attachments to nodemailer\'s filename/path/contentTy
 
   await fs.unlink(filePath);
 });
+
+/**
+ * The App Password / SMTP half of threading. Round-tripped through nodemailer's
+ * JSON transport so this asserts what nodemailer actually emits, not just the
+ * options object mailman built.
+ */
+test('buildMailOptions threads a reply via In-Reply-To and References', async () => {
+  const transport = nodemailer.createTransport({ jsonTransport: true });
+  const parent = '<CAF=abc123@mail.gmail.com>';
+
+  const info = await transport.sendMail(
+    buildMailOptions(
+      { user: 'me@example.com', pass: 'irrelevant' },
+      {
+        to: ['sandeep@indianic.com'],
+        subject: 'Re: mailman on headless Linux',
+        body: 'done',
+        inReplyTo: parent,
+        references: [parent],
+      },
+    ),
+  );
+
+  const sent = JSON.parse(info.message as unknown as string);
+  assert.equal(sent.inReplyTo, parent);
+  // nodemailer normalises `references` to a space-joined string per RFC 5322.
+  assert.equal(typeof sent.references === 'string' ? sent.references : sent.references.join(' '), parent);
+});
+
+test('buildMailOptions leaves the threading headers unset on a fresh message', async () => {
+  const options = buildMailOptions(
+    { user: 'me@example.com', pass: 'irrelevant' },
+    { to: ['a@example.com'], subject: 'fresh', body: 'hello' },
+  );
+  // undefined, not '' — an empty In-Reply-To is malformed and would thread the
+  // message under nothing.
+  assert.equal(options.inReplyTo, undefined);
+  assert.equal(options.references, undefined);
+});

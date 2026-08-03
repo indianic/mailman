@@ -110,7 +110,7 @@ spacing) stays consistent instead of drifting command by command.
 Resolves recipients/attachments/account and returns a preview. **Does not
 send.**
 
-- **Input**: `{ to: string | string[], cc?: string | string[], bcc?: string | string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string }`
+- **Input**: `{ to: string | string[], cc?: string | string[], bcc?: string | string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string, inReplyTo?: string, references?: string[] }`
 - **Output**: `{ draftId: string, expiresAt: string, preview: { from, to, cc, bcc, subject, bodyPreview, attachments: [{ name, sizeBytes, mimeType }] }, next_steps?: string[] }`
 - **Notes**: each of `to`/`cc`/`bcc` accepts one address, an array, or a
   single comma/semicolon-separated string, and tolerates the
@@ -131,6 +131,14 @@ send.**
   is set, and `preview.bodyPreview` already includes the account's
   `signature`, if any — the preview shown here is exactly what
   `confirm_send` later dispatches.
+
+  **Replying**: pass `inReplyTo` with the `messageId` from `read_email` and the
+  message threads under the one it answers. Omit it and the reply arrives as a
+  new message — Gmail's web UI often regroups it by subject, but Outlook, Apple
+  Mail and Thunderbird thread strictly on the header and will show it detached.
+  `references` defaults to `[inReplyTo]`, which is correct for replying to a root
+  message; pass the full chain explicitly for a deep thread. Both carry through
+  `schedule_send`, so a reply queued for 9am still lands in its thread.
 - **Example trigger**: *"mailman, send those docs to kalpesh.gamit@indianic.com"*
   → Claude resolves "those docs" to paths, composes subject/body, calls this.
 
@@ -377,12 +385,15 @@ registration, and recent activity counts.
 Reads the full content of one email.
 
 - **Input**: `{ account?: string, id: string }`
-- **Output**: `{ id, from, to, cc, subject, date, bodyText, bodyHtml?, truncated: boolean, attachments: [{ name, sizeBytes, mimeType }] }`
+- **Output**: `{ id, messageId?, from, to, cc, subject, date, bodyText, bodyHtml?, truncated: boolean, attachments: [{ name, sizeBytes, mimeType }] }`
 - **Notes**: attachment entries are metadata only — this tool does not
   download attachment bytes. `id` comes from a prior `list_recent_emails` or
   `search_emails` call. `bodyText`/`bodyHtml` are capped at ~20,000
   characters each; `truncated: true` marks an email that hit the cap, so
-  Claude knows not to treat the returned body as complete.
+  Claude knows not to treat the returned body as complete. **`messageId` is the
+  RFC 5322 header** (e.g. `"<abc@mail.gmail.com>"`) and is the value to pass as
+  `draft_email`'s `inReplyTo` when replying — `id` is a provider-local handle (an
+  IMAP UID or Gmail API id) and will not thread anything.
 
 ## `get_mailbox_overview`
 

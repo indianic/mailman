@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-08-03
+
+### Added
+
+- **Replies now thread.** `draft_email` accepts `inReplyTo` and `references`, and
+  emits the RFC 5322 `In-Reply-To`/`References` headers. Previously mailman set
+  only `X-Mailer` and a fresh `Message-ID`, so a reply arrived as a brand-new
+  message: Gmail's web UI often regrouped it by subject, but Outlook, Apple Mail
+  and Thunderbird thread strictly on those headers and showed it detached. The
+  `reply` template could quote the original but never thread it — the tool
+  surface advertised reply support it could not actually deliver.
+- **`read_email` returns `messageId`**, the original's RFC 5322 header. Nothing in
+  the surface carried it before, so a reply was impossible to construct even by
+  hand: `id` is a provider-local handle (an IMAP UID or Gmail API id) and will not
+  thread anything. The schema says which of the two it wants, because passing the
+  wrong one fails silently.
+- `references` defaults to `[inReplyTo]` — correct for replying to a root message,
+  so a caller only needs the single id `read_email` hands back. Pass the array
+  explicitly to preserve a longer chain.
+
+Threading carries through the whole path: draft → `confirm_send`, and draft →
+`schedule_send` → the encrypted entry → dispatch, so a reply queued for 9am still
+lands in its thread. The scheduled fields are optional, so entries queued by an
+earlier version still parse rather than becoming undecryptable on upgrade.
+
+Both transports covered: the App Password/SMTP path via nodemailer, and the Gmail
+API path asserted on the compiled RFC-822 bytes. A fresh message emits neither
+header — an empty `In-Reply-To` is malformed and would thread the message under
+nothing.
+
+### Internal
+
+- One `escapeHtml`, not two. `templates.ts` had a private copy escaping only
+  `& < >` while `compose.ts` gained a more complete one in 1.3.2; two subtly
+  different escapers in one mail pipeline is how one of them ends up wrong.
+
 ## [1.3.2] - 2026-08-03
 
 ### Fixed

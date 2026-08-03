@@ -52,6 +52,8 @@ async function handler(rawArgs: Record<string, unknown>) {
       bodyType: draft.bodyType,
       attachments: draft.rawAttachments,
       recursive: draft.recursive,
+      inReplyTo: draft.inReplyTo,
+      references: draft.references,
     },
   });
 

@@ -52,6 +52,8 @@ export async function dispatchOne(entry: ScheduledEntry): Promise<DispatchOutcom
       bodyType: content.bodyType,
       attachments: resolved.files.map((f) => ({ path: f.path, name: f.name, mimeType: f.mimeType })),
       fromDisplayName: account.displayName,
+      inReplyTo: content.inReplyTo,
+      references: content.references,
     });
 
     const sentAt = new Date().toISOString();

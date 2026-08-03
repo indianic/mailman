@@ -84,6 +84,8 @@ async function handler(rawArgs: Record<string, unknown>) {
     bodyType: draft.bodyType,
     attachments: draft.attachments.map((a) => ({ path: a.path, name: a.name, mimeType: a.mimeType })),
     fromDisplayName: account.displayName,
+    inReplyTo: draft.inReplyTo,
+    references: draft.references,
   };
 
   let messageId: string;

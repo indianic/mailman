@@ -125,6 +125,10 @@ export const ScheduledMessageContentSchema = z.object({
   // snapshotted (see docs/PLAN.md's "Scheduled sends" section).
   attachments: z.array(z.string()),
   recursive: z.boolean().optional(),
+  // RFC 5322 threading, so a reply scheduled for 9am still lands in its thread.
+  // Optional so entries written before 1.4.0 still parse.
+  inReplyTo: z.string().optional(),
+  references: z.array(z.string()).optional(),
 });
 
 export const ScheduledEntrySchema = z.object({

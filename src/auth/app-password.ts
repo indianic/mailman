@@ -32,6 +32,10 @@ export function buildMailOptions(credentials: AppPasswordCredentials, message: O
     // Brand the Message-ID (local part `mcp-mailman.*`) + X-Mailer header so
     // mailman's sends are identifiable in an inbox / by a filter.
     messageId: buildMessageId(credentials.user),
+    // nodemailer emits In-Reply-To/References verbatim from these. `references`
+    // takes an array and is joined with spaces per RFC 5322.
+    inReplyTo: message.inReplyTo,
+    references: message.references,
     headers: mailmanHeaders(),
     attachments: message.attachments?.map((a) => ({
       filename: a.name,

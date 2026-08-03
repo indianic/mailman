@@ -9,6 +9,11 @@
  * exposes it (filterable by category/search) and draft_email accepts `template`.
  */
 
+// Shared with compose.ts rather than duplicated: that copy also escapes the
+// quote characters, and two subtly different escapers in one mail pipeline is
+// how one of them ends up wrong.
+import { escapeHtml } from './compose.js';
+
 export type TemplateKind = 'hint' | 'mechanical';
 
 export interface EmailTemplate {
@@ -296,10 +301,6 @@ export function applySubjectPrefix(prefix: string, subject: string): string {
   if (!s) return prefix;
   if (s.toLowerCase().startsWith(prefix.toLowerCase())) return s;
   return `${prefix} ${s}`;
-}
-
-function escapeHtml(v: string): string {
-  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export interface ForwardedFields {

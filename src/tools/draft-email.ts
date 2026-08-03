@@ -33,6 +33,8 @@ const InputSchema = z.object({
   forwardedSubject: z.string().optional(),
   forwardedTo: z.string().optional(),
   forwardedBody: z.string().optional(),
+  inReplyTo: z.string().optional(),
+  references: z.array(z.string()).optional(),
 });
 
 function defaultSubject(attachments: DraftAttachment[]): string {
@@ -126,6 +128,11 @@ async function handler(rawArgs: Record<string, unknown>) {
     attachments: resolved.files,
     rawAttachments: input.attachments,
     recursive: input.recursive,
+    inReplyTo: input.inReplyTo,
+    // A reply to a root message has References = [that message]. Defaulted so a
+    // caller only has to pass the one id it got from read_email; pass the array
+    // explicitly to preserve a longer chain.
+    references: input.references ?? (input.inReplyTo ? [input.inReplyTo] : undefined),
     ttlMinutes: settings.draftTtlMinutes,
   });
 
@@ -198,6 +205,16 @@ export const draftEmailTool: Tool = {
         forwardedSubject: { type: 'string', description: 'fwd/reply: original subject' },
         forwardedTo: { type: 'string', description: 'fwd/reply: original recipients' },
         forwardedBody: { type: 'string', description: 'fwd/reply: original body to quote' },
+        inReplyTo: {
+          type: 'string',
+          description:
+            "The original's Message-ID, from read_email's messageId (e.g. \"<abc@mail.gmail.com>\"). Set this on a reply or the message arrives as a new thread rather than under the one it answers. Not the read_email `id`, which is a provider-local handle.",
+        },
+        references: {
+          type: 'array',
+          items: { type: 'string' },
+          description: "Full Message-ID chain for a deep thread. Omit and it defaults to [inReplyTo], which is correct for replying to a root message.",
+        },
       },
       required: ['to', 'body'],
       additionalProperties: false,
