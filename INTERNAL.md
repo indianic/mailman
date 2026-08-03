@@ -127,8 +127,18 @@ Read from `$MAILMAN_RELEASE_ENV`, then `~/.config/mailman-release/env`, then
 a file in the working tree is one `git add -f` or one copied directory away from
 somewhere you did not intend.
 
-**`NPM_TOKEN` must be an *Automation* token.** It is the only npm token type that
-bypasses 2FA for publishing; a Publish or read-only token still demands an OTP.
+**`NPM_TOKEN` must bypass 2FA**, or publish still demands an OTP. A Publish or
+read-only classic token, and the web-login token in `~/.npmrc`, do not. Mint one
+from the CLI — no web UI needed:
+
+```bash
+npm token create --name mailman-release --packages @integratex/mailman \
+    --packages-and-scopes-permission read-write --bypass-2fa --expires 365
+```
+
+That asks for your password and one OTP to create the token; it is the last OTP
+you type. (`npmjs.com -> Access Tokens -> Classic -> Automation` is the
+equivalent web path.)
 The npm credential is injected through a 0600 temp npmrc (a copy of `~/.npmrc`
 plus the token) that is deleted on every exit path — nothing is ever written to
 `~/.npmrc`, the repo, or anything that outlives the run. `release-auto` therefore

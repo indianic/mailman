@@ -26,7 +26,7 @@
 #
 # Format (both lines required unless you pass --skip-npm / --skip-github):
 #
-#   NPM_TOKEN=npm_xxxxxxxx      npmjs.com -> Access Tokens -> Classic -> Automation
+#   NPM_TOKEN=npm_xxxxxxxx      a token that bypasses 2FA — see below
 #   GH_TOKEN=ghp_xxxxxxxx       github.com/settings/tokens, needs push on indianic/mailman
 #
 # Create it:
@@ -34,12 +34,22 @@
 #   printf 'NPM_TOKEN=%s\nGH_TOKEN=%s\n' "$npm" "$gh" > ~/.config/mailman-release/env
 #   chmod 600 ~/.config/mailman-release/env
 #
-# ─── Why an npm *Automation* token ──────────────────────────────────────────
+# ─── Why the npm token has to bypass 2FA ────────────────────────────────────
 #
 # `npm publish` under 2FA fails with EOTP and a browser URL, which is the whole
-# reason this script exists. An Automation token is the one npm token type that
-# bypasses 2FA for publishing — a "Publish" or "Read-only" classic token, or the
-# web-login token in ~/.npmrc, will still demand an OTP.
+# reason this script exists. Only a token explicitly marked as bypassing 2FA can
+# publish unattended — a "Publish" or "Read-only" classic token, and the
+# web-login token in ~/.npmrc, will all still demand an OTP.
+#
+# Two ways to get one, both fine:
+#
+#   npm token create --name mailman-release --packages @integratex/mailman \
+#       --packages-and-scopes-permission read-write --bypass-2fa --expires 365
+#
+#   ...or npmjs.com -> Access Tokens -> Generate New Token -> Classic -> Automation
+#
+# The CLI form asks for your password and one OTP *once*, to mint the token. That
+# is the last OTP you enter; every release after it is prompt-free.
 #
 # npm is restricting 2FA-bypass tokens (you see the notice on every `npm login`).
 # When that lands, the replacement is Trusted Publishing (OIDC) from a workflow:
@@ -122,7 +132,9 @@ trap cleanup EXIT INT TERM
 
 if [ -n "$WANT_NPM" ]; then
     [ -n "${NPM_TOKEN:-}" ] || fail "NPM_TOKEN is not set in $ENV_FILE (needed unless you pass --skip-npm).
-    It must be an npmjs.com *Automation* token — a Publish token still asks for an OTP."
+    It must bypass 2FA, or publish still asks for an OTP. Mint one with:
+      npm token create --name mailman-release --packages @integratex/mailman \\
+          --packages-and-scopes-permission read-write --bypass-2fa --expires 365"
 
     CLEANUP_NPMRC="$(mktemp "${TMPDIR:-/tmp}/mailman-npmrc.XXXXXX")"
     chmod 600 "$CLEANUP_NPMRC"
@@ -137,8 +149,11 @@ if [ -n "$WANT_NPM" ]; then
     # tarball. A wrong or expired token surfaces on publish as `E404 Not Found -
     # PUT`, which reads like a missing package and sends people the wrong way.
     if ! WHOAMI=$(npm whoami --registry="$REGISTRY" 2>/dev/null); then
-        fail "NPM_TOKEN did not authenticate against $REGISTRY.
-    Generate a fresh Automation token: https://www.npmjs.com/settings/~/tokens"
+        fail "NPM_TOKEN did not authenticate against $REGISTRY — wrong, revoked or expired.
+    Mint a fresh one:
+      npm token create --name mailman-release --packages @integratex/mailman \\
+          --packages-and-scopes-permission read-write --bypass-2fa --expires 365
+    List what you have: npm token list"
     fi
     ok "npm: authenticated as $WHOAMI (token from $ENV_FILE, never written to ~/.npmrc)"
 fi
