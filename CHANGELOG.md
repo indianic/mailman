@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-08-03
+
+Internal release tooling only — **no change to the published package.** `dist/`
+is byte-identical to 1.3.0; this exists because the version was bumped, not
+because anything users install has changed.
+
+- `scripts/release-auto` — wraps `scripts/release` and supplies the two
+  credentials it otherwise stops to ask for, so a release needs no prompts. The
+  npm token must be an *Automation* token (the only type that bypasses 2FA for
+  publishing) and is injected through a 0600 temp npmrc deleted on every exit
+  path; nothing is written to `~/.npmrc` or the repo. Not shipped: `scripts/` is
+  excluded from both the npm tarball and the GitHub mirror.
+
 ## [1.3.0] - 2026-08-03
 
 ### mailman now works on headless Linux — servers, containers, CI, WSL
