@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.3.0] - 2026-08-03
 
 ### mailman now works on headless Linux — servers, containers, CI, WSL
 
