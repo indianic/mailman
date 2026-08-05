@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatFromAddress, appendSignature, escapeHtml, buildMessageId, mailmanHeaders } from '../src/mail/compose.js';
+import {
+  formatFromAddress,
+  appendSignature,
+  escapeHtml,
+  buildMessageId,
+  mailmanHeaders,
+  looksLikeHtmlSignature,
+} from '../src/mail/compose.js';
 
 test('formatFromAddress: bare email when no display name is set', () => {
   assert.equal(formatFromAddress('you@gmail.com'), 'you@gmail.com');
@@ -70,6 +77,80 @@ test('appendSignature: a signature cannot inject markup into the email', () => {
   assert.doesNotMatch(out, /<script>/);
   assert.doesNotMatch(out, /<\/div>/);
   assert.match(out, /&lt;script&gt;/);
+});
+
+/**
+ * A signature written as HTML — which is what people paste, because it is what
+ * their mail client hands them. Escaping it wholesale put a wall of `&lt;br&gt;`
+ * in front of four colleagues on the first real campaign; these tests pin the
+ * fix without giving up any guarantee above.
+ */
+test('appendSignature: an HTML signature renders instead of showing its tags', () => {
+  const sig = '---<br><i>Thanks &amp; Regards<br>Kalpesh Gamit</i><br><b>IndiaNIC</b>';
+  const out = appendSignature('<p>hi</p>', sig, 'html');
+  assert.equal(out, `<p>hi</p><br><br>${sig}`);
+  assert.doesNotMatch(out, /&lt;br&gt;|&lt;i&gt;/);
+  // An existing entity stays one entity — never double-escaped to &amp;amp;.
+  assert.doesNotMatch(out, /&amp;amp;/);
+});
+
+test('appendSignature: a plain-text signature is still escaped exactly as before', () => {
+  // The regression that matters most: HTML detection must not change the
+  // behaviour of the field's documented plain-text form.
+  assert.equal(appendSignature('x', 'a & b\nc', 'html'), 'x<br><br>a &amp; b<br>c');
+  assert.match(appendSignature('<p>hi</p>', 'Kalpesh <kalpesh@indianic.com>', 'html'), /&lt;kalpesh@indianic\.com&gt;/);
+});
+
+test('appendSignature: an address in angle brackets is not mistaken for a tag', () => {
+  // `<sub@…>` and `<a@…>` name real allowlisted tags. A loose matcher would
+  // read them as elements and delete the address — the exact silent loss the
+  // escaping was introduced to fix.
+  for (const sig of ['Kalpesh <sub@indianic.com>', 'Ann <a@indianic.com>', 'Bob <b@indianic.com>']) {
+    const out = appendSignature('<p>hi</p>', sig, 'html');
+    assert.match(out, /&lt;(sub|a|b)@indianic\.com&gt;/, sig);
+  }
+});
+
+test('appendSignature: an HTML signature cannot break out of the polished card', () => {
+  // div/p/table are not allowlisted: an unbalanced close tag would end the card
+  // early and swallow the footer.
+  const out = appendSignature('<p>hi</p>', '<i>ok</i></div><table><td>x</td></table>', 'html');
+  assert.match(out, /<i>ok<\/i>/, 'allowlisted formatting survives');
+  assert.doesNotMatch(out, /<\/div>|<table>|<td>/);
+  assert.match(out, /&lt;\/div&gt;/);
+});
+
+test('appendSignature: script and event handlers never survive an HTML signature', () => {
+  const out = appendSignature('<p>hi</p>', '<b>hi</b><script>alert(1)</script>', 'html');
+  assert.doesNotMatch(out, /<script>/);
+  assert.match(out, /&lt;script&gt;/);
+
+  const handler = appendSignature('<p>hi</p>', '<img src="x" onerror="alert(1)">', 'html');
+  assert.doesNotMatch(handler, /onerror/, 'unlisted attributes are dropped, not carried');
+  assert.match(handler, /<img src="x">/);
+});
+
+test('appendSignature: a javascript: link in a signature is stripped, a real one kept', () => {
+  const bad = appendSignature('x', '<a href="javascript:alert(1)">click</a>', 'html');
+  assert.doesNotMatch(bad, /javascript:/);
+  assert.match(bad, /<a>click<\/a>/);
+
+  const good = appendSignature('x', '<a href="https://indianic.com">IndiaNIC</a>', 'html');
+  assert.match(good, /<a href="https:\/\/indianic\.com">IndiaNIC<\/a>/);
+
+  // Inline logos arrive as data:image and are legitimate.
+  const logo = appendSignature('x', '<img src="data:image/png;base64,AAA">', 'html');
+  assert.match(logo, /data:image\/png/);
+});
+
+test('looksLikeHtmlSignature: distinguishes markup from prose that merely has angle brackets', () => {
+  assert.equal(looksLikeHtmlSignature('Regards,<br>Kalpesh'), true);
+  assert.equal(looksLikeHtmlSignature('<i>Kalpesh</i>'), true);
+  assert.equal(looksLikeHtmlSignature('Regards,\nKalpesh'), false);
+  assert.equal(looksLikeHtmlSignature('Kalpesh <kalpesh@indianic.com>'), false);
+  assert.equal(looksLikeHtmlSignature('Sales & Marketing'), false);
+  // Not an allowlisted tag, so still plain text — and still escaped.
+  assert.equal(looksLikeHtmlSignature('<div>x</div>'), false);
 });
 
 test('escapeHtml: covers the five characters that change meaning in markup', () => {

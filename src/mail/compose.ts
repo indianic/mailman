@@ -52,21 +52,136 @@ export function escapeHtml(value: string): string {
  *    unknown tag — and `Sales & Marketing` was an invalid entity. Silent loss,
  *    which is worse than showing something wrong.
  *
- * So for HTML the signature is escaped first and *then* newlines become `<br>`.
- * That order matters: escaping afterwards would turn the `<br>` into `&lt;br&gt;`.
+ * So for a PLAIN TEXT signature it is escaped first and *then* newlines become
+ * `<br>`. That order matters: escaping afterwards would turn the `<br>` into
+ * `&lt;br&gt;`.
  *
- * The trade-off, stated plainly: a signature that deliberately contains HTML now
- * shows its tags literally instead of rendering. That is the correct reading of a
- * field documented as plain text, and a visibly literal tag is a better failure
- * than content that silently disappears.
+ * That used to be the whole story, and the trade-off was stated here as
+ * acceptable: "a signature that deliberately contains HTML now shows its tags
+ * literally … a visibly literal tag is a better failure than content that
+ * silently disappears." **It was not acceptable.** The first real campaign put
+ * `---------------&lt;br&gt;&lt;i&gt;Thanks &amp;amp; Regards…` in front of four
+ * colleagues, because the stored signature was the one the user's mail client
+ * had given them — which is markup. "Better than silent loss" is a low bar, and
+ * both failures were avoidable.
+ *
+ * So the content decides now. A signature containing recognisable formatting
+ * tags is treated as HTML and sanitised through an allowlist
+ * (`sanitizeSignatureHtml`); anything else keeps the escaping path above
+ * unchanged. Every guarantee that motivated the escaping still holds — see the
+ * tests: `<kalpesh@indianic.com>` is not a tag and still cannot vanish, a bare
+ * `&` is still an ampersand rather than a broken entity, and nothing in a
+ * signature can close the polished card or run a script.
  */
 export function appendSignature(body: string, signature: string | undefined, bodyType: 'text' | 'html'): string {
   if (!signature) return body;
   if (bodyType === 'text') return `${body}\n\n${signature}`;
 
+  if (looksLikeHtmlSignature(signature)) {
+    return `${body}<br><br>${sanitizeSignatureHtml(signature)}`;
+  }
+
   // Normalise CRLF/CR first so a signature typed on Windows breaks identically.
   const asHtml = escapeHtml(signature.replace(/\r\n?/g, '\n')).replace(/\n/g, '<br>');
   return `${body}<br><br>${asHtml}`;
+}
+
+/**
+ * Inline formatting a real email signature actually uses.
+ *
+ * Block and layout tags are deliberately absent — `div`, `p`, `table`. An
+ * unbalanced `</div>` in a signature closes the polished card early and
+ * swallows the footer, and a signature is the one piece of an email nobody
+ * re-reads after setting it once.
+ */
+const SIGNATURE_TAGS = new Set([
+  'br', 'b', 'strong', 'i', 'em', 'u', 's', 'small', 'sub', 'sup', 'span', 'a', 'hr', 'font', 'img',
+]);
+
+const SIGNATURE_ATTRS = new Set([
+  'href', 'src', 'alt', 'title', 'width', 'height', 'style', 'color', 'size', 'face', 'target',
+]);
+
+const VOID_TAGS = new Set(['br', 'hr', 'img']);
+
+/**
+ * A tag from the allowlist, matched strictly enough that `<kalpesh@indianic.com>`
+ * is not one.
+ *
+ * The strictness is the whole point. A loose `<(tag)\b` would read
+ * `<sub@example.com>` as a `<sub>` element and delete the address — reinstating
+ * the exact silent-loss bug the escaping was introduced to fix. So the tag name
+ * must be followed by `>`, `/>`, or whitespace-then-attributes, and `@` is none
+ * of those.
+ */
+function signatureTagPattern(flags: string): RegExp {
+  return new RegExp(`<\\s*(/?)\\s*([a-zA-Z][a-zA-Z0-9]*)\\s*(/?>|\\s[^>]*>)`, flags);
+}
+
+/**
+ * Whether this signature was written as HTML rather than as plain text.
+ *
+ * The field is documented plain-text (docs/CLI.md), and for a long time that
+ * reading was enforced by escaping everything. It cost a real user a correctly
+ * rendered signature on every HTML send: people paste the signature their mail
+ * client already gave them, which is markup, and got `&lt;br&gt;` in front of
+ * colleagues. Both readings are now honoured — the content decides.
+ */
+export function looksLikeHtmlSignature(signature: string): boolean {
+  for (const match of signature.matchAll(signatureTagPattern('gi'))) {
+    if (SIGNATURE_TAGS.has(match[2].toLowerCase())) return true;
+  }
+  return false;
+}
+
+/** Escape text that sits BETWEEN tags, leaving existing entities (`&amp;`) intact. */
+function escapeTextKeepingEntities(text: string): string {
+  return text
+    .replace(/&(?!#?[a-zA-Z0-9]+;)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function rebuildTag(closing: string, name: string, rest: string): string {
+  const tag = name.toLowerCase();
+  if (closing) return VOID_TAGS.has(tag) ? '' : `</${tag}>`;
+
+  const attrs: string[] = [];
+  for (const attr of rest.replace(/\/?>$/, '').matchAll(/([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
+    const key = attr[1].toLowerCase();
+    if (!SIGNATURE_ATTRS.has(key)) continue; // drops every on* handler by omission
+    const value = attr[2] ?? attr[3] ?? attr[4] ?? '';
+    // A javascript:/vbscript: URL in a signature is never legitimate. data: is
+    // allowed only for inline images, which is how embedded logos arrive.
+    if ((key === 'href' || key === 'src') && /^\s*(?:javascript|vbscript|data):/i.test(value)) {
+      if (!/^\s*data:image\//i.test(value)) continue;
+    }
+    attrs.push(`${key}="${value.replace(/"/g, '&quot;')}"`);
+  }
+
+  return `<${tag}${attrs.length > 0 ? ` ${attrs.join(' ')}` : ''}>`;
+}
+
+/**
+ * Keep the allowlisted formatting, escape everything else.
+ *
+ * Newlines are NOT converted to `<br>` here, unlike the plain-text path: an
+ * HTML signature states its own line breaks, and a pasted one is usually
+ * pretty-printed across several source lines that would otherwise each become a
+ * blank line in the delivered mail.
+ */
+export function sanitizeSignatureHtml(signature: string): string {
+  let out = '';
+  let cursor = 0;
+
+  for (const match of signature.matchAll(signatureTagPattern('gi'))) {
+    const [whole, closing, name, rest] = match;
+    out += escapeTextKeepingEntities(signature.slice(cursor, match.index));
+    out += SIGNATURE_TAGS.has(name.toLowerCase()) ? rebuildTag(closing, name, rest) : escapeHtml(whole);
+    cursor = match.index + whole.length;
+  }
+
+  return out + escapeTextKeepingEntities(signature.slice(cursor));
 }
 
 /**

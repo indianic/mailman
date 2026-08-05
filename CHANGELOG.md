@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2026-08-05
+
+### Fixed
+
+- **An HTML signature was escaped and shown as source in every HTML email.** A
+  stored signature of `---<br><i>Thanks &amp; Regards…` arrived as literal
+  `&lt;br&gt;&lt;i&gt;Thanks &amp;amp; Regards…`. This was **not** new in 1.5.x
+  and was never campaign-specific — `appendSignature` is shared, so every HTML
+  send from an account whose signature contains markup has looked like this.
+  Found by reading the first real campaign as a recipient rather than as a test
+  assertion.
+
+  The escaping was deliberate and fixed two genuine bugs (a signature containing
+  `<kalpesh@indianic.com>` vanishing into an unknown tag; `Sales & Marketing`
+  becoming an invalid entity), on the reasoning that the field is documented
+  plain text. But people paste the signature their mail client hands them, which
+  is markup, and "a visibly literal tag is better than silent loss" was choosing
+  between two failures rather than fixing both.
+
+  The content now decides. A signature containing recognisable formatting tags
+  is treated as HTML and passed through an allowlist; anything else takes the
+  previous escaping path, unchanged. Every original guarantee still holds:
+  `<kalpesh@indianic.com>` is not a tag and cannot vanish, a bare `&` is still an
+  ampersand, and block tags (`div`, `table`), `<script>`, `on*` handlers and
+  `javascript:` URLs are escaped or dropped — so a signature can never close the
+  polished card, swallow the footer, or run anything. `data:image` sources are
+  allowed, since that is how inline logos arrive.
+
 ## [1.5.1] - 2026-08-05
 
 Found by the first live campaign — four real emails to four colleagues, which
