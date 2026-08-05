@@ -1,8 +1,11 @@
 # Personalised sending (campaigns) — specification
 
-> Status: **Phase 1 shipped** · Written 2026-08-05 against MailMan v1.4.1
+> Status: **Phase 1 shipped in v1.5.0**
 > Origin: a real send on 5 Aug 2026 that exposed the gap — see §1.
 > What actually landed, and where it departs from this document: **§9**.
+
+Written 2026-08-05 against the 1.4.1 source; §3's survey of what already existed
+is from that tree.
 
 ---
 

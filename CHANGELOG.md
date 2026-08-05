@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-08-05
+
+### Added
+
+- **Personalised sending — `draft_campaign` / `confirm_campaign` /
+  `campaign_status` / `cancel_campaign`.** `draft_email` could only produce one
+  message with one `to`/`cc`/`bcc` set, so every multi-recipient send was a
+  broadcast: "Hi team" instead of "Hi Priya", the sender in their own `To:`, and
+  N hidden recipients on one envelope — a textbook bulk signature that costs
+  deliverability exactly when it matters. A campaign is N separate messages, one
+  per recipient, each addressed only to that person. Phase 1 of
+  `docs/CAMPAIGNS.md`; closes GitHub issue #2.
+- `{{name}}` / `{{first_name}}` / `{{email}}` plus custom per-recipient `vars`,
+  resolved from contacts or supplied inline as `"Name <addr>"`. Merged values are
+  HTML-escaped for HTML bodies — `Sales & Marketing` and `O'Brien` are real
+  address-book entries, and a name carried verbatim into HTML is at best mangled.
+- **`draft_campaign` refuses to draft** when a placeholder has no value for some
+  recipient, and persists nothing. `Hi ,` is worse than any group greeting, and
+  draft time is the last moment it costs nothing to stop. The error names every
+  recipient, every token, and all three remedies; `{{first_name|there}}` opts
+  into a fallback explicitly.
+- **`ccFirstOnly`** attaches the Cc to the first message that *actually sends* —
+  not the first attempted, so a failed first message hands it to the next and
+  leadership gets exactly one copy rather than none. Cc'ing them on all N is the
+  failure this exists to make impossible.
+- Preview samples deliberately surface the *awkward* rendering (fallback
+  greeting, one-word name) rather than two flattering ones. One approval covers
+  all N sends, so that preview is the only review that happens. Warnings cover a
+  group-addressed body, a `ccFirstOnly` address that is also a recipient, and a
+  body where nothing actually personalises.
+
+### Fixed
+
+- **`auth rotate-key` and `auth migrate-keystore` re-encrypted two files, not
+  three.** `campaigns.json` is encrypted under the same master key, and a
+  campaign left behind by a rotation is a half-delivered merge whose remaining
+  recipients can no longer be read — neither resumable nor listable. Same class
+  of bug that once left `scheduled.json` behind.
+
+### Internal
+
+- Campaign state lives in `campaigns.json`, built to the scheduler store's
+  pattern: content encrypted, per-recipient bookkeeping in the clear and keyed by
+  `seq` so no address sits in the plaintext half. Not `drafts.ts`, which is an
+  in-memory map with a 10-minute TTL — a 39-recipient run dying at #20 would
+  leave no record of who received it, and the retry would double-send.
+- Idempotency: a recipient is marked `sent` only after the transport returns a
+  message id; terminal recipients are never eligible again, so re-calling
+  `confirm_campaign` resumes rather than restarts; one attempt per recipient per
+  run, capped at 3 across runs; ~25% failures (floor 3) aborts the run rather
+  than producing N failures from one bad credential.
+- The safety-invariant eval tier now declares the dispatcher and drafter sets and
+  iterates them. Campaigns introduce mailman's **second** dispatcher, and the old
+  "exactly one tool dispatches" guard passed only because `confirm_campaign` does
+  not match its name regex — a false negative. A third of either now cannot be
+  added without being declared or failing the guard.
+- 54 new tests across rendering, dispatch and the tool surface; 5 new evals.
+
 ## [1.4.1] - 2026-08-03
 
 ### Fixed
