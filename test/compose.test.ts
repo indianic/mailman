@@ -56,11 +56,11 @@ test('appendSignature: CRLF and CR signatures break the same as LF', () => {
 });
 
 test('appendSignature: markup characters in a signature survive instead of vanishing', () => {
-  // `<kalpesh@indianic.com>` used to disappear completely — the browser read it
+  // `<name@example.com>` used to disappear completely — the browser read it
   // as an unknown tag. Silent loss of content in every outgoing email.
-  const out = appendSignature('<p>hi</p>', 'Kalpesh <kalpesh@indianic.com>', 'html');
-  assert.match(out, /Kalpesh &lt;kalpesh@indianic\.com&gt;/);
-  assert.doesNotMatch(out, /<kalpesh@/);
+  const out = appendSignature('<p>hi</p>', 'Alex <name@example.com>', 'html');
+  assert.match(out, /Alex &lt;name@example\.com&gt;/);
+  assert.doesNotMatch(out, /<name@/);
 
   // An ampersand was an invalid HTML entity, not an ampersand.
   assert.match(appendSignature('<p>hi</p>', 'Sales & Marketing', 'html'), /Sales &amp; Marketing/);
@@ -98,7 +98,7 @@ test('appendSignature: a plain-text signature is still escaped exactly as before
   // The regression that matters most: HTML detection must not change the
   // behaviour of the field's documented plain-text form.
   assert.equal(appendSignature('x', 'a & b\nc', 'html'), 'x<br><br>a &amp; b<br>c');
-  assert.match(appendSignature('<p>hi</p>', 'Kalpesh <kalpesh@indianic.com>', 'html'), /&lt;kalpesh@indianic\.com&gt;/);
+  assert.match(appendSignature('<p>hi</p>', 'Alex <name@example.com>', 'html'), /&lt;name@example\.com&gt;/);
 });
 
 test('appendSignature: an address in angle brackets is not mistaken for a tag', () => {
@@ -174,7 +174,7 @@ test('looksLikeHtmlSignature: distinguishes markup from prose that merely has an
   assert.equal(looksLikeHtmlSignature('Regards,<br>Kalpesh'), true);
   assert.equal(looksLikeHtmlSignature('<i>Kalpesh</i>'), true);
   assert.equal(looksLikeHtmlSignature('Regards,\nKalpesh'), false);
-  assert.equal(looksLikeHtmlSignature('Kalpesh <kalpesh@indianic.com>'), false);
+  assert.equal(looksLikeHtmlSignature('Alex <name@example.com>'), false);
   assert.equal(looksLikeHtmlSignature('Sales & Marketing'), false);
   // Layout tags count as markup now that a table signature is supported.
   assert.equal(looksLikeHtmlSignature('<div>x</div>'), true);
@@ -191,8 +191,8 @@ test('escapeHtml: covers the five characters that change meaning in markup', () 
 });
 
 test('buildMessageId: local part is mcp-mailman-branded, domain from sender, RFC-shaped', () => {
-  const id = buildMessageId('kalpesh@indianic.com');
-  assert.match(id, /^<mcp-mailman\.[0-9a-f-]{36}@indianic\.com>$/);
+  const id = buildMessageId('name@example.com');
+  assert.match(id, /^<mcp-mailman\.[0-9a-f-]{36}@example\.com>$/);
 });
 
 test('buildMessageId: falls back to a literal domain when the address is malformed', () => {

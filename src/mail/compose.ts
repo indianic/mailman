@@ -177,7 +177,7 @@ export function escapeHtml(value: string): string {
  *    multi-line signature rendered as one run-on line: "Regards, Kalpesh Gamit
  *    IndiaNIC". Only `<br><br>` between body and signature was ever emitted.
  *  - **Markup characters were interpreted.** A signature containing
- *    `<kalpesh@indianic.com>` disappeared entirely — the browser read it as an
+ *    `<name@example.com>` disappeared entirely — the browser read it as an
  *    unknown tag — and `Sales & Marketing` was an invalid entity. Silent loss,
  *    which is worse than showing something wrong.
  *
@@ -198,7 +198,7 @@ export function escapeHtml(value: string): string {
  * tags is treated as HTML and sanitised through an allowlist
  * (`sanitizeSignatureHtml`); anything else keeps the escaping path above
  * unchanged. Every guarantee that motivated the escaping still holds — see the
- * tests: `<kalpesh@indianic.com>` is not a tag and still cannot vanish, a bare
+ * tests: `<name@example.com>` is not a tag and still cannot vanish, a bare
  * `&` is still an ampersand rather than a broken entity, and nothing in a
  * signature can close the polished card or run a script.
  */
@@ -265,7 +265,7 @@ export function signatureInlineImages(
 }
 
 /**
- * A tag from the allowlist, matched strictly enough that `<kalpesh@indianic.com>`
+ * A tag from the allowlist, matched strictly enough that `<name@example.com>`
  * is not one.
  *
  * The strictness is the whole point. A loose `<(tag)\b` would read

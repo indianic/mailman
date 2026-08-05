@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/npm/l/@integratex/mailman?style=flat-square&color=green)](https://opensource.org/licenses/MIT)
 [![node](https://img.shields.io/node/v/@integratex/mailman?style=flat-square&logo=node.js&logoColor=white&color=339933)](https://nodejs.org)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![MCP](https://img.shields.io/badge/MCP-23%20tools-orange?style=flat-square)
+![MCP](https://img.shields.io/badge/MCP-29%20tools-orange?style=flat-square)
 ![platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational?style=flat-square)
 
 MailMan CLI — send and read Gmail just by asking your AI assistant, built for IndiaNIC infrastructure.
@@ -16,11 +16,18 @@ MailMan CLI — send and read Gmail just by asking your AI assistant, built for 
 
 Ask your AI in plain English. MailMan **drafts, previews, and only sends on your OK** — never the moment you ask.
 
-![How MailMan works — ask, preview, confirm](https://raw.githubusercontent.com/indianic/mailman/main/docs/images/how-it-works.png)
+```
+You:     mailman, send those docs to you@example.com
+MailMan: Draft ready — To: you@example.com · Subject: "Docs"
+         2 attachments · 1.4 MB. Send it?
+You:     yes
+MailMan: Sent.
+```
 
-**Real prompts, across Claude Code · Cursor · Gemini CLI · Windsurf** — email happens where you already work:
+Works the same in **Claude Code · Cursor · Gemini CLI · Windsurf · Codex** —
+email happens where you already work.
 
-![Sample prompts — send a PR link, attach a build, triage the inbox, schedule an EOD update](https://raw.githubusercontent.com/indianic/mailman/main/docs/images/sample-prompts.png)
+**[Screenshots and the full walkthrough → mailman.indianic.dev](https://mailman.indianic.dev)**
 
 ## Features
 
@@ -37,7 +44,6 @@ Ask your AI in plain English. MailMan **drafts, previews, and only sends on your
 - Installs into **Claude Code, Cursor, Gemini CLI, Windsurf, Codex** (`mailman register`) — cross-platform Win/Mac/Linux
 - 29 MCP tools, exposed to your AI over MCP
 
-![Everything email, hands-free — natural-language send, 182 templates, draft/preview/confirm, attachments, scheduled sends, inbox search, contacts, notifications, machine-bound security, cross-OS](https://raw.githubusercontent.com/indianic/mailman/main/docs/images/use-cases.png)
 
 ## Installation
 
@@ -161,7 +167,7 @@ mailman --version
 Once installed and registered, you talk to your AI — not the CLI — for everyday email:
 
 ```
-You: mailman, send those docs to kalpesh.gamit@indianic.com
+You: mailman, send those docs to you@example.com
 AI:  [drafts subject/body, resolves attachments] Ready to send — confirm?
 You: yes
 AI:  Sent.
@@ -342,7 +348,7 @@ which changes won't be merged and why.
 - 🐞 [Report a bug](https://github.com/indianic/mailman/issues/new?template=bug_report.yml) — include your `mailman doctor` output
 - 💡 [Request a feature](https://github.com/indianic/mailman/issues/new?template=feature_request.yml)
 - 💬 [Ask or discuss](https://github.com/indianic/mailman/discussions)
-- 🔐 Security issues: email kalpesh.gamit@indianic.com — **not** a public issue
+- 🔐 Security issues: email hello@indianic.com — **not** a public issue
 
 ## License
 

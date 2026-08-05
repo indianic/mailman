@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/indianic/mailman/discussions
     about: Not sure it's a bug? Ask in Discussions — feature direction is decided there in the open.
   - name: 🔐 Security issue
-    url: mailto:kalpesh.gamit@indianic.com
+    url: mailto:hello@indianic.com
     about: Credential exposure, or a way to send mail without confirmation — email us, don't file publicly.
   - name: 📖 Documentation
     url: https://github.com/indianic/mailman/tree/main/docs

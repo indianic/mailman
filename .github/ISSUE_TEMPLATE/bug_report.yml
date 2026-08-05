@@ -13,7 +13,7 @@ body:
 
         If this has security impact (credential exposure, a way to send mail
         without confirmation), please **don't** file it here — email
-        kalpesh.gamit@indianic.com instead.
+        hello@indianic.com instead.
 
   - type: textarea
     id: what-happened

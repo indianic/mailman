@@ -360,7 +360,7 @@ ever calls a tool.
 ## Send flow: draft → preview → confirm → send
 
 ```
-User: "mailman, send those docs to kalpesh.gamit@indianic.com"
+User: "mailman, send those docs to you@example.com"
   → Claude resolves "those docs" to real paths from context
   → Claude auto-composes subject + body (since the user didn't dictate exact
     wording) — this is Claude's language generation; mailman has no LLM inside it

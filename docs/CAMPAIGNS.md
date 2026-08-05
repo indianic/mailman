@@ -14,7 +14,7 @@ is from that tree.
 On 5 Aug 2026 a product announcement went to 40 people through MailMan:
 
 ```
-To  : kalpesh.gamit@indianic.com
+To  : you@example.com
 Cc  : sandeep@indianic.com (CEO), jigarpanchal@indianic.com (Sales Head)
 Bcc : 37 colleagues
 Body: "Hi team, ..."
@@ -152,7 +152,7 @@ Minimum viable set, resolved from `contacts.ts` with a per-recipient override:
 | `{{first_name}}` | first word of `name` | as above |
 | `{{email}}` | recipient address | always available |
 
-**Unknown-name handling is the make-or-break detail.** `Hi ,` is worse than any group greeting and will happen — your own address book has entries like `chetan@indianic.com` and `brinda@indianic.com` with no surname, and several with no name at all.
+**Unknown-name handling is the make-or-break detail.** `Hi ,` is worse than any group greeting and will happen — your own address book has entries like `chetan@indianic.com` and `brinda@example.com` with no surname, and several with no name at all.
 
 Three options, in order of preference:
 
@@ -183,7 +183,7 @@ Returns **without sending**:
   "estimatedDuration": "~2 min",
   "samples": [
     {"email": "yash.s@indianic.com", "subject": "…", "bodyPreview": "Hi Yash, …"},
-    {"email": "brinda@indianic.com", "subject": "…", "bodyPreview": "Hi Brinda, …"}
+    {"email": "brinda@example.com", "subject": "…", "bodyPreview": "Hi Brinda, …"}
   ],
   "unresolved": [],
   "warnings": []
@@ -241,8 +241,8 @@ Consider a **separate summary** to `ccFirstOnly` addresses instead: *"This went 
 One message, 40 recipients:
 
 ```
-From: Kalpesh Gamit <kalpesh.gamit@indianic.com>
-To:   kalpesh.gamit@indianic.com
+From: Kalpesh Gamit <you@example.com>
+To:   you@example.com
 Cc:   sandeep@indianic.com, jigarpanchal@indianic.com
 Bcc:  aadil.a@…, abhishek.dubey@…, (35 more)
 Subject: NewRa Agent — ready for product demo
@@ -259,7 +259,7 @@ Sender sees: 1 message in Sent.
 **Message 1 of 39** (carries the `ccFirstOnly` list):
 
 ```
-From: Kalpesh Gamit <kalpesh.gamit@indianic.com>
+From: Kalpesh Gamit <you@example.com>
 To:   Yash Suryawanshi <yash.s@indianic.com>
 Cc:   sandeep@indianic.com, jigarpanchal@indianic.com
 Subject: NewRa Agent — ready for product demo
@@ -272,8 +272,8 @@ We will be demoing NewRa Agent shortly. …
 **Message 2 of 39** (no Cc):
 
 ```
-From: Kalpesh Gamit <kalpesh.gamit@indianic.com>
-To:   Brinda <brinda@indianic.com>
+From: Kalpesh Gamit <you@example.com>
+To:   Brinda <brinda@example.com>
 Subject: NewRa Agent — ready for product demo
 
 Hi Brinda,
@@ -310,7 +310,7 @@ Campaign cmp_a1b2c3 — 39 recipients, ~2 min at 20/min
     Hi there, …
 
   ⚠ 3 recipients have no name on file; they will receive "Hi there,"
-      chetan@indianic.com, brinda@indianic.com, tarun@indianic.com
+      chetan@indianic.com, brinda@example.com, tarun@indianic.com
 
 Confirm to send 39 messages.
 ```

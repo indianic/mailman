@@ -139,7 +139,7 @@ send.**
   `references` defaults to `[inReplyTo]`, which is correct for replying to a root
   message; pass the full chain explicitly for a deep thread. Both carry through
   `schedule_send`, so a reply queued for 9am still lands in its thread.
-- **Example trigger**: *"mailman, send those docs to kalpesh.gamit@indianic.com"*
+- **Example trigger**: *"mailman, send those docs to you@example.com"*
   → Claude resolves "those docs" to paths, composes subject/body, calls this.
 
 ## `list_templates`

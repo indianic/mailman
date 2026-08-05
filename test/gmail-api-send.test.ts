@@ -4,7 +4,7 @@ import { buildRawMessage } from '../src/mail/gmail-api-client.js';
 
 test('buildRawMessage produces a base64url RFC-822 message the Gmail API can accept', async () => {
   const { raw, messageId } = await buildRawMessage('erp@indianic.com', {
-    to: ['kalpesh.gamit@indianic.com'],
+    to: ['you@example.com'],
     cc: ['ops@indianic.com'],
     subject: 'Hello from OAuth2',
     body: '<p>Hi there</p>',
@@ -16,7 +16,7 @@ test('buildRawMessage produces a base64url RFC-822 message the Gmail API can acc
   assert.match(raw, /^[A-Za-z0-9_-]+$/);
 
   const decoded = Buffer.from(raw, 'base64url').toString('utf8');
-  assert.match(decoded, /^To: kalpesh\.gamit@indianic\.com/m);
+  assert.match(decoded, /^To: you@example\.com/m);
   assert.match(decoded, /^Cc: ops@indianic\.com/m);
   assert.match(decoded, /^From: ERP <erp@indianic\.com>/m);
   assert.match(decoded, /^Subject: Hello from OAuth2/m);

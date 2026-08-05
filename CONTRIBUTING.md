@@ -38,7 +38,7 @@ Open an issue and include, at minimum:
 If you've found something with security impact — credential exposure, a way to
 send mail without confirmation, a path traversal in attachment resolution —
 **do not open a public issue.** Email
-[kalpesh.gamit@indianic.com](mailto:kalpesh.gamit@indianic.com) instead, and
+[hello@indianic.com](mailto:hello@indianic.com) instead, and
 we'll coordinate a fix and disclosure.
 
 ---

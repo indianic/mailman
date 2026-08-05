@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.2] - 2026-08-05
+
+### Changed
+
+- **The maintainer's personal address is out of the public repo.** Every example
+  in tests, docs and code comments now uses `example.com`. The places that ask
+  someone to actually write in — the security contact in `README`/`CONTRIBUTING`
+  and the GitHub issue templates — use `hello@indianic.com` instead, because
+  `example.com` there would silently discard vulnerability reports.
+- **Screenshots removed from the README.** They were never in the npm tarball
+  (`files` is `dist`, `bin`, `README.md`) — the registry pulled them from
+  raw.githubusercontent.com, so they were a second copy of material that lives on
+  the site and had to be kept in step by hand. Replaced with a short worked
+  example and a link to <https://mailman.indianic.dev>; 988 KB of PNGs dropped
+  from the repo.
+- The MCP badge said **23 tools**. There are 29.
+
 ## [1.7.1] - 2026-08-05
 
 ### Added
@@ -165,7 +182,7 @@ All notable changes to this project will be documented in this file.
   assertion.
 
   The escaping was deliberate and fixed two genuine bugs (a signature containing
-  `<kalpesh@indianic.com>` vanishing into an unknown tag; `Sales & Marketing`
+  `<name@example.com>` vanishing into an unknown tag; `Sales & Marketing`
   becoming an invalid entity), on the reasoning that the field is documented
   plain text. But people paste the signature their mail client hands them, which
   is markup, and "a visibly literal tag is better than silent loss" was choosing
@@ -174,7 +191,7 @@ All notable changes to this project will be documented in this file.
   The content now decides. A signature containing recognisable formatting tags
   is treated as HTML and passed through an allowlist; anything else takes the
   previous escaping path, unchanged. Every original guarantee still holds:
-  `<kalpesh@indianic.com>` is not a tag and cannot vanish, a bare `&` is still an
+  `<name@example.com>` is not a tag and cannot vanish, a bare `&` is still an
   ampersand, and block tags (`div`, `table`), `<script>`, `on*` handlers and
   `javascript:` URLs are escaped or dropped — so a signature can never close the
   polished card, swallow the footer, or run anything. `data:image` sources are
@@ -341,7 +358,7 @@ nothing.
   real newline — but it was dropped into an HTML body verbatim. Newlines
   collapsed, so a multi-line signature arrived as one run-on line ("Regards,
   Kalpesh Gamit IndiaNIC"), and markup characters were interpreted rather than
-  shown: a signature containing `<kalpesh@indianic.com>` **disappeared entirely**
+  shown: a signature containing `<name@example.com>` **disappeared entirely**
   because the browser read it as an unknown tag, and `Sales & Marketing` was an
   invalid entity. Silent loss of content in every outgoing HTML email. The
   signature is now escaped and then newline-converted (that order matters — the
