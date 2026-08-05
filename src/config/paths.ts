@@ -48,6 +48,16 @@ export function getScheduledPath(): string {
   return path.join(getConfigDir(), 'scheduled.json');
 }
 
+/**
+ * Personalised sends (see docs/CAMPAIGNS.md). Separate from scheduled.json
+ * because the two answer different questions — "what fires next" versus "who
+ * has this campaign already reached" — and the ticker's due-scan should not
+ * have to page in a 39-recipient campaign to learn there is nothing to send.
+ */
+export function getCampaignsPath(): string {
+  return path.join(getConfigDir(), 'campaigns.json');
+}
+
 export function getActivityLogPath(): string {
   return path.join(getConfigDir(), 'activity.log');
 }

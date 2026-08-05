@@ -153,6 +153,92 @@ export type ScheduledFile = z.infer<typeof ScheduledFileSchema>;
 
 export const DEFAULT_SCHEDULED_FILE: ScheduledFile = { schemaVersion: 1, entries: [] };
 
+// --- Campaigns (personalised merge) --------------------------------------
+//
+// A campaign is N messages, one per recipient, rendered from one template.
+// See docs/CAMPAIGNS.md.
+//
+// The split between encrypted `content` and plaintext per-recipient rows is
+// the same call scheduled.json makes, for the same reason: who a campaign is
+// addressed to and what it says are exactly as sensitive as a scheduled
+// message, while *whether recipient 17 has been sent yet* has to be written
+// after every single send. Keeping the bookkeeping in the clear means the
+// idempotency record survives a run without decrypting and re-encrypting the
+// whole recipient list 39 times.
+//
+// Recipients are therefore keyed by `seq` — their index in the encrypted
+// recipient list — not by address, so no address leaks into the plaintext half.
+export const CampaignContentSchema = z.object({
+  /** May contain {{placeholders}}; rendered per recipient at send time. */
+  subjectTemplate: z.string(),
+  /**
+   * Fully composed: the caller's body with the account signature appended and
+   * the polished shell applied, exactly as draft_email would have produced it.
+   * Baking that in at draft time is what makes the approved preview and the
+   * dispatched message the same object.
+   */
+  bodyTemplate: z.string(),
+  bodyType: z.enum(['text', 'html']),
+  /** Raw paths/globs/dirs — re-resolved fresh at send time, never snapshotted. */
+  attachments: z.array(z.string()),
+  recursive: z.boolean().optional(),
+  /** Attached to the first message that actually sends, then dropped (§4.5). */
+  ccFirstOnly: z.array(z.string().email()),
+  /**
+   * Render inputs frozen at draft time. A contact renamed mid-campaign must not
+   * produce two different greetings within one run (docs/CAMPAIGNS.md §4.1).
+   */
+  recipients: z.array(
+    z.object({
+      email: z.string().email(),
+      vars: z.record(z.string()),
+    }),
+  ),
+});
+
+export const CampaignRecipientStateSchema = z.object({
+  /** Index into CampaignContent.recipients — the join key between the two halves. */
+  seq: z.number().int().nonnegative(),
+  status: z.enum(['pending', 'sent', 'failed', 'skipped']),
+  attempts: z.number().int().nonnegative(),
+  messageId: z.string().optional(),
+  sentAt: z.string().optional(),
+  error: z.string().optional(),
+});
+
+export const CampaignEntrySchema = z.object({
+  campaignId: z.string(),
+  account: z.string(),
+  status: z.enum(['draft', 'sending', 'sent', 'cancelled', 'failed']),
+  createdAt: z.string(),
+  throttlePerMinute: z.number().int().positive(),
+  maxAttempts: z.number().int().positive(),
+  content: EncryptedBlobSchema,
+  recipients: z.array(CampaignRecipientStateSchema),
+  /**
+   * Which recipient the Cc list actually rode along with. Set only after that
+   * message is confirmed sent, so a failed first message hands the Cc to
+   * whoever genuinely goes out first — leadership gets exactly one copy.
+   */
+  ccAppliedToSeq: z.number().int().nonnegative().optional(),
+  /** Set with status 'failed' when a run is aborted wholesale (§4.6). */
+  abortReason: z.string().optional(),
+});
+
+export const CampaignsFileSchema = z.object({
+  schemaVersion: z.literal(1),
+  campaigns: z.array(CampaignEntrySchema),
+});
+
+export type CampaignContent = z.infer<typeof CampaignContentSchema>;
+export type CampaignRecipientState = z.infer<typeof CampaignRecipientStateSchema>;
+export type CampaignEntry = z.infer<typeof CampaignEntrySchema>;
+export type CampaignsFile = z.infer<typeof CampaignsFileSchema>;
+export type CampaignStatus = CampaignEntry['status'];
+export type RecipientStatus = CampaignRecipientState['status'];
+
+export const DEFAULT_CAMPAIGNS_FILE: CampaignsFile = { schemaVersion: 1, campaigns: [] };
+
 // keystore.json — which backend holds the master key, and the non-secret inputs
 // needed to use it. Deliberately holds NO key material: a scrypt salt is not a
 // secret, and the file's whole job is to make backend resolution deterministic.

@@ -1,7 +1,7 @@
 import { intro, outro, confirm, isCancel, cancel } from '@clack/prompts';
 import { getMasterKeyOrThrow } from '../config/keychain.js';
 import { resolveForRead } from '../config/keystore/index.js';
-import { rekeyStoredData, type RekeyOutcome } from '../rekey.js';
+import { rekeyStoredData, describeRekeyCounts, type RekeyOutcome } from '../rekey.js';
 import { requireTty } from './interactive.js';
 import { fail, attention } from './tree.js';
 
@@ -27,11 +27,9 @@ export async function runRotateKey(_args: string[]): Promise<void> {
       loadOldKey: getMasterKeyOrThrow,
       prepareNewKey: () => backend.prepareKey('rotate'),
       warn: (message) => attention(message),
-      confirm: async ({ accounts, scheduled }) => {
+      confirm: async (counts) => {
         const answer = await confirm({
-          message:
-            `Re-encrypt ${accounts} account(s)${scheduled > 0 ? ` and ${scheduled} scheduled send(s)` : ''} ` +
-            `with a new master key on \`${backend.name}\`?`,
+          message: `Re-encrypt ${describeRekeyCounts(counts)} with a new master key on \`${backend.name}\`?`,
         });
         return !isCancel(answer) && answer;
       },
@@ -57,9 +55,9 @@ export async function runRotateKey(_args: string[]): Promise<void> {
     return;
   }
 
-  const { accountsRekeyed, scheduledRekeyed } = outcome.summary;
+  const { accountsRekeyed, scheduledRekeyed, campaignsRekeyed } = outcome.summary;
   outro(
-    `Rotated the master key: re-encrypted ${accountsRekeyed} account(s)` +
-      `${scheduledRekeyed > 0 ? ` and ${scheduledRekeyed} scheduled send(s)` : ''}.`,
+    'Rotated the master key: re-encrypted ' +
+      `${describeRekeyCounts({ accounts: accountsRekeyed, scheduled: scheduledRekeyed, campaigns: campaignsRekeyed })}.`,
   );
 }

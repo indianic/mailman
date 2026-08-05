@@ -1,10 +1,12 @@
-import { getAccountsPath, getScheduledPath } from './config/paths.js';
+import { getAccountsPath, getCampaignsPath, getScheduledPath } from './config/paths.js';
 import { readJsonFile, updateJsonFile } from './config/store.js';
 import {
   AccountsFileSchema,
   DEFAULT_ACCOUNTS_FILE,
   ScheduledFileSchema,
   DEFAULT_SCHEDULED_FILE,
+  CampaignsFileSchema,
+  DEFAULT_CAMPAIGNS_FILE,
 } from './config/schema.js';
 import { encrypt, decrypt, type EncryptedBlob } from './config/crypto.js';
 import type { PreparedKey } from './config/keystore/types.js';
@@ -28,6 +30,24 @@ export interface RekeySummary {
   scheduledRekeyed: number;
   /** Entries that didn't decrypt under the old key, left untouched. */
   scheduledSkipped: string[];
+  campaignsRekeyed: number;
+  campaignsSkipped: string[];
+}
+
+/**
+ * "3 account(s), 2 scheduled send(s) and 1 campaign(s)" — one phrasing shared by
+ * the confirmation prompt and the closing summary of both `auth rotate-key` and
+ * `auth migrate-keystore`, so a count can never be asked about and then omitted
+ * from what actually happened. Zero-count categories are dropped entirely.
+ */
+export function describeRekeyCounts(counts: { accounts: number; scheduled: number; campaigns: number }): string {
+  const parts = [
+    `${counts.accounts} account(s)`,
+    ...(counts.scheduled > 0 ? [`${counts.scheduled} scheduled send(s)`] : []),
+    ...(counts.campaigns > 0 ? [`${counts.campaigns} campaign(s)`] : []),
+  ];
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
 export type RekeyOutcome =
@@ -41,19 +61,23 @@ export interface RekeyIo {
   loadOldKey: () => Promise<Buffer>;
   /** The key to re-encrypt under, plus how to make it live. Called only after confirmation. */
   prepareNewKey: () => Promise<PreparedKey>;
-  confirm: (counts: { accounts: number; scheduled: number }) => Promise<boolean>;
+  confirm: (counts: { accounts: number; scheduled: number; campaigns: number }) => Promise<boolean>;
   warn: (message: string) => void;
 }
 
 /**
  * Re-encrypts everything the master key covers, then makes the new key live.
  *
- * TWO files are encrypted with it, not one: `accounts.json` (credentials) and
- * `scheduled.json` (each entry's message `content`, see scheduler/store.ts).
- * `auth rotate-key` used to rewrite only the first, which left every scheduled
- * entry readable solely under the discarded key — `scheduled list` broke, and the
- * ticker hit a GCM auth-tag failure that dispatchOne swallows as retryable, so
- * pending sends died silently after MAX_ATTEMPTS.
+ * THREE files are encrypted with it, not one: `accounts.json` (credentials),
+ * `scheduled.json` (each entry's message `content`, see scheduler/store.ts) and
+ * `campaigns.json` (each campaign's templates and recipient list, see
+ * campaigns/store.ts). `auth rotate-key` used to rewrite only the first, which
+ * left every scheduled entry readable solely under the discarded key —
+ * `scheduled list` broke, and the ticker hit a GCM auth-tag failure that
+ * dispatchOne swallows as retryable, so pending sends died silently after
+ * MAX_ATTEMPTS. A campaign left behind the same way would be worse: a
+ * half-delivered merge whose remaining recipients can no longer be read, and
+ * therefore can neither be resumed nor even listed.
  *
  * Shared by `auth rotate-key` and by `auth migrate-keystore` when the target
  * backend derives its own key and so cannot simply be handed the existing one.
@@ -61,11 +85,16 @@ export interface RekeyIo {
  * what makes the whole path reachable from a test.
  */
 export async function rekeyStoredData(io: RekeyIo): Promise<RekeyOutcome> {
-  const [accountsFile, scheduledFile] = await Promise.all([
+  const [accountsFile, scheduledFile, campaignsFile] = await Promise.all([
     readJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE),
     readJsonFile(getScheduledPath(), ScheduledFileSchema, DEFAULT_SCHEDULED_FILE),
+    readJsonFile(getCampaignsPath(), CampaignsFileSchema, DEFAULT_CAMPAIGNS_FILE),
   ]);
-  if (accountsFile.accounts.length === 0 && scheduledFile.entries.length === 0) {
+  if (
+    accountsFile.accounts.length === 0 &&
+    scheduledFile.entries.length === 0 &&
+    campaignsFile.campaigns.length === 0
+  ) {
     return { status: 'nothing-to-do' };
   }
 
@@ -97,8 +126,26 @@ export async function rekeyStoredData(io: RekeyIo): Promise<RekeyOutcome> {
     );
   }
 
+  const campaignsSkipped = campaignsFile.campaigns
+    .filter((c) => !decryptable(oldKey, c.content))
+    .map((c) => c.campaignId);
+  if (campaignsSkipped.length > 0) {
+    io.warn(
+      `${campaignsSkipped.length} campaign(s) do not decrypt with the current master key and cannot be ` +
+        're-encrypted. They are left as they are and can no longer be sent or resumed — cancel them after this ' +
+        'finishes (cancel_campaign).',
+    );
+  }
+
   const rekeyable = scheduledFile.entries.length - skipped.length;
-  if (!(await io.confirm({ accounts: accountsFile.accounts.length, scheduled: rekeyable }))) {
+  const campaignsRekeyable = campaignsFile.campaigns.length - campaignsSkipped.length;
+  if (
+    !(await io.confirm({
+      accounts: accountsFile.accounts.length,
+      scheduled: rekeyable,
+      campaigns: campaignsRekeyable,
+    }))
+  ) {
     return { status: 'cancelled' };
   }
 
@@ -116,12 +163,25 @@ export async function rekeyStoredData(io: RekeyIo): Promise<RekeyOutcome> {
   // updateJsonFile rather than a plain write so re-encryption applies to the
   // freshest content on disk: the ticker is a separate process and may have
   // marked an entry `sent` since the read above.
+  const skipCampaigns = new Set(campaignsSkipped);
+
   try {
     if (scheduledFile.entries.length > 0) {
       await updateJsonFile(getScheduledPath(), ScheduledFileSchema, DEFAULT_SCHEDULED_FILE, (current) => ({
         ...current,
         entries: current.entries.map((entry) =>
           skip.has(entry.scheduledId) ? entry : { ...entry, content: rekey(oldKey, prepared.key, entry.content) },
+        ),
+      }));
+    }
+
+    if (campaignsFile.campaigns.length > 0) {
+      await updateJsonFile(getCampaignsPath(), CampaignsFileSchema, DEFAULT_CAMPAIGNS_FILE, (current) => ({
+        ...current,
+        campaigns: current.campaigns.map((campaign) =>
+          skipCampaigns.has(campaign.campaignId)
+            ? campaign
+            : { ...campaign, content: rekey(oldKey, prepared.key, campaign.content) },
         ),
       }));
     }
@@ -138,7 +198,13 @@ export async function rekeyStoredData(io: RekeyIo): Promise<RekeyOutcome> {
 
     return {
       status: 'rekeyed',
-      summary: { accountsRekeyed: accounts.accounts.length, scheduledRekeyed: rekeyable, scheduledSkipped: skipped },
+      summary: {
+        accountsRekeyed: accounts.accounts.length,
+        scheduledRekeyed: rekeyable,
+        scheduledSkipped: skipped,
+        campaignsRekeyed: campaignsRekeyable,
+        campaignsSkipped,
+      },
     };
   } catch (err) {
     // The dry run rules out the likely causes, so anything here is a
@@ -147,7 +213,7 @@ export async function rekeyStoredData(io: RekeyIo): Promise<RekeyOutcome> {
     throw new Error(
       `Re-encryption failed partway through: ${err instanceof Error ? err.message : String(err)}\n` +
         'The new key was NOT made live, so the previous one is still the active one. If sends now fail, ' +
-        `restore the pre-write copies: ${getScheduledPath()}.bak and ${getAccountsPath()}.bak`,
+        `restore the pre-write copies: ${getScheduledPath()}.bak, ${getCampaignsPath()}.bak and ${getAccountsPath()}.bak`,
     );
   }
 }

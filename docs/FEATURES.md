@@ -278,6 +278,10 @@ flowchart TD
 | `list_templates` | Browse message templates (subject prefix + composition hint); `category`/`search`/`all` |
 | `confirm_send` | Send the drafted email (only tool that sends) |
 | `cancel_draft` | Discard a pending draft |
+| `draft_campaign` | Prepare a personalised merge — N messages, one per recipient, with `{{name}}` placeholders (does not send) |
+| `confirm_campaign` | Send a campaign; one approval covers all N. Resumes a partial run, never re-sends |
+| `campaign_status` | Per-recipient state — sent / failed / pending; call with no id to list campaigns |
+| `cancel_campaign` | Stop a campaign; pending become `skipped`, already-sent are reported |
 | `schedule_send` | Send a draft at a future time |
 | `list_scheduled` / `cancel_scheduled` | List / cancel scheduled sends |
 | `list_recent_emails` | Recent inbox or sent mail |

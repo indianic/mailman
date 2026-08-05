@@ -48,6 +48,24 @@ function extractAddress(entry: string): string {
 }
 
 /**
+ * The display half of `Alice Example <alice@example.com>`, unquoted.
+ * Undefined for a bare address — an empty string would be indistinguishable
+ * from "this person has no name", which campaigns treat very differently.
+ */
+function extractDisplayName(entry: string): string | undefined {
+  const angled = entry.match(/^(.*)<[^>]*>\s*$/);
+  if (!angled) return undefined;
+  const name = angled[1].trim().replace(/^"(.*)"$/, '$1').replace(/\\(.)/g, '$1').trim();
+  return name || undefined;
+}
+
+export interface ParsedRecipientEntry {
+  address: string;
+  /** Only present when the caller wrote `Name <addr>`. */
+  name?: string;
+}
+
+/**
  * Normalize whatever a caller passed for to/cc/bcc into bare addresses.
  *
  * Accepts a single address, a comma/semicolon-separated string, an array, or
@@ -63,8 +81,24 @@ function extractAddress(entry: string): string {
  * carried, so anything this returns is valid downstream.
  */
 export function parseRecipientList(value: string | string[]): ParsedRecipients {
+  const { entries, invalid } = parseRecipientEntries(value);
+  return { addresses: entries.map((e) => e.address), invalid };
+}
+
+/**
+ * The same parse as parseRecipientList, but keeping the display name.
+ *
+ * Mail sends drop it on purpose (see above); a personalised campaign is the
+ * one caller that wants it — `draft_campaign` will happily use the "Yash
+ * Suryawanshi" in `Yash Suryawanshi <yash.s@example.com>` as the `{{name}}`
+ * for a recipient the local address book has never heard of.
+ */
+export function parseRecipientEntries(value: string | string[]): {
+  entries: ParsedRecipientEntry[];
+  invalid: string[];
+} {
   const raw = Array.isArray(value) ? value : [value];
-  const addresses: string[] = [];
+  const entries: ParsedRecipientEntry[] = [];
   const invalid: string[] = [];
   const seen = new Set<string>();
 
@@ -83,11 +117,11 @@ export function parseRecipientList(value: string | string[]): ParsedRecipients {
       const key = address.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      addresses.push(address);
+      entries.push({ address, name: extractDisplayName(trimmed) });
     }
   }
 
-  return { addresses, invalid };
+  return { entries, invalid };
 }
 
 export type NormalizedRecipients =

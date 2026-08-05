@@ -93,6 +93,8 @@ test('rotation re-encrypts scheduled sends as well as accounts', async () => {
       accountsRekeyed: 1,
       scheduledRekeyed: 1,
       scheduledSkipped: [],
+      campaignsRekeyed: 0,
+      campaignsSkipped: [],
     });
 
     const newKey = await getMasterKeyOrThrow();

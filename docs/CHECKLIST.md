@@ -208,6 +208,48 @@ hit in use rather than by the plan, which is why they sit outside the phases.
       that CI covers ubuntu only — so every 🟡 in the matrix has no runtime
       backstop
 
+### Personalised sending (campaigns) — unreleased
+Phase 1 of `docs/CAMPAIGNS.md`, closing GitHub issue #2. Full spec and the list
+of deliberate departures from it are in that document (§9).
+
+- [x] `campaigns.json` — encrypted `content` (templates, `ccFirstOnly`, and the
+      recipient list with vars frozen at draft time), plaintext per-recipient
+      bookkeeping keyed by `seq` so no address sits in the clear and a status
+      write doesn't re-encrypt the whole list
+- [x] `draft_campaign` — renders per recipient, previews, sends nothing
+- [x] `confirm_campaign` — one approval, N sends, paced at `throttlePerMinute`
+      (default 20), bounded by `maxRuntimeSeconds` (default 600)
+- [x] `campaign_status` (detail + list) and `cancel_campaign`
+- [x] **Refuse to draft** on an unresolvable placeholder — nothing is persisted,
+      and the error names every recipient, every token, and all three remedies.
+      `Hi ,` is worse than any group greeting, and draft time is the last moment
+      it costs nothing to stop
+- [x] `{{name}}` / `{{first_name}}` / `{{email}}` + custom `vars`, with
+      `{{token|fallback}}`. Values HTML-escaped for HTML bodies — `Sales &
+      Marketing` and `O'Brien` are real address-book entries
+- [x] Sample selection surfaces the *awkward* rendering (fallback greeting,
+      one-word name), not two flattering ones
+- [x] Idempotency: `sent` only after the transport returns a message id;
+      terminal recipients never re-eligible; re-running resumes rather than
+      restarts; attempts capped at 3 across runs, one attempt per run
+- [x] `ccFirstOnly` rides with the first message that **actually sends** — a
+      failed first message hands it to the next, so leadership gets exactly one
+      copy rather than none
+- [x] Abort threshold (~25%, floor 3) stops a systematically broken run instead
+      of producing N failures
+- [x] Warnings for a group-addressed body, a `ccFirstOnly` address that is also
+      a recipient, and a body where nothing actually personalises
+- [x] `auth rotate-key` / `auth migrate-keystore` re-encrypt `campaigns.json`
+      too — the same class of bug that once left `scheduled.json` behind, and
+      worse here: a half-delivered merge whose remaining recipients can no
+      longer be read is neither resumable nor listable
+- [x] 54 tests across render, dispatch and the tool surface
+- [ ] Real-delivery verification of a multi-recipient merge — the dispatch tests
+      inject the transport, so the loop is covered but a live SMTP send of N
+      personalised messages has not been run
+- [ ] Phases 2–4 of `docs/CAMPAIGNS.md`: per-campaign log, bounce capture,
+      reply-conditional sequencing
+
 ### Publishing
 - [x] `@integratex/mailman` live on the public npm registry (1.2.1), with
       matching GitHub releases and the filtered source mirror

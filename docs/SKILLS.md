@@ -185,6 +185,89 @@ Discards a pending draft without sending.
   pending draft. That error needs no remedy and should not be retried: the
   draft has already expired or been cancelled, so the goal is already met.
 
+## `draft_campaign`
+
+Prepares a **personalised merge**: N separate messages, one per recipient, each
+with only that recipient in `To:` and their name in the body. Renders and
+previews; sends nothing.
+
+- **Input**: `{ recipients, body }` required, plus `subject` (required in
+  practice — a subjectless merge reads as spam), `bodyType`, `theme`, `account`,
+  `template`, `attachments`, `recursive`, `ccFirstOnly`, `throttlePerMinute`.
+  `recipients` accepts bare addresses, `"Name <addr>"` to supply the name
+  inline, or `{ email, vars }` objects for per-recipient values.
+- **Output**: `{ campaignId, total, estimatedDuration, samples, warnings, … }`
+- **Placeholders**: `{{name}}`, `{{first_name}}`, `{{email}}`, plus any custom
+  token passed in `vars`. Names not given inline are looked up in contacts.
+  `{{first_name|there}}` supplies a fallback.
+
+**Choosing this over `draft_email` is a judgement call, and getting it wrong is
+visible to the recipient.** Use `draft_campaign` when each person should be
+addressed individually and must not see the others — outreach, individual
+nudges, "your account needs X". Use `draft_email` when the message is genuinely
+collective and a shared reply thread is wanted — an announcement, a policy
+change, "the demo is Thursday". "Hi Priya" on a message that says *"bring your
+questions to the session"* fakes intimacy that everyone can see through;
+broadcast is the right mode there, not the degraded one.
+
+- **Errors**: `CAMPAIGN_UNRESOLVED` when any recipient has a placeholder with no
+  value. **Nothing is drafted** — this is deliberate, because `Hi ,` is worse
+  than any group greeting and this is the last moment it can be stopped for
+  free. The message names the recipients and tokens; fix it by adding the names
+  (`add_contact`), passing them inline as `vars`, or giving the token a fallback.
+- **Notes**: show the returned `samples` **and every warning** to the user
+  verbatim. The samples deliberately include the *ugly* rendering (the fallback
+  greeting, the one-word name), not two flattering ones — that is the case worth
+  reviewing. Warnings cover recipients who will get a fallback greeting, a body
+  that addresses a group, a `ccFirstOnly` address that is also a recipient, and a
+  body where nothing actually personalises.
+
+## `confirm_campaign`
+
+Sends a campaign. **One approval covers all N messages** — with `alwaysConfirm`
+on (default), approving each of 39 sends individually would be unusable, which
+is exactly why the `draft_campaign` preview has to be shown honestly first.
+
+- **Input**: `{ campaignId, confirm: true, maxRuntimeSeconds? }`
+- **Output**: `{ status, total, sent, failed, skipped, pending, failures[],
+  resumable, ccAppliedTo?, abortReason? }`
+- **Notes**: **safe to re-call.** It resumes a partially-sent campaign and never
+  re-sends a recipient already marked `sent`; only pending and retriable failures
+  are eligible. A recipient is marked sent only after the transport returns a
+  message id, so a crash mid-run costs a report, never a duplicate. Sends are
+  paced at `throttlePerMinute` (default 20). `ccFirstOnly` rides with the first
+  message that actually sends, then is dropped. A run that fails for structural
+  reasons (bad credentials, a rate limit) aborts at ~25% failures with
+  `abortReason` rather than grinding through everyone.
+- **Reporting**: report `failures` verbatim. Do not round "36 of 39" off to
+  "sent". If `resumable` is true, say how many are still pending.
+- **Errors**: `CONFIRMATION_REQUIRED` (show the preview, get approval, call again
+  with `confirm:true`), `CAMPAIGN_NOT_FOUND`, `CAMPAIGN_CANCELLED`.
+
+## `campaign_status`
+
+Per-recipient state of a campaign — who was sent, who failed and why, who is
+still pending.
+
+- **Input**: `{ campaignId?, account? }` — omit `campaignId` to list every
+  campaign instead of detailing one.
+- **Output**: totals plus a `recipients[]` array with `status`, `attempts`,
+  `sentAt`, `messageId`, `error`, and `retriable` for failures.
+- **Notes**: this is how a partial or aborted run is inspected before deciding
+  whether to resume it. Reach for it whenever `confirm_campaign` came back
+  `resumable` or with failures.
+
+## `cancel_campaign`
+
+Stops a campaign. Pending recipients become `skipped` and are never sent.
+
+- **Input**: `{ campaignId: string }`
+- **Output**: `{ cancelled: true, status, sent, skipped, …, note }`
+- **Notes**: **cancelling is not a recall.** Messages already sent are untouched
+  and reported back in the response — say so to the user rather than reporting a
+  bare "cancelled". Takes effect between messages, so it also stops a run that is
+  currently in flight.
+
 ## `schedule_send`
 
 Confirms a draft for **future** dispatch instead of immediate sending —

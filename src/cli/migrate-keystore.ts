@@ -11,7 +11,7 @@ import {
   type KeystoreBackend,
 } from '../config/keystore/index.js';
 import { NoMasterKeyError } from '../config/keystore/errors.js';
-import { rekeyStoredData, type RekeyOutcome } from '../rekey.js';
+import { rekeyStoredData, describeRekeyCounts, type RekeyOutcome } from '../rekey.js';
 import { isInteractiveTerminal } from './interactive.js';
 import { section, detail, fail, attention } from './tree.js';
 
@@ -211,10 +211,10 @@ export async function runMigrateKeystore(args: string[]): Promise<void> {
     process.exit(1);
   }
   if (outcome.outcome.status === 'rekeyed') {
-    const { accountsRekeyed, scheduledRekeyed } = outcome.outcome.summary;
+    const { accountsRekeyed, scheduledRekeyed, campaignsRekeyed } = outcome.outcome.summary;
     outro(
-      `Migrated from \`${outcome.from}\` to \`${outcome.to}\`: re-encrypted ${accountsRekeyed} account(s)` +
-        `${scheduledRekeyed > 0 ? ` and ${scheduledRekeyed} scheduled send(s)` : ''}.`,
+      `Migrated from \`${outcome.from}\` to \`${outcome.to}\`: re-encrypted ` +
+        `${describeRekeyCounts({ accounts: accountsRekeyed, scheduled: scheduledRekeyed, campaigns: campaignsRekeyed })}.`,
     );
     return;
   }
