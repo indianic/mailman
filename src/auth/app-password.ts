@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { formatFromAddress, buildMessageId, mailmanHeaders } from '../mail/compose.js';
+import { formatFromAddress, buildMessageId, mailmanHeaders, htmlToPlainText } from '../mail/compose.js';
 import type { OutboundMessage } from '../mail/provider.js';
 
 export interface AppPasswordCredentials {
@@ -27,7 +27,13 @@ export function buildMailOptions(credentials: AppPasswordCredentials, message: O
     cc: message.cc?.join(', '),
     bcc: message.bcc?.join(', '),
     subject: message.subject,
-    text: message.bodyType === 'html' ? undefined : message.body,
+    // Both parts for an HTML send, so the message goes out as
+    // multipart/alternative rather than HTML-only. Anything that reads text
+    // instead of markup — reply quoting, notification previews, screen readers
+    // — otherwise has to invent its own conversion, and Gmail's drops the
+    // `<br>`s inside the signature's `<i>` tags. `|| undefined` because an
+    // empty part is worse than no part.
+    text: message.bodyType === 'html' ? htmlToPlainText(message.body) || undefined : message.body,
     html: message.bodyType === 'html' ? message.body : undefined,
     // Brand the Message-ID (local part `mcp-mailman.*`) + X-Mailer header so
     // mailman's sends are identifiable in an inbox / by a filter.

@@ -22,6 +22,108 @@ export function mailmanHeaders(): Record<string, string> {
   return { 'X-Mailer': 'mcp-mailman' };
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  mdash: '—',
+  ndash: '–',
+  hellip: '…',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  middot: '·',
+  bull: '•',
+};
+
+function fromCodePoint(code: number): string {
+  // A malformed entity should surface as nothing rather than throw mid-send.
+  if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) return '';
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return '';
+  }
+}
+
+function decodeEntities(text: string): string {
+  return (
+    text
+      .replace(/&#x([0-9a-f]+);/gi, (_m, hex: string) => fromCodePoint(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_m, dec: string) => fromCodePoint(parseInt(dec, 10)))
+      .replace(/&([a-z]+);/gi, (whole, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? whole)
+      // Last, always: decoding it earlier would turn "&amp;lt;" into "<" rather
+      // than into the literal "&lt;" the author wrote.
+      .replace(/&amp;/g, '&')
+  );
+}
+
+/**
+ * A readable `text/plain` rendering of an HTML body.
+ *
+ * Not cosmetic. mailman used to send HTML with no plain-text alternative at
+ * all, and it showed the first time a real person replied: the signature came
+ * back quoted as "Thanks & RegardsKalpesh Gamit" and "IndiaNIC Infotech
+ * Ltd.Mobile: +91…", because the receiving client had to invent its own
+ * conversion and dropped the `<br>`s inside the `<i>` tags. Anything that reads
+ * text rather than markup hits the same problem — reply quoting, notification
+ * previews, screen readers, watches — and a missing text part also reads as a
+ * mild spam signal, which matters more for a 39-recipient campaign than for one
+ * message to a colleague.
+ *
+ * Deliberately a small, predictable transform rather than a parser: mailman
+ * composes the HTML it sends, so this only ever has to handle its own output
+ * plus whatever a caller passed as a body.
+ */
+export function htmlToPlainText(html: string): string {
+  let text = html;
+
+  // Non-content elements go entirely, contents included — otherwise CSS from
+  // the polished shell would be pasted into the readable text.
+  text = text.replace(/<(script|style|head|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+
+  // A text reader cannot click an anchor, so the URL has to survive as text.
+  text = text.replace(
+    /<a\b[^>]*href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi,
+    (_m, _q, href: string, label: string) => {
+      const clean = label.replace(/<[^>]+>/g, '').trim();
+      if (!clean) return href;
+      return clean === href ? href : `${clean} (${href})`;
+    },
+  );
+
+  // Images carry nothing but their alt text.
+  text = text.replace(/<img\b[^>]*\balt\s*=\s*(["'])(.*?)\1[^>]*>/gi, '$2');
+  text = text.replace(/<img\b[^>]*>/gi, '');
+
+  // Structure, before the tags themselves disappear.
+  //
+  // A block boundary is a blank line and `<br>` is a single break, which is how
+  // the two differ in HTML and how a reader expects them to differ in text.
+  // `</li>` is deliberately NOT a block close: `<li>` already opened with a
+  // break, and closing with another would put a blank line between every bullet.
+  text = text.replace(/<li\b[^>]*>/gi, '\n- ');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<hr\s*\/?>/gi, '\n---\n');
+  text = text.replace(/<\/(p|div|tr|ul|ol|table|blockquote|h[1-6])\s*>/gi, '\n\n');
+  text = text.replace(/<[^>]+>/g, '');
+
+  text = decodeEntities(text);
+
+  // Whitespace last: collapse runs of spaces, trim each line, and cap blank
+  // runs at one so the polished shell's nesting doesn't leave a gulf of them.
+  text = text
+    .replace(/[ \t]+/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
+
+  return text.trim();
+}
+
 const HTML_ESCAPES: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',

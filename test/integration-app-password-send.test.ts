@@ -52,17 +52,23 @@ test('buildMailOptions sets a "Name <email>" From when fromDisplayName is set', 
   assert.equal(sent.from.address, 'me@example.com');
 });
 
-test('buildMailOptions sends HTML body under `html`, not `text`', async () => {
+test('buildMailOptions sends an HTML body as multipart/alternative, not HTML-only', async () => {
+  // This used to assert `text: undefined`, pinning what turned out to be a
+  // real defect: with no text/plain part, every client that reads text rather
+  // than markup had to invent its own conversion. A colleague's reply quoted
+  // the signature as "Thanks & RegardsKalpesh Gamit" because Gmail's converter
+  // dropped the <br>s. The HTML is unchanged; a generated text part rides
+  // alongside it.
   const transport = nodemailer.createTransport({ jsonTransport: true });
   const options = buildMailOptions(
     { user: 'me@example.com', pass: 'irrelevant' },
-    { to: ['a@example.com'], subject: 'Hi', body: '<b>bold</b>', bodyType: 'html' },
+    { to: ['a@example.com'], subject: 'Hi', body: '<p>Hi <b>bold</b></p>', bodyType: 'html' },
   );
 
   const info = await transport.sendMail(options);
   const sent = JSON.parse((info as unknown as { message: string }).message);
-  assert.equal(sent.html, '<b>bold</b>');
-  assert.equal(sent.text, undefined);
+  assert.equal(sent.html, '<p>Hi <b>bold</b></p>', 'the HTML part must be untouched');
+  assert.equal(sent.text, 'Hi bold', 'and a readable text alternative must ride with it');
 });
 
 test('buildMailOptions maps attachments to nodemailer\'s filename/path/contentType shape', async () => {

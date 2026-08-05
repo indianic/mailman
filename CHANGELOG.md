@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2026-08-05
+
+### Fixed
+
+- **HTML emails went out with no `text/plain` alternative.** Every HTML send —
+  `draft_email` and campaigns alike — was HTML-only, so any client that reads
+  text rather than markup had to invent its own conversion. Found in a real
+  reply: the quoted signature came back as `Thanks & RegardsKalpesh Gamit` and
+  `IndiaNIC Infotech Ltd.Mobile: +91…`, because Gmail's converter dropped the
+  `<br>`s inside the `<i>` tags. The same gap affects reply quoting,
+  notification previews, screen readers and watch faces, and a missing text
+  part reads as a mild spam signal — which matters more for a 39-recipient
+  campaign than for one message to a colleague.
+
+  HTML sends are now `multipart/alternative`. The HTML part is byte-for-byte
+  unchanged; a generated text part rides alongside it. `<br>` becomes one line
+  break and a block boundary becomes a blank line, entities are decoded
+  (`&amp;` last, so an authored `&amp;lt;` stays the literal `&lt;`), list items
+  become dashes, `<style>`/`<script>` contents are dropped rather than pasted in
+  as text, and links keep their URL — `<a href="…">Site</a>` renders as
+  `Site (https://…)`, because a text reader cannot click an anchor. An HTML body
+  with no readable text at all sends no text part rather than an empty one.
+
 ## [1.6.0] - 2026-08-05
 
 ### Added
