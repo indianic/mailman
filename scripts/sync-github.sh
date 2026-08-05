@@ -20,7 +20,12 @@ SRC_BRANCH="${SRC_BRANCH:-main}"
 GITHUB_REMOTE="${GITHUB_REMOTE:-github}"
 GITHUB_URL="${GITHUB_URL:-https://github.com/indianic/mailman.git}"
 # site/docker/scripts/INTERNAL.md are internal-only and always excluded.
-EXCLUDE=(site docker scripts INTERNAL.md)
+# CONTEXT.md is a maintainer working doc: it names the GitLab host and path,
+# the internal registry and the release choreography. None of that belongs in
+# a public MIT repo, and it is useless to anyone cloning it.
+# .gitlab-ci.yml is inert on GitHub — nothing there reads it — while naming an
+# internal runner tag and describing the shared host it runs on.
+EXCLUDE=(site docker scripts INTERNAL.md CONTEXT.md .gitlab-ci.yml)
 # .github/workflows is excluded BY DEFAULT because pushing workflow files needs
 # a token with the `workflow` scope. When you have such a token, run with
 # INCLUDE_WORKFLOWS=1 to ship the workflows (e.g. the npm-publish Action).
@@ -58,6 +63,20 @@ git worktree add --quiet --detach "$WT" "$SRC_BRANCH"
 (
   cd "$WT"
   git rm -r --quiet --ignore-unmatch "${EXCLUDE[@]}" 2>/dev/null || true
+
+  # The committed package.json carries the INTERNAL identity so
+  # scripts/release-indianic keeps working. Mirroring it verbatim published two
+  # things that have no business in a public MIT repo: an internal registry
+  # hostname, and a package name that is not the one on npm. Anyone cloning and
+  # running `npm publish` would aim at a registry they cannot reach, under a
+  # name that is not theirs.
+  #
+  # release-public already does this for the tarball; the mirror needs it too,
+  # and doing it HERE keeps the caller's real package.json untouched.
+  npm pkg set name="@integratex/mailman" >/dev/null 2>&1 || true
+  npm pkg delete publishConfig.registry  >/dev/null 2>&1 || true
+
+  git add -A
   git commit -q -m "build: package-only tree for GitHub (exclude ${EXCLUDE[*]})"
   "${GIT_PUSH[@]}" push -f "$PUSH_TARGET" HEAD:refs/heads/main
   if [ -n "$TAG" ]; then
