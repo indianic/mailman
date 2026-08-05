@@ -128,6 +128,79 @@ test('draft_campaign: per-recipient vars override contacts and carry custom toke
   });
 });
 
+test('draft_campaign: mixes bare addresses and vars objects in one array', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    // The shape a real campaign actually has: most people resolve from
+    // contacts, one or two need a name supplied. Requiring all-or-nothing here
+    // meant rewriting every entry as an object because of one exception.
+    const result = body(
+      await draft({
+        recipients: [
+          'yash@example.com',
+          { email: 'chetan@example.com', vars: { name: 'Chetan Kumar' } },
+          'brinda@example.com',
+        ],
+        subject: 'Demo',
+        body: 'Hi {{first_name}},',
+        bodyType: 'text',
+      }),
+    );
+    // chetan has no name in contacts, so a successful draft is itself the
+    // proof that the object form's vars were applied — without them this call
+    // would have come back CAMPAIGN_UNRESOLVED.
+    assert.equal(result.total, 3);
+    assert.deepEqual(result.unresolved, []);
+    assert.deepEqual(result.warnings, [], 'every name resolved, so nothing to warn about');
+    for (const sample of result.samples) {
+      assert.doesNotMatch(sample.bodyPreview, /\{\{/, `placeholder survived: ${sample.bodyPreview}`);
+    }
+  });
+});
+
+test('draft_campaign: a name from the object form renders in the body', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const result = body(
+      await draft({
+        recipients: ['yash@example.com', { email: 'chetan@example.com', vars: { name: 'Chetan Kumar' } }],
+        subject: 'Demo',
+        body: 'Hi {{first_name}},',
+        bodyType: 'text',
+      }),
+    );
+    const chetan = result.samples.find((s: { to: string }) => s.to === 'chetan@example.com');
+    assert.ok(chetan, `chetan missing from samples: ${JSON.stringify(result.samples)}`);
+    assert.equal(chetan.bodyPreview, 'Hi Chetan,');
+  });
+});
+
+test('draft_campaign: de-duplicates across the two recipient forms', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const result = body(
+      await draft({
+        recipients: ['yash@example.com', { email: 'YASH@example.com', vars: { name: 'Duplicate' } }],
+        subject: 'Demo',
+        body: 'Hi {{first_name}},',
+        bodyType: 'text',
+      }),
+    );
+    assert.equal(result.total, 1, 'the same address in both forms must not be sent to twice');
+  });
+});
+
+test('draft_campaign: an unreadable recipients argument gets a remedy, not a zod union dump', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const response = await draft({ recipients: [{ nope: 'x' }], subject: 'Demo', body: 'Hi,', bodyType: 'text' });
+    assert.equal(response.isError, true);
+    const message = body(response).message;
+    assert.doesNotMatch(message, /unionErrors|invalid_union|ZodError/, 'a raw zod dump tells a caller nothing');
+    assert.match(message, /mixed freely|either an address/i);
+  });
+});
+
 test('draft_campaign: warns when the body addresses a group — the wrong-mode trap', async () => {
   await withIsolatedConfig(async () => {
     await seed();

@@ -24,12 +24,19 @@ const RecipientObjectSchema = z.object({
   vars: z.record(z.string()).optional(),
 });
 
+/**
+ * One entry: a bare address, `"Name <addr>"`, or `{email, vars}`.
+ *
+ * The array is heterogeneous on purpose. The first version accepted
+ * `string[] | {email,vars}[]` and nothing in between, which broke on the most
+ * natural way to write a real campaign: most recipients resolve fine from
+ * contacts, and two of them need a name supplied. All-or-nothing forced every
+ * entry to be rewritten as an object because of two exceptions.
+ */
+const RecipientEntrySchema = z.union([z.string(), RecipientObjectSchema]);
+
 const InputSchema = z.object({
-  recipients: z.union([
-    z.string(),
-    z.array(z.string()).min(1),
-    z.array(RecipientObjectSchema).min(1),
-  ]),
+  recipients: z.union([z.string(), z.array(RecipientEntrySchema).min(1)]),
   subject: z.string().optional(),
   body: z.string(),
   bodyType: z.enum(['text', 'html']).optional(),
@@ -54,48 +61,50 @@ function normalizeRecipients(
   input: z.infer<typeof InputSchema>['recipients'],
   contactNames: Map<string, string>,
 ): { ok: true; recipients: ResolvedRecipient[] } | { ok: false; message: string } {
-  // Bare strings: "a@x.com", ["a@x.com","Yash S <b@x.com>"], "a@x.com, b@x.com".
-  if (typeof input === 'string' || typeof input[0] === 'string') {
-    const { entries, invalid } = parseRecipientEntries(input as string | string[]);
-    if (invalid.length > 0) {
-      return { ok: false, message: `Not a usable email address: ${invalid.map((e) => `"${e}"`).join(', ')}` };
-    }
-    return {
-      ok: true,
-      recipients: entries.map((e) => ({
-        email: e.address,
-        // An inline "Name <addr>" beats the address book: the caller typed it
-        // for this campaign, and it is the fresher of the two.
-        vars: deriveVars(e.address, e.name ?? contactNames.get(e.address.toLowerCase())),
-      })),
-    };
-  }
-
-  const objects = input as Array<z.infer<typeof RecipientObjectSchema>>;
+  const items = typeof input === 'string' ? [input] : input;
   const recipients: ResolvedRecipient[] = [];
   const invalid: string[] = [];
   const seen = new Set<string>();
 
-  for (const item of objects) {
+  // De-duplication spans the whole list, not each entry — the same address can
+  // arrive once bare and once as an object, and sending twice would be worse
+  // than either form being rejected.
+  const add = (address: string, inlineName?: string, vars?: Record<string, string>) => {
+    const key = address.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    recipients.push({
+      // An inline "Name <addr>" beats the address book: the caller typed it for
+      // this campaign, and it is the fresher of the two.
+      email: address,
+      vars: deriveVars(address, inlineName ?? contactNames.get(key), vars),
+    });
+  };
+
+  for (const item of items) {
+    if (typeof item === 'string') {
+      // One string may itself hold several: "a@x.com, Yash S <b@x.com>".
+      const { entries, invalid: bad } = parseRecipientEntries(item);
+      invalid.push(...bad);
+      for (const entry of entries) add(entry.address, entry.name);
+      continue;
+    }
+
     const parsed = parseRecipientEntries(item.email);
     if (parsed.invalid.length > 0 || parsed.entries.length !== 1) {
       invalid.push(item.email);
       continue;
     }
     const { address, name } = parsed.entries[0];
-    const key = address.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    recipients.push({
-      email: address,
-      vars: deriveVars(address, name ?? contactNames.get(key), item.vars),
-    });
+    add(address, name, item.vars);
   }
 
   if (invalid.length > 0) {
     return {
       ok: false,
-      message: `Not a usable email address: ${invalid.map((e) => `"${e}"`).join(', ')}. Each recipient object needs exactly one address in "email".`,
+      message:
+        `Not a usable email address: ${invalid.map((e) => `"${e}"`).join(', ')}. ` +
+        'Pass each recipient as a plain address, "Name <addr>", or {"email":"…","vars":{…}} with exactly one address in "email".',
     };
   }
   return { ok: true, recipients };
@@ -104,6 +113,19 @@ function normalizeRecipients(
 async function handler(rawArgs: Record<string, unknown>) {
   const parsed = InputSchema.safeParse(rawArgs);
   if (!parsed.success) {
+    // A failed union over `recipients` serialises as a wall of nested
+    // unionErrors — three parallel branch failures, none of which says what to
+    // do. src/mail/recipients.ts already learned this lesson for draft_email:
+    // an unreadable dump invites a model to give up or to quietly restructure
+    // the call, and here that means silently dropping recipients.
+    if (parsed.error.issues.some((issue) => issue.path[0] === 'recipients')) {
+      return toolError(
+        'INVALID_INPUT',
+        'Could not read "recipients". Give an array whose entries are each either an address ' +
+          '("a@x.com" or "Name <a@x.com>") or an object {"email":"a@x.com","vars":{"name":"…"}}. ' +
+          'The two forms can be mixed freely in one array, and a single comma-separated string works too.',
+      );
+    }
     return toolError('INVALID_INPUT', parsed.error.message);
   }
   const input = parsed.data;
@@ -291,22 +313,26 @@ export const draftCampaignTool: Tool = {
         recipients: {
           anyOf: [
             { type: 'string' },
-            { type: 'array', items: { type: 'string' } },
             {
               type: 'array',
               items: {
-                type: 'object',
-                properties: {
-                  email: { type: 'string' },
-                  vars: { type: 'object', additionalProperties: { type: 'string' } },
-                },
-                required: ['email'],
-                additionalProperties: false,
+                anyOf: [
+                  { type: 'string' },
+                  {
+                    type: 'object',
+                    properties: {
+                      email: { type: 'string' },
+                      vars: { type: 'object', additionalProperties: { type: 'string' } },
+                    },
+                    required: ['email'],
+                    additionalProperties: false,
+                  },
+                ],
               },
             },
           ],
           description:
-            'Bare addresses (array or one comma-separated string), "Name <addr>" to supply the name inline, or objects {"email":"…","vars":{"name":"…","company":"…"}} for per-recipient values. Names not given here are looked up in contacts.',
+            'Bare addresses (array or one comma-separated string), "Name <addr>" to supply the name inline, or objects {"email":"…","vars":{"name":"…","company":"…"}} for per-recipient values. The forms MIX freely in one array — pass plain addresses for everyone contacts already knows and an object only for the few who need a name. Names not given here are looked up in contacts.',
         },
         subject: { type: 'string', description: 'May contain placeholders. Required — a subjectless merge reads as spam.' },
         body: {

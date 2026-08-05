@@ -1,6 +1,6 @@
 # Personalised sending (campaigns) — specification
 
-> Status: **Phase 1 shipped in v1.5.0**
+> Status: **Phase 1 shipped in 1.5.0**
 > Origin: a real send on 5 Aug 2026 that exposed the gap — see §1.
 > What actually landed, and where it departs from this document: **§9**.
 

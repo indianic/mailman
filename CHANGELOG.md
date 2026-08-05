@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-08-05
+
+Found by the first live campaign — four real emails to four colleagues, which
+is also the first thing 1.5.0 was asked to do.
+
+### Fixed
+
+- **`draft_campaign` could not mix the two recipient forms.** `recipients`
+  accepted `string[]` *or* `{email, vars}[]` and nothing in between, so the
+  shape a real campaign actually has — most people resolvable from contacts,
+  one or two needing a name supplied — was rejected outright. All-or-nothing
+  forced every entry to be rewritten as an object because of two exceptions.
+  The array is now heterogeneous, and de-duplication spans both forms so the
+  same address written twice, once each way, is still sent to once.
+- **An unreadable error when `recipients` did not parse.** A failed zod union
+  serialises as three parallel branch failures nested in `unionErrors`, none of
+  which says what to do. `src/mail/recipients.ts` already learned this for
+  `draft_email`: a dump invites a model to give up or quietly restructure the
+  call, and here that means silently dropping recipients. Replaced with a
+  sentence naming both accepted forms and the fact that they mix.
+
 ## [1.5.0] - 2026-08-05
 
 ### Added
