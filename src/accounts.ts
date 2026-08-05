@@ -279,6 +279,36 @@ export async function setSignatureImage(alias: string, sourcePath: string): Prom
   return { path: destination, bytes: stat.size };
 }
 
+/**
+ * Forget the signature photo. The copied file is deleted too — leaving it in
+ * the config dir would keep a picture of someone on disk after they asked for
+ * it to be removed.
+ */
+export async function clearSignatureImage(alias: string): Promise<void> {
+  let previous: string | undefined;
+  await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    previous = target.signatureImage;
+    return {
+      ...current,
+      accounts: current.accounts.map((a) => (a.alias === alias ? { ...a, signatureImage: undefined } : a)),
+    };
+  });
+
+  if (previous) {
+    // Best-effort: the account record is already updated, so a file that
+    // cannot be removed must not fail the command.
+    try {
+      await fs.rm(previous, { force: true });
+    } catch {
+      // already gone, or not ours to delete
+    }
+  }
+}
+
 export class AccountRemovalConfirmationError extends Error {
   code = ErrorCodes.CONFIRMATION_REQUIRED;
 }

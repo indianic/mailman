@@ -295,12 +295,40 @@ flowchart TD
 | `get_settings` / `update_settings` | Global settings |
 | `get_status` | Configured state (accounts, security, activity) |
 
+### Signatures
+
+The per-account signature is appended at draft time, so the preview you approve
+is what goes out.
+
+- **Plain text or HTML, decided by content.** Paste the signature your mail
+  client gave you and its `<br>`/`<i>`/`<a href>` render as written; a plain-text
+  one has its newlines turned into `<br>` and its `&`/`<`/`>` escaped, so
+  `<name@example.com>` cannot vanish into an unknown tag.
+- **Layout is allowed** — `table`, `td`, `div` — for a photo beside text or a
+  two-column contact block. Only inline formatting and layout survive: `<script>`,
+  event handlers, `javascript:` URLs and unbalanced tags are stripped, so a
+  signature can never break the surrounding email.
+- **A photo travels inside the message.** `mailman account profile
+  --signature-image <path>` copies it into the config dir; reference it from the
+  signature as `<img src="cid:mailman-signature">` and it is attached inline on
+  every send that uses it. Inline rather than linked, because Gmail and Outlook
+  block remote images by default. Capped at 200 KB — it rides on every message.
+  *Gmail lists inline images in its attachment strip regardless of how the
+  message is built; that is client behaviour, not something a sender controls.*
+
+### Every HTML email carries a plain-text alternative
+
+HTML sends go out as `multipart/alternative`. The HTML is untouched and a
+generated text part rides alongside, so reply quoting, notification previews and
+screen readers get something readable instead of an auto-conversion — and the
+message does not read as HTML-only to a spam filter.
+
 ### CLI commands (what you type)
 
 | Command | Purpose |
 |---|---|
 | `mailman init` | First-run setup wizard |
-| `mailman account add/list/remove/set-default/profile` | Manage accounts, From Name & signature |
+| `mailman account add/list/remove/set-default/profile` | Manage accounts, From Name, signature & signature photo |
 | `mailman auth login` / `auth rotate-key` | OAuth2 consent / rotate encryption key |
 | `mailman contacts list/add/remove` | Address book |
 | `mailman settings get/set` | View / change settings (incl. `desktopNotifications`) |

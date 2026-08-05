@@ -5,6 +5,8 @@ import {
   removeAccount,
   resolveAccount,
   updateAccountProfile,
+  setSignatureImage,
+  clearSignatureImage,
   updateAccountCredentials,
   getDefaultAlias,
   findAccountByEmail,
@@ -13,6 +15,7 @@ import {
   DuplicateEmailError,
 } from '../accounts.js';
 import { updateSettings } from '../settings.js';
+import { SIGNATURE_IMAGE_CID } from '../mail/compose.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
 import { verifyAppPasswordCredentials, type VerifyFailureKind } from '../auth/verify.js';
 import { authorizeOAuth2Account } from './auth-login.js';
@@ -498,11 +501,18 @@ export async function runAccountPassword(args: string[]): Promise<void> {
   outro(`Updated the App Password for "${alias}" (${account.email}).`);
 }
 
-function renderProfile(account: { alias: string; email: string; displayName?: string; signature?: string }): void {
+function renderProfile(account: {
+  alias: string;
+  email: string;
+  displayName?: string;
+  signature?: string;
+  signatureImage?: string;
+}): void {
   section(`profile — ${account.alias} (${account.email})`);
   detail(`from name   ${account.displayName ?? '(not set — recipients see the bare address)'}`);
   // Multi-line signatures render with the rail unbroken (tree.ts handles \n continuation).
   detail(`signature   ${account.signature ?? '(not set)'}`);
+  detail(`photo       ${account.signatureImage ?? '(not set)'}`);
 }
 
 /**
@@ -523,10 +533,14 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   let alias: string | undefined;
   let displayName: string | null | undefined;
   let signature: string | null | undefined;
+  let signatureImage: string | null | undefined;
 
   // Only OUR flags disqualify a value — a plain startsWith('--') check
   // rejected a real user's signature of "---------------" (all dashes).
-  const KNOWN_FLAGS = ['--name', '--signature', '--clear-name', '--clear-signature'];
+  const KNOWN_FLAGS = [
+    '--name', '--signature', '--signature-image',
+    '--clear-name', '--clear-signature', '--clear-signature-image',
+  ];
   const missingValue = (v: string | undefined) => v === undefined || KNOWN_FLAGS.includes(v);
 
   for (let i = 0; i < args.length; i++) {
@@ -547,14 +561,25 @@ export async function runAccountProfile(args: string[]): Promise<void> {
       // `--signature "Regards,\nKalpesh"` really produces a two-line
       // signature, as `mailman examples` promises.
       signature = signature!.replace(/\\n/g, '\n');
+    } else if (a === '--signature-image') {
+      signatureImage = args[++i];
+      if (missingValue(signatureImage)) {
+        fail('--signature-image requires a path (use --clear-signature-image to remove it)');
+        process.exit(1);
+      }
     } else if (a === '--clear-name') {
       displayName = null;
     } else if (a === '--clear-signature') {
       signature = null;
+    } else if (a === '--clear-signature-image') {
+      signatureImage = null;
     } else if (!a.startsWith('--') && alias === undefined) {
       alias = a;
     } else {
-      fail(`Unknown argument: ${a}\nUsage: mailman account profile [alias] [--name "..."] [--signature "..."] [--clear-name] [--clear-signature]`);
+      fail(
+        `Unknown argument: ${a}\nUsage: mailman account profile [alias] [--name "..."] [--signature "..."] ` +
+          '[--signature-image <path>] [--clear-name] [--clear-signature] [--clear-signature-image]',
+      );
       process.exit(1);
     }
   }
@@ -571,13 +596,34 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   }
 
   // No flags → just show the current profile.
-  if (displayName === undefined && signature === undefined) {
+  if (displayName === undefined && signature === undefined && signatureImage === undefined) {
     renderProfile(account);
     outro('Change it: mailman account profile --name "..." --signature "..."');
     return;
   }
 
-  const updated = await updateAccountProfile(account.alias, { displayName, signature });
+  // The photo first: adopting it can fail on a bad path, an unsupported type or
+  // an oversized file, and failing AFTER the name and signature had been
+  // written would leave the profile half-updated.
+  if (typeof signatureImage === 'string') {
+    try {
+      const adopted = await setSignatureImage(account.alias, signatureImage);
+      attention(
+        `Photo copied into the config dir (${Math.round(adopted.bytes / 1024)} KB). Reference it from the signature ` +
+          `with <img src="cid:${SIGNATURE_IMAGE_CID}"> — it is attached only when the signature actually uses it.`,
+      );
+    } catch (err) {
+      fail(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  } else if (signatureImage === null) {
+    await clearSignatureImage(account.alias);
+  }
+
+  const updated =
+    displayName === undefined && signature === undefined
+      ? await resolveAccount(account.alias)
+      : await updateAccountProfile(account.alias, { displayName, signature });
   renderProfile(updated);
   outro('Profile updated. Applies to the next draft — no restart needed.');
 }

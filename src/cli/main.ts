@@ -52,7 +52,7 @@ const COMMANDS: Record<string, CommandEntry> = {
   'account password': { handler: runAccountPassword, summary: 'Update an account\'s App Password (pick from a list, verified live)' },
   'account remove': { handler: runAccountRemove, summary: 'Remove an account (--yes to skip confirm)' },
   'account set-default': { handler: runAccountSetDefault, summary: 'Set the default account' },
-  'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / email signature (--name, --signature, --clear-*)' },
+  'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / signature / signature photo (--name, --signature, --signature-image, --clear-*)' },
   'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
   'auth migrate-keystore': { handler: runMigrateKeystore, summary: 'Move the master key to another keystore (--to os-keychain|passphrase|env|file)' },
@@ -130,6 +130,7 @@ function printExamples(): void {
   detail('mailman account profile --name "Kalpesh Gamit"             what recipients see instead of the bare address');
   detail('mailman account profile --signature "Regards,\\nKalpesh"    appended to every draft (\\n = new line)');
   detail('mailman account profile --clear-signature                  remove it');
+  detail('mailman account profile --signature-image me.png          photo attached inline (cid:mailman-signature)');
 
   section('desktop notifications');
   detail('mailman settings set desktopNotifications false            turn off the "email sent" desktop pop-up (on by default)');

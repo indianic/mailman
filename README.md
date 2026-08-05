@@ -27,7 +27,9 @@ Ask your AI in plain English. MailMan **drafts, previews, and only sends on your
 - Send **and read** Gmail from your AI in plain English — "send those docs to Kalpesh," "show my last 10 emails"
 - **Draft → preview → confirm** safety — nothing sends until you approve (`confirm_send` won't dispatch without an explicit confirmation)
 - **182 message templates** + `list_templates` (FYI, follow-up, meeting, forward/reply and more — a subject prefix + a hint your AI composes from)
-- **Personalised sends** — `draft_campaign` turns one message into N, each addressed to one person by name, nobody seeing anyone else. Refuses to draft rather than send "Hi ,"; resumes a partial run instead of re-sending
+- **Personalised sends** — `draft_campaign` turns one message into N, each addressed to one person by name, nobody seeing anyone else. Refuses to draft rather than send "Hi ,"; resumes a partial run instead of re-sending. `ccFirstOnly`/`bccFirstOnly` copy your manager **once**, not once per recipient
+- **Signatures that render** — plain text or HTML, your choice made by content. Table layout for a photo beside text, and the photo travels *inside* the message (Content-ID) so it shows without a "load images" prompt
+- **Every HTML email carries a plain-text part** — reply quoting, notification previews and screen readers get something readable, not a mangled auto-conversion
 - Attachments (files, folders, `*.pdf` globs), **scheduled sends** via an OS timer, inbox list / read / search, contacts + recipient suggestions
 - Multi-account, machine-bound encrypted credentials (OS keychain), desktop notifications on send
 - **Session reports** — search your past AI coding sessions by project or date, digest one or many, and email the summary. Tool output is dropped and secrets redacted before a word is composed
@@ -171,6 +173,43 @@ You: send this tomorrow at 9am instead of now   # goes out even if the tool is c
 
 > **Package vs. command names.** The npm package is **`@integratex/mailman`**; it installs a CLI you run as **`mailman`**. A second alias, **`mcp-mailman`**, points at the same binary — use it only on a host that also has GNU Mailman's `/usr/bin/mailman`.
 
+## Sending to many people: broadcast or merge
+
+Two shapes, and picking the wrong one is visible to the recipient.
+
+**Broadcast** — `draft_email` with everyone in `to`/`cc`. One message, one reply
+thread, everyone can see it is a group email. Right for announcements and policy
+changes.
+
+**Personalised merge** — `draft_campaign` → `confirm_campaign`. N separate
+messages, each addressed only to that person, their name rendered into the body.
+Right for outreach and individual nudges, where a shared envelope would leak the
+recipient list and read as bulk to spam filters.
+
+> "email the 12 people on this list about Thursday's demo, use their first names"
+
+```
+draft_campaign  →  preview: 12 recipients, ~1 min, 2 sample renderings,
+                   plus every warning — who has no name on file, whether the
+                   body says "Hi team" and should have been a broadcast
+confirm_campaign → one approval sends all 12, paced at 20/min
+```
+
+What makes it safe to run unattended:
+
+- **It refuses to draft** if any recipient has an unresolvable `{{placeholder}}`
+  — "Hi ," is worse than any group greeting, and draft time is the last moment
+  it costs nothing to stop. Give a token a fallback with `{{first_name|there}}`.
+- **Resume, never restart.** A recipient is marked sent only after the transport
+  returns a message id, so a crash or a retry continues where it stopped rather
+  than emailing everyone twice.
+- **`ccFirstOnly` / `bccFirstOnly`** attach to the first message that *actually
+  sends*, so a manager sees the campaign went out once — not once per recipient.
+- **It aborts** at ~25% failures instead of grinding through a list with bad
+  credentials.
+
+Full design notes: [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md).
+
 ## How it works
 
 A native stdio **MCP server**: your editor launches it via `npx -y @integratex/mailman` and Claude calls its tools from natural language. It reaches Gmail two ways — **SMTP/IMAP** for App Password accounts, or the **Gmail REST API** for OAuth2 accounts. Pure Node.js, so behavior is identical on macOS, Linux, and Windows. Configured once, globally — available from any project.
@@ -194,6 +233,7 @@ Manual MCP config (what `init`/`register` write for you — note it carries **no
 - [docs/PLAN.md](docs/PLAN.md) — architecture: auth, storage, tools, flows
 - [docs/SKILLS.md](docs/SKILLS.md) — the MCP tools this server exposes
 - [docs/CLI.md](docs/CLI.md) — every terminal command (setup, accounts, diagnostics)
+- [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md) — personalised sends: design, guarantees, what shipped
 - [docs/CROSS-OS.md](docs/CROSS-OS.md) — per-OS support matrix
 
 ## OAuth2 / browser sign-in (the passwordless path)

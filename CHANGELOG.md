@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2026-08-05
+
+### Added
+
+- **`mailman account profile --signature-image <path>` / `--clear-signature-image`.**
+  1.7.0 shipped inline signature photos with **no way for a user to enable
+  them** — `setSignatureImage()` existed only as a function, reachable from
+  neither the CLI nor an MCP tool. Caught by a documentation audit rather than
+  by any test. Clearing also deletes the copied file, since leaving a picture of
+  someone on disk after they asked for it to be removed is not "cleared".
+
+### Changed
+
+- **Docs audited against everything 1.5.0–1.7.0 actually shipped.** Two claims
+  had become wrong rather than merely incomplete:
+  - `docs/CLI.md` still said block tags in a signature "are escaped rather than
+    rendered". They have been allowed since 1.7.0, with balance enforced instead.
+  - `docs/CLI.md` still described `auth rotate-key` as re-encrypting **two**
+    files. It has covered three since 1.5.0 — `campaigns.json` too.
+- `docs/PLAN.md` gains the two architecture sections it had no equivalent of:
+  **Four send modes** (which store each uses, and why campaigns are not N
+  scheduled entries) and the **Compose pipeline** (signature rendering, the
+  HTML/text split, inline images).
+- `bccFirstOnly` is documented — it shipped in 1.6.0 and appeared in no document.
+- README gains a broadcast-versus-merge section, since choosing the wrong one is
+  visible to the recipient.
+- `emailTheme` added to the documented settings list; `mailman examples` and the
+  `account profile` command summary mention the photo flag.
+
 ## [1.7.0] - 2026-08-05
 
 ### Added

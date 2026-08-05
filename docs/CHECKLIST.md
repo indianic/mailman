@@ -250,6 +250,30 @@ of deliberate departures from it are in that document (§9).
 - [ ] Phases 2–4 of `docs/CAMPAIGNS.md`: per-campaign log, bounce capture,
       reply-conditional sequencing
 
+### Signatures that render — 1.5.2 / 1.7.0
+- [x] An HTML signature is sanitised and rendered instead of escaped into view;
+      a plain-text one keeps the previous escaping path untouched. The content
+      decides, because people paste what their mail client gave them
+- [x] Layout tags (`table`, `td`, `div`) allowed, with the sanitiser emitting a
+      **balanced tree** — stray closes dropped, unclosed tags closed, crossed
+      tags untangled. Replaces the blanket ban rather than weakening it
+- [x] Signature photos attached inline by Content-ID, so they render with no
+      "load images" prompt. Copied into the config dir, capped at 200 KB
+- [x] `mailman account profile --signature-image / --clear-signature-image` —
+      the feature shipped in 1.7.0 with **no way for a user to enable it**,
+      caught by the docs audit rather than by any test
+- [ ] Gmail lists inline images in its attachment strip regardless of MIME
+      shape. `filename: false` and `multipart/related`-outermost were both built
+      and tested; neither helps. Not a defect, not fixable from the sending side
+
+### Every HTML email carries a text/plain part — 1.6.1 / 1.6.2
+- [x] HTML sends go out as `multipart/alternative`; the HTML part is unchanged
+- [x] Three converter bugs, each found by reading delivered mail and none by the
+      suite: no text part at all, indented source double-spacing list items, and
+      block *opening* tags not ending the preceding line
+- [ ] The suite still only exercises HTML shaped the way it was written by hand.
+      Every one of those three passed a green suite
+
 ### Publishing
 - [x] `@integratex/mailman` live on the public npm registry (1.2.1), with
       matching GitHub releases and the filtered source mirror

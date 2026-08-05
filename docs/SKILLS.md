@@ -193,7 +193,8 @@ previews; sends nothing.
 
 - **Input**: `{ recipients, body }` required, plus `subject` (required in
   practice — a subjectless merge reads as spam), `bodyType`, `theme`, `account`,
-  `template`, `attachments`, `recursive`, `ccFirstOnly`, `throttlePerMinute`.
+  `template`, `attachments`, `recursive`, `ccFirstOnly`, `bccFirstOnly`,
+  `throttlePerMinute`.
   `recipients` accepts bare addresses, `"Name <addr>"` to supply the name
   inline, or `{ email, vars }` objects for per-recipient values.
 - **Output**: `{ campaignId, total, estimatedDuration, samples, warnings, … }`
@@ -210,6 +211,12 @@ change, "the demo is Thursday". "Hi Priya" on a message that says *"bring your
 questions to the session"* fakes intimacy that everyone can see through;
 broadcast is the right mode there, not the degraded one.
 
+- **Copying someone in**: `ccFirstOnly` and `bccFirstOnly` attach to the **first
+  message that actually sends**, then are dropped — which is how a manager sees
+  the campaign went out without receiving one email per recipient. There is no
+  plain `cc`/`bcc` on a campaign: passing one is refused with an error, not
+  silently ignored, because a plain Cc would copy that person on all N messages.
+  When both are set they ride the same message, not the first two.
 - **Errors**: `CAMPAIGN_UNRESOLVED` when any recipient has a placeholder with no
   value. **Nothing is drafted** — this is deliberate, because `Hi ,` is worse
   than any group greeting and this is the last moment it can be stopped for

@@ -48,9 +48,14 @@ mailman/
 │   │   └── oauth2.ts          Google OAuth2 (XOAUTH2), refresh-token flow
 │   ├── mail/
 │   │   ├── provider.ts           the MailProvider interface (see below)
+│   │   ├── compose.ts            From/Message-ID, signature rendering, HTML→text (see Compose pipeline)
 │   │   ├── gmail-api-client.ts   GmailApiProvider — list/search/read via Gmail API (oauth2 accounts)
 │   │   ├── imap-client.ts        ImapSmtpProvider — list/search/read via IMAP (app-password accounts)
 │   │   └── normalize.ts          maps both backends into one common email shape
+│   ├── campaigns/                personalised merge — see docs/CAMPAIGNS.md
+│   │   ├── render.ts            {{placeholder}} substitution, sample selection
+│   │   ├── store.ts             read/write campaigns.json (encrypted content, plaintext per-recipient state)
+│   │   └── dispatch.ts          the paced send loop: exactly-once, resume-not-restart, abort threshold
 │   ├── scheduler/
 │   │   ├── store.ts             read/write scheduled.json (encrypted, same master key as accounts.json)
 │   │   ├── ticker-install.ts    per-OS idempotent registration (launchd/cron/Task Scheduler)
@@ -58,7 +63,7 @@ mailman/
 │   ├── config/
 │   │   ├── paths.ts           cross-platform global config dir resolution
 │   │   ├── store.ts           read/write accounts.json, contacts.json, settings.json
-│   │   ├── schema.ts          zod schemas for all three files
+│   │   ├── schema.ts          zod schemas for every config file
 │   │   └── keychain.ts        master-key generation/retrieval via keytar (see Security model)
 │   ├── status.ts             collectStatus() — shared data source for `status` CLI + get_status tool
 │   ├── response.ts           toolResponse()/toolError() JSON-in-text helpers (see Output format below)
@@ -375,6 +380,80 @@ expected/primary path is still Claude always supplying real composed text.
 Drafts expire after a configurable TTL (default 10 minutes — see Settings)
 so a stale confirmation can't fire off an old, possibly-outdated draft, and
 can't double-send if confirmed twice.
+
+## Four send modes, and which store each uses
+
+A message leaves this machine through one of four paths. They differ in what
+the recipient sees and in where the state lives, and confusing them is the
+easiest way to send something embarrassing.
+
+| Mode | Tool | State | Recipient sees |
+|---|---|---|---|
+| **Broadcast** | `draft_email` → `confirm_send` | `drafts.ts`, in-memory, 10-min TTL | one message, everyone in To/Cc/Bcc |
+| **Personalised merge** | `draft_campaign` → `confirm_campaign` | `campaigns.json`, on disk | one message addressed only to them |
+| **Deferred** | `draft_email` → `schedule_send` | `scheduled.json`, on disk | as broadcast, later |
+| **Transactional** | `draft_email` → `confirm_send` | as broadcast | as broadcast |
+
+**Broadcast is not the degraded mode.** For a genuinely collective message —
+an announcement, a policy change — a shared To/Cc is honest and gives everyone
+one reply thread. Personalising it fakes an intimacy the recipient can see
+through. Merge earns its place on outreach and individual nudges, where a
+shared envelope would leak the recipient list and read as bulk. `draft_campaign`
+warns when a body addresses a group; see docs/CAMPAIGNS.md §2.
+
+**Why campaigns get their own store rather than N scheduled entries.** They
+share the scheduler's *pattern* — encrypted content, plaintext bookkeeping, the
+same atomic `updateJsonFile` path — but not its file. Campaign children in
+`scheduled.json` would be visible to the ticker before anyone confirmed them,
+which is a way to send 39 unapproved emails. Recipients are keyed by `seq`, so
+no address sits in the plaintext half.
+
+**Why not `drafts.ts`.** It is an in-memory map with a 10-minute TTL. A
+39-recipient run dying at #20 would leave no record of who had received it, and
+the retry would double-send. Every campaign recipient transitions
+`pending → sent | failed` on disk, marked `sent` only once the transport returns
+a message id — see "Concurrency, resilience & idempotency".
+
+## Compose pipeline — what actually goes on the wire
+
+`mail/compose.ts` sits between a draft and a provider, and every send passes
+through it.
+
+```
+body (caller's HTML or text)
+  └─ appendSignature()      account signature, escaped or sanitised (below)
+       └─ wrapPolished()    optional card shell + IndiaNIC footer (HTML only)
+            ├─ htmlToPlainText()  → the text/plain part
+            └─ the HTML part, byte-for-byte
+```
+
+**Both parts, always.** An HTML send goes out as `multipart/alternative`. Sending
+HTML alone means every client that reads text rather than markup invents its own
+conversion — reply quoting, notification previews, screen readers — and a
+missing text part is a mild spam signal. This was HTML-only until 1.6.1, and it
+showed up in a colleague's reply as a signature quoted without its line breaks.
+
+**The signature is plain text or HTML, decided by content.** A signature
+containing recognisable formatting tags is sanitised through an allowlist;
+anything else is escaped and its newlines become `<br>`. Both readings are
+honoured because people paste the signature their mail client gave them, which
+is markup, and because a plain-text signature containing `<name@example.com>`
+must not vanish into an unknown tag.
+
+**The sanitiser emits a balanced tree.** Layout tags (`table`, `td`, `div`) are
+allowed — a photo beside text is a two-column layout, and in email that means a
+table. The risk that once justified banning them is closed directly instead:
+open tags are tracked, a stray close with no matching open is dropped, anything
+left open at the end is closed, and crossed tags are untangled. Nothing in a
+signature can reach past its own boundary.
+
+**Signature photos travel inside the message.** `signatureImage` on an account
+is attached by Content-ID and referenced as `<img src="cid:mailman-signature">`.
+Linked images are blocked by default in Gmail and Outlook, so the first message
+from a new sender would show a gap. Attached only when the signature actually
+references the cid, so a configured-but-unused photo never rides along. Note
+that Gmail lists inline images in its attachment strip regardless of how the
+message is built — that is client behaviour, not something the sender controls.
 
 ## Scheduled sends — persistence beyond the MCP server's lifetime
 
