@@ -25,6 +25,7 @@ function content(overrides: Partial<CampaignContent> = {}): CampaignContent {
     bodyType: 'text',
     attachments: [],
     ccFirstOnly: [],
+    bccFirstOnly: [],
     recipients: [
       { email: 'a@example.com', vars: { email: 'a@example.com', name: 'Ann Aye', first_name: 'Ann' } },
       { email: 'b@example.com', vars: { email: 'b@example.com', name: 'Bob Bee', first_name: 'Bob' } },
@@ -137,6 +138,100 @@ test('dispatchCampaign: the Cc follows the first message that actually sends, no
     assert.deepEqual(sends[1].cc, ['ceo@example.com']);
     assert.equal(sends[2].cc, undefined);
     assert.equal(result.ccAppliedTo, 'b@example.com');
+  });
+});
+
+test('dispatchCampaign: bccFirstOnly rides the first message and nothing after it', async () => {
+  await withIsolatedConfig(async () => {
+    await seedAccount();
+    const campaign = await newCampaign({ ccFirstOnly: [], bccFirstOnly: ['archive@example.com'] });
+    const sends: OutboundMessage[] = [];
+
+    const result = await dispatchCampaign(campaign.campaignId, {
+      sleep: noSleep,
+      send: async (message) => {
+        sends.push(message);
+        return { messageId: '<id>' };
+      },
+    });
+
+    assert.deepEqual(sends[0].bcc, ['archive@example.com']);
+    assert.equal(sends[1].bcc, undefined);
+    assert.equal(sends[2].bcc, undefined);
+    assert.equal(result.bccAppliedTo, 'a@example.com');
+    assert.equal(result.ccAppliedTo, undefined, 'no cc was configured, so none should be reported');
+  });
+});
+
+test('dispatchCampaign: cc and bcc ride the SAME message, not the first two', async () => {
+  await withIsolatedConfig(async () => {
+    await seedAccount();
+    const campaign = await newCampaign({
+      ccFirstOnly: ['boss@example.com'],
+      bccFirstOnly: ['archive@example.com'],
+    });
+    const sends: OutboundMessage[] = [];
+
+    await dispatchCampaign(campaign.campaignId, {
+      sleep: noSleep,
+      send: async (message) => {
+        sends.push(message);
+        return { messageId: '<id>' };
+      },
+    });
+
+    assert.deepEqual(sends[0].cc, ['boss@example.com']);
+    assert.deepEqual(sends[0].bcc, ['archive@example.com']);
+    for (const later of sends.slice(1)) {
+      assert.equal(later.cc, undefined);
+      assert.equal(later.bcc, undefined);
+    }
+  });
+});
+
+test('dispatchCampaign: a bcc-only campaign hands the list to the first message that SENDS', async () => {
+  await withIsolatedConfig(async () => {
+    await seedAccount();
+    const campaign = await newCampaign({ ccFirstOnly: [], bccFirstOnly: ['archive@example.com'] });
+    const sends: OutboundMessage[] = [];
+
+    const result = await dispatchCampaign(campaign.campaignId, {
+      sleep: noSleep,
+      send: async (message) => {
+        sends.push(message);
+        if (message.to[0] === 'a@example.com') throw new Error('550 rejected');
+        return { messageId: '<id>' };
+      },
+    });
+
+    // Same guarantee as cc: a failed first message must not swallow the bcc,
+    // or the archive silently misses the whole campaign.
+    assert.deepEqual(sends[0].bcc, ['archive@example.com']);
+    assert.deepEqual(sends[1].bcc, ['archive@example.com']);
+    assert.equal(sends[2].bcc, undefined);
+    assert.equal(result.bccAppliedTo, 'b@example.com');
+  });
+});
+
+test('dispatchCampaign: a campaign stored before bccFirstOnly existed still sends', async () => {
+  await withIsolatedConfig(async () => {
+    await seedAccount();
+    // Field absent entirely, as it would be in campaigns.json written by 1.5.2.
+    const legacy = content();
+    delete (legacy as { bccFirstOnly?: unknown }).bccFirstOnly;
+    const campaign = await createCampaign({
+      account: 'x',
+      throttlePerMinute: 6000,
+      maxAttempts: DEFAULT_MAX_ATTEMPTS,
+      content: legacy,
+    });
+
+    const result = await dispatchCampaign(campaign.campaignId, {
+      sleep: noSleep,
+      send: async () => ({ messageId: '<id>' }),
+    });
+    assert.equal(result.sent, 3);
+    assert.equal(result.bccAppliedTo, undefined);
   });
 });
 

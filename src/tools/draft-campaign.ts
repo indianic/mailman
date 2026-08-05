@@ -46,8 +46,25 @@ const InputSchema = z.object({
   attachments: z.array(z.string()).optional(),
   recursive: z.boolean().optional(),
   ccFirstOnly: z.union([z.string(), z.array(z.string())]).optional(),
+  bccFirstOnly: z.union([z.string(), z.array(z.string())]).optional(),
   throttlePerMinute: z.number().int().positive().max(600).optional(),
-});
+}).strict();
+
+/**
+ * Fields a caller reasonably reaches for from draft_email, which mean something
+ * different (or nothing) on a merge.
+ *
+ * They must ERROR, not be ignored. A plain zod object strips unknown keys, so
+ * `cc: ["boss@x.com"]` used to return a cheerful success with nobody copied —
+ * the sender believing their boss had seen it. `additionalProperties: false` in
+ * the JSON Schema does not help: nothing validates arguments against it before
+ * dispatch (see tools/types.ts), so it is documentation, not enforcement.
+ */
+const REDIRECTED_FIELDS: Record<string, string> = {
+  to: 'Use "recipients" — a campaign has one recipient per message, not a shared To list.',
+  cc: 'Use "ccFirstOnly". A plain Cc on a merge would copy that person on every message — 39 recipients means 39 emails to them.',
+  bcc: 'Use "bccFirstOnly", which attaches the Bcc to the first message only, for the same reason as cc.',
+};
 
 /** Phrases that mean the sender is talking to a room, not to one person. */
 const GROUP_LANGUAGE = /\b(hi|hello|hey|dear)\s+(team|everyone|all|folks|guys)\b|\ball of you\b/i;
@@ -111,8 +128,29 @@ function normalizeRecipients(
 }
 
 async function handler(rawArgs: Record<string, unknown>) {
+  // Before parsing, so the message names the right field instead of surfacing
+  // "Unrecognized key" for something the caller had every reason to try.
+  const redirected = Object.keys(REDIRECTED_FIELDS).filter((field) => field in rawArgs);
+  if (redirected.length > 0) {
+    return toolError(
+      'INVALID_INPUT',
+      `Nothing was drafted. ${redirected.map((f) => `"${f}" is not a campaign field. ${REDIRECTED_FIELDS[f]}`).join(' ')}`,
+    );
+  }
+
   const parsed = InputSchema.safeParse(rawArgs);
   if (!parsed.success) {
+    // .strict() means a typo'd parameter is an error rather than a silent
+    // no-op — "throttlePerMin" should not quietly send at the default rate.
+    const unknown = parsed.error.issues.filter((i) => i.code === 'unrecognized_keys');
+    if (unknown.length > 0) {
+      const keys = unknown.flatMap((i) => (i as unknown as { keys: string[] }).keys);
+      return toolError(
+        'INVALID_INPUT',
+        `Nothing was drafted — unknown parameter(s): ${keys.join(', ')}. Check the spelling against this tool's schema; ` +
+          'an ignored parameter would have silently changed what got sent.',
+      );
+    }
     // A failed union over `recipients` serialises as a wall of nested
     // unionErrors — three parallel branch failures, none of which says what to
     // do. src/mail/recipients.ts already learned this lesson for draft_email:
@@ -161,6 +199,10 @@ async function handler(rawArgs: Record<string, unknown>) {
   const ccParsed = parseRecipientList(input.ccFirstOnly ?? []);
   if (ccParsed.invalid.length > 0) {
     return toolError('INVALID_INPUT', `ccFirstOnly: not a usable email address — ${ccParsed.invalid.join(', ')}`);
+  }
+  const bccParsed = parseRecipientList(input.bccFirstOnly ?? []);
+  if (bccParsed.invalid.length > 0) {
+    return toolError('INVALID_INPUT', `bccFirstOnly: not a usable email address — ${bccParsed.invalid.join(', ')}`);
   }
 
   const contacts = await listContacts();
@@ -239,6 +281,7 @@ async function handler(rawArgs: Record<string, unknown>) {
       attachments: input.attachments ?? [],
       recursive: input.recursive,
       ccFirstOnly: ccParsed.addresses,
+      bccFirstOnly: bccParsed.addresses,
       recipients: normalized.recipients,
     },
   });
@@ -270,10 +313,25 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
 
   const recipientSet = new Set(normalized.recipients.map((r) => r.email.toLowerCase()));
-  const ccAlsoRecipient = ccParsed.addresses.filter((a) => recipientSet.has(a.toLowerCase()));
-  if (ccAlsoRecipient.length > 0) {
+  for (const [field, addresses] of [
+    ['ccFirstOnly', ccParsed.addresses],
+    ['bccFirstOnly', bccParsed.addresses],
+  ] as const) {
+    const alsoRecipient = addresses.filter((a) => recipientSet.has(a.toLowerCase()));
+    if (alsoRecipient.length > 0) {
+      warnings.push(
+        `${alsoRecipient.join(', ')} appear(s) in both ${field} and the recipient list, and will get two emails.`,
+      );
+    }
+  }
+
+  const onBoth = ccParsed.addresses.filter((a) =>
+    bccParsed.addresses.some((b) => b.toLowerCase() === a.toLowerCase()),
+  );
+  if (onBoth.length > 0) {
     warnings.push(
-      `${ccAlsoRecipient.join(', ')} appear(s) in both ccFirstOnly and the recipient list, and will get two emails.`,
+      `${onBoth.join(', ')} appear(s) in both ccFirstOnly and bccFirstOnly. They ride the same message, so that address ` +
+        'gets one copy, not two — but it is visible in Cc, which defeats the point of also Bcc-ing it.',
     );
   }
 
@@ -284,6 +342,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     estimatedDuration: estimateDuration(plans.length, campaign.throttlePerMinute),
     from: formatFromAddress(account.email, account.displayName),
     ccFirstOnly: ccParsed.addresses,
+    bccFirstOnly: bccParsed.addresses,
     ...(polished ? { theme: 'polished' } : {}),
     ...(template ? { template: template.key } : {}),
     attachments: resolved.files.map((f) => ({ name: f.name, sizeBytes: f.sizeBytes, mimeType: f.mimeType })),
@@ -349,7 +408,12 @@ export const draftCampaignTool: Tool = {
         ccFirstOnly: {
           anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
           description:
-            'Cc attached to the FIRST message only, then dropped — how leadership sees the campaign went out without receiving N copies. Never use plain cc semantics here.',
+            'Cc attached to the FIRST message that actually sends, then dropped — how leadership sees the campaign went out without receiving N copies. There is no plain `cc` on a campaign; passing one is an error, not a silent no-op.',
+        },
+        bccFirstOnly: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description:
+            'Same first-message-only rule as ccFirstOnly, but invisible to the recipient. Use for an archive or a manager who should see the send happened without appearing on it. Rides the same message as ccFirstOnly when both are set.',
         },
         throttlePerMinute: {
           type: 'number',

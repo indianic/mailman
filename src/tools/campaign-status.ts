@@ -47,8 +47,9 @@ async function handler(rawArgs: Record<string, unknown>) {
     throttlePerMinute: campaign.throttlePerMinute,
     maxAttempts: campaign.maxAttempts,
     ccFirstOnly: content.ccFirstOnly,
+    bccFirstOnly: content.bccFirstOnly ?? [],
     ...(campaign.ccAppliedToSeq !== undefined
-      ? { ccAppliedTo: content.recipients[campaign.ccAppliedToSeq]?.email }
+      ? { visibilityListCarriedBy: content.recipients[campaign.ccAppliedToSeq]?.email }
       : {}),
     ...(campaign.abortReason ? { abortReason: campaign.abortReason } : {}),
     ...tallyRecipients(campaign.recipients),

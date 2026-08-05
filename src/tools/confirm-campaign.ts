@@ -111,6 +111,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     pending: result.pending,
     attemptedThisRun: result.attempted,
     ...(result.ccAppliedTo ? { ccAppliedTo: result.ccAppliedTo } : {}),
+    ...(result.bccAppliedTo ? { bccAppliedTo: result.bccAppliedTo } : {}),
     ...(result.abortReason ? { abortReason: result.abortReason } : {}),
     failures: result.failures,
     resumable: result.resumable,

@@ -185,6 +185,13 @@ export const CampaignContentSchema = z.object({
   /** Attached to the first message that actually sends, then dropped (§4.5). */
   ccFirstOnly: z.array(z.string().email()),
   /**
+   * Same first-message-only rule, invisibly. Optional so campaigns written
+   * before this field existed still read back — `decryptCampaignContent` casts
+   * rather than parses, so a missing key arrives as undefined, and every reader
+   * defaults it to [].
+   */
+  bccFirstOnly: z.array(z.string().email()).optional(),
+  /**
    * Render inputs frozen at draft time. A contact renamed mid-campaign must not
    * produce two different greetings within one run (docs/CAMPAIGNS.md §4.1).
    */

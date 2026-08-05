@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-08-05
+
+### Added
+
+- **`bccFirstOnly` on `draft_campaign`.** Same first-message-only rule as
+  `ccFirstOnly`, but invisible — for an archive address or a manager who should
+  see the send happened without appearing on it. When both are set they ride the
+  *same* message, not the first two, and both follow the first message that
+  actually sends rather than the first attempted.
+
+### Fixed
+
+- **`cc` and `bcc` were silently discarded by `draft_campaign`.** The call
+  returned success and copied nobody, so a sender would believe their manager
+  had been included. Zod strips unknown keys, and the `additionalProperties:
+  false` in the tool's JSON Schema is documentation that nothing enforces —
+  nothing validates arguments against it before dispatch. Both are now refused
+  with a message naming the field to use instead and why a plain `cc` is wrong
+  on a merge (it would copy that person on every one of N messages). A stray
+  `to` is refused the same way.
+- **A typo'd parameter is now an error rather than a silent no-op.** The input
+  schema is `.strict()`, so `throttlePerMin` fails loudly instead of quietly
+  sending at the default rate.
+
+### Internal
+
+- `test/bcc-privacy.test.ts` pins the property nothing else would notice
+  breaking: the SMTP path strips `Bcc:` from the delivered headers and carries
+  the address in the envelope only, while the Gmail API path deliberately keeps
+  the header because it has no envelope and that is how Gmail is told to deliver
+  it. The two transports differing is correct; only the SMTP side leaking would
+  be a privacy failure, and it is now asserted in both directions.
+- Two evals: `draft_campaign` must declare exactly the recipient fields it
+  honours — a declared-but-ignored one is silent loss — and both copy fields
+  must state their first-message-only semantics in prose, since the schema
+  cannot express it.
+
 ## [1.5.2] - 2026-08-05
 
 ### Fixed

@@ -49,7 +49,10 @@ export interface CampaignRunResult {
   /** True when recipients remain and another confirm_campaign would pick them up. */
   resumable: boolean;
   abortReason?: string;
+  /** Whose message carried the ccFirstOnly list. */
   ccAppliedTo?: string;
+  /** Whose message carried the bccFirstOnly list — the same one, when both are set. */
+  bccAppliedTo?: string;
 }
 
 export interface DispatchDeps {
@@ -148,11 +151,16 @@ export async function dispatchCampaign(
     const subject = renderTemplate(content.subjectTemplate, recipient.vars, 'text').text;
     const body = renderTemplate(content.bodyTemplate, recipient.vars, content.bodyType).text;
 
-    // The Cc rides with the first message that actually goes out — not the
-    // first one attempted. Cc'ing leadership on all N is the failure this
-    // exists to make impossible; handing the Cc to a message that then fails
+    // The Cc/Bcc ride with the first message that actually goes out — not the
+    // first one attempted. Copying leadership on all N is the failure this
+    // exists to make impossible; handing the list to a message that then fails
     // would be the quieter version of the same bug.
-    const carriesCc = content.ccFirstOnly.length > 0 && entry.ccAppliedToSeq === undefined;
+    //
+    // One flag covers both, so a campaign with each set puts them on the same
+    // message rather than on the first two.
+    const bccFirstOnly = content.bccFirstOnly ?? [];
+    const carriesCc =
+      (content.ccFirstOnly.length > 0 || bccFirstOnly.length > 0) && entry.ccAppliedToSeq === undefined;
 
     attempted += 1;
     lastSendAt = now();
@@ -160,7 +168,8 @@ export async function dispatchCampaign(
     try {
       const { messageId } = await send({
         to: [recipient.email],
-        cc: carriesCc ? content.ccFirstOnly : undefined,
+        cc: carriesCc && content.ccFirstOnly.length > 0 ? content.ccFirstOnly : undefined,
+        bcc: carriesCc && bccFirstOnly.length > 0 ? bccFirstOnly : undefined,
         subject,
         body,
         bodyType: content.bodyType,
@@ -234,6 +243,11 @@ export async function dispatchCampaign(
     failures,
     resumable: remaining > 0 && status !== 'cancelled',
     ...(abortReason && status === 'failed' ? { abortReason } : {}),
-    ...(ccSeq !== undefined ? { ccAppliedTo: content.recipients[ccSeq]?.email } : {}),
+    ...(ccSeq !== undefined && content.ccFirstOnly.length > 0
+      ? { ccAppliedTo: content.recipients[ccSeq]?.email }
+      : {}),
+    ...(ccSeq !== undefined && (content.bccFirstOnly ?? []).length > 0
+      ? { bccAppliedTo: content.recipients[ccSeq]?.email }
+      : {}),
   };
 }

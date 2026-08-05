@@ -201,6 +201,114 @@ test('draft_campaign: an unreadable recipients argument gets a remedy, not a zod
   });
 });
 
+/**
+ * cc/bcc on a campaign. The tool used to accept both and throw them away —
+ * zod strips unknown keys, so `cc: ["boss@x.com"]` returned a cheerful success
+ * with nobody copied, and the sender believed their boss had seen it. Silent
+ * loss, found by a user asking for exactly this.
+ */
+test('draft_campaign: a plain cc is refused and redirected, never silently dropped', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const response = await draft({
+      recipients: ['yash@example.com'],
+      subject: 'Demo',
+      body: 'Hi {{first_name}},',
+      bodyType: 'text',
+      cc: ['boss@example.com'],
+    });
+    assert.equal(response.isError, true);
+    const message = body(response).message;
+    assert.match(message, /ccFirstOnly/, 'must name the field to use instead');
+    assert.match(message, /every message/, 'must say why a plain cc is wrong here');
+    assert.deepEqual(await listCampaigns(), [], 'a refused draft persists nothing');
+  });
+});
+
+test('draft_campaign: a plain bcc and a stray to are refused the same way', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const common = { recipients: ['yash@example.com'], subject: 'D', body: 'Hi {{first_name}},', bodyType: 'text' };
+
+    const bcc = body(await draft({ ...common, bcc: ['archive@example.com'] }));
+    assert.match(bcc.message, /bccFirstOnly/);
+
+    const to = body(await draft({ ...common, to: ['someone@example.com'] }));
+    assert.match(to.message, /recipients/);
+  });
+});
+
+test('draft_campaign: a typo\'d parameter is an error, not a silently ignored no-op', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    // "throttlePerMin" would otherwise send at the default 20/min while the
+    // caller believed they had set something else.
+    const response = await draft({
+      recipients: ['yash@example.com'],
+      subject: 'Demo',
+      body: 'Hi {{first_name}},',
+      bodyType: 'text',
+      throttlePerMin: 5,
+    });
+    assert.equal(response.isError, true);
+    assert.match(body(response).message, /unknown parameter\(s\): throttlePerMin/);
+  });
+});
+
+test('draft_campaign: bccFirstOnly is accepted and echoed back', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const result = body(
+      await draft({
+        recipients: ['yash@example.com', 'brinda@example.com'],
+        subject: 'Demo',
+        body: 'Hi {{first_name}},',
+        bodyType: 'text',
+        ccFirstOnly: 'boss@example.com',
+        bccFirstOnly: 'archive@example.com',
+      }),
+    );
+    assert.deepEqual(result.ccFirstOnly, ['boss@example.com']);
+    assert.deepEqual(result.bccFirstOnly, ['archive@example.com']);
+  });
+});
+
+test('draft_campaign: warns when an address is on both ccFirstOnly and bccFirstOnly', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const result = body(
+      await draft({
+        recipients: ['yash@example.com'],
+        subject: 'Demo',
+        body: 'Hi {{first_name}},',
+        bodyType: 'text',
+        ccFirstOnly: 'boss@example.com',
+        bccFirstOnly: 'boss@example.com',
+      }),
+    );
+    assert.ok(
+      result.warnings.some((w: string) => /defeats the point/.test(w)),
+      `expected a both-lists warning, got ${JSON.stringify(result.warnings)}`,
+    );
+  });
+});
+
+test('draft_campaign: warns when a bccFirstOnly address is also a recipient', async () => {
+  await withIsolatedConfig(async () => {
+    await seed();
+    const result = body(
+      await draft({
+        recipients: ['yash@example.com', 'brinda@example.com'],
+        subject: 'Demo',
+        body: 'Hi {{first_name}},',
+        bodyType: 'text',
+        bccFirstOnly: 'brinda@example.com',
+      }),
+    );
+    assert.ok(result.warnings.some((w: string) => w.includes('bccFirstOnly') && w.includes('two emails')));
+  });
+});
+
 test('draft_campaign: warns when the body addresses a group — the wrong-mode trap', async () => {
   await withIsolatedConfig(async () => {
     await seed();
