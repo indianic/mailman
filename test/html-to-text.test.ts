@@ -69,6 +69,21 @@ test('htmlToPlainText: indented source does not put blank lines between bullets'
   assert.equal(htmlToPlainText(html), '- one\n- two\n- three');
 });
 
+test('htmlToPlainText: a block STARTING ends the line before it', () => {
+  // Only closing tags used to break, so inline content ran straight into a
+  // following block: a signature rendered "AI SOLUTION ARCHITECT☎ +91 …" the
+  // moment a table followed a span.
+  assert.equal(htmlToPlainText('<span>ROLE</span><table><tr><td>phone</td></tr></table>'), 'ROLE\n\nphone');
+  assert.equal(htmlToPlainText('trailing<div>block</div>'), 'trailing\n\nblock');
+});
+
+test('htmlToPlainText: a two-column row reads down one cell then the next', () => {
+  // One row, two cells, each holding a pair — the text version must not
+  // interleave the columns into "phone, company, email, site".
+  const html = '<table><tr><td>phone<br>email</td><td>company<br>site</td></tr></table>';
+  assert.equal(htmlToPlainText(html), 'phone\nemail\ncompany\nsite');
+});
+
 test('htmlToPlainText: indented paragraphs still get exactly one blank line', () => {
   assert.equal(htmlToPlainText('<p>a</p>\n<p>b</p>'), 'a\n\nb');
   assert.equal(htmlToPlainText('<div>\n  <p>a</p>\n  <p>b</p>\n</div>'), 'a\n\nb');

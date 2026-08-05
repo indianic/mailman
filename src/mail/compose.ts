@@ -123,6 +123,17 @@ export function htmlToPlainText(html: string): string {
   text = text.replace(/<li\b[^>]*>/gi, '\n- ');
   text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<hr\s*\/?>/gi, '\n---\n');
+  // A block element BEGINNING also ends the line before it. Only closing tags
+  // used to break, so inline content butted straight up against a following
+  // block — a signature rendered "AI SOLUTION ARCHITECT☎ +91 …" the moment a
+  // contact table followed the role span. `td`/`th` are excluded: their closing
+  // tag already breaks, and adding the open would blank-line every cell.
+  text = text.replace(/<(table|div|p|tr|ul|ol|blockquote|h[1-6])\b[^>]*>/gi, '\n\n');
+
+  // A table cell is a block: without this, a two-column layout collapses its
+  // columns into one run — "Kalpesh GamitAI SOLUTION ARCHITECT". A single
+  // break rather than a blank line, since cells in a row are usually one idea.
+  text = text.replace(/<\/(td|th)\s*>/gi, '\n');
   text = text.replace(/<\/(p|div|tr|ul|ol|table|blockquote|h[1-6])\s*>/gi, '\n\n');
   text = text.replace(/<[^>]+>/g, '');
 
@@ -205,22 +216,53 @@ export function appendSignature(body: string, signature: string | undefined, bod
 }
 
 /**
- * Inline formatting a real email signature actually uses.
+ * What a real email signature is allowed to contain.
  *
- * Block and layout tags are deliberately absent — `div`, `p`, `table`. An
- * unbalanced `</div>` in a signature closes the polished card early and
- * swallows the footer, and a signature is the one piece of an email nobody
- * re-reads after setting it once.
+ * Layout tags were originally excluded outright, because an unbalanced
+ * `</div>` closes the polished card early and swallows the footer, and a
+ * signature is the one piece of an email nobody re-reads after setting it once.
+ * The reasoning was sound; the conclusion was too strict. A photo beside text
+ * is a two-column layout, and in email that means a table — the only construct
+ * Outlook lays out reliably.
+ *
+ * They are allowed now, and the original risk is closed properly rather than
+ * avoided: sanitizeSignatureHtml tracks open tags and emits a balanced tree. A
+ * stray close with no matching open is dropped, and anything still open at the
+ * end is closed. Nothing in a signature can reach past its own boundary,
+ * whatever is stored.
  */
 const SIGNATURE_TAGS = new Set([
   'br', 'b', 'strong', 'i', 'em', 'u', 's', 'small', 'sub', 'sup', 'span', 'a', 'hr', 'font', 'img',
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'div', 'p',
 ]);
 
 const SIGNATURE_ATTRS = new Set([
   'href', 'src', 'alt', 'title', 'width', 'height', 'style', 'color', 'size', 'face', 'target',
+  'align', 'valign', 'cellpadding', 'cellspacing', 'border', 'bgcolor', 'colspan', 'rowspan',
 ]);
 
 const VOID_TAGS = new Set(['br', 'hr', 'img']);
+
+/** Content-ID an inline signature photo is referenced by — `<img src="cid:…">`. */
+export const SIGNATURE_IMAGE_CID = 'mailman-signature';
+
+/**
+ * The inline-image list for a send, given the account and the composed body.
+ *
+ * Attached only when the body actually references the cid. A signature photo
+ * configured but not used — a text send, or a signature edited to drop the
+ * `<img>` — must not ride along as a mystery attachment on every email.
+ */
+export function signatureInlineImages(
+  account: { signatureImage?: string },
+  body: string,
+  bodyType: 'text' | 'html',
+): Array<{ cid: string; path: string }> | undefined {
+  if (!account.signatureImage) return undefined;
+  if (bodyType !== 'html') return undefined;
+  if (!body.includes(`cid:${SIGNATURE_IMAGE_CID}`)) return undefined;
+  return [{ cid: SIGNATURE_IMAGE_CID, path: account.signatureImage }];
+}
 
 /**
  * A tag from the allowlist, matched strictly enough that `<kalpesh@indianic.com>`
@@ -291,15 +333,51 @@ function rebuildTag(closing: string, name: string, rest: string): string {
 export function sanitizeSignatureHtml(signature: string): string {
   let out = '';
   let cursor = 0;
+  // Open, unclosed elements, innermost last. This is what makes layout tags
+  // safe to allow: the output is balanced no matter what the input does.
+  const open: string[] = [];
 
   for (const match of signature.matchAll(signatureTagPattern('gi'))) {
     const [whole, closing, name, rest] = match;
+    const tag = name.toLowerCase();
     out += escapeTextKeepingEntities(signature.slice(cursor, match.index));
-    out += SIGNATURE_TAGS.has(name.toLowerCase()) ? rebuildTag(closing, name, rest) : escapeHtml(whole);
     cursor = match.index + whole.length;
+
+    if (!SIGNATURE_TAGS.has(tag)) {
+      out += escapeHtml(whole);
+      continue;
+    }
+
+    if (VOID_TAGS.has(tag)) {
+      out += rebuildTag(closing, name, rest);
+      continue;
+    }
+
+    if (closing) {
+      // A close with no matching open is dropped outright. Escaping it would
+      // be honest but ugly; emitting it is the bug this exists to prevent.
+      const depth = open.lastIndexOf(tag);
+      if (depth === -1) continue;
+      // Close everything it implicitly ends, innermost first — `<b><i></b>`
+      // must not leave `<i>` dangling into the rest of the email.
+      while (open.length > depth) out += `</${open.pop()}>`;
+      continue;
+    }
+
+    // A self-closed non-void element (`<div/>`) opens nothing.
+    if (/^\s*\/>/.test(rest)) {
+      out += rebuildTag('', name, rest);
+      out += `</${tag}>`;
+      continue;
+    }
+
+    open.push(tag);
+    out += rebuildTag('', name, rest);
   }
 
-  return out + escapeTextKeepingEntities(signature.slice(cursor));
+  out += escapeTextKeepingEntities(signature.slice(cursor));
+  while (open.length > 0) out += `</${open.pop()}>`;
+  return out;
 }
 
 /**

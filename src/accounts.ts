@@ -1,4 +1,6 @@
-import { getAccountsPath } from './config/paths.js';
+import path from 'node:path';
+import { promises as fs } from 'node:fs';
+import { getAccountsPath, getConfigDir } from './config/paths.js';
 import { readJsonFile, updateJsonFile } from './config/store.js';
 import {
   AccountsFileSchema,
@@ -206,6 +208,75 @@ export async function updateAccountProfile(alias: string, input: UpdateAccountPr
     return { ...current, accounts: current.accounts.map((a) => (a.alias === alias ? updated : a)) };
   });
   return file.accounts.find((a) => a.alias === alias)!;
+}
+
+/** Gmail-safe ceiling for something that rides on EVERY message you send. */
+export const MAX_SIGNATURE_IMAGE_BYTES = 200 * 1024;
+
+const SIGNATURE_IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+};
+
+/**
+ * Adopt a signature photo: validate it, copy it into the config dir, and record
+ * the copy's path on the account.
+ *
+ * Copied rather than referenced in place because the source is wherever the
+ * user happened to have it — a Downloads folder, an external drive, a path with
+ * their name in it. A signature that silently stops rendering because a file
+ * moved is exactly the kind of quiet breakage that only shows up in someone
+ * else's inbox.
+ */
+export async function setSignatureImage(alias: string, sourcePath: string): Promise<{ path: string; bytes: number }> {
+  const resolved = path.resolve(sourcePath);
+  const ext = path.extname(resolved).toLowerCase();
+  if (!SIGNATURE_IMAGE_TYPES[ext]) {
+    throw new Error(
+      `Unsupported signature image type "${ext || '(none)'}" — use ${Object.keys(SIGNATURE_IMAGE_TYPES).join(', ')}.`,
+    );
+  }
+
+  let stat;
+  try {
+    stat = await fs.stat(resolved);
+  } catch {
+    throw new Error(`No such file: ${resolved}`);
+  }
+  if (!stat.isFile()) throw new Error(`Not a file: ${resolved}`);
+  if (stat.size > MAX_SIGNATURE_IMAGE_BYTES) {
+    throw new Error(
+      `Signature image is ${Math.round(stat.size / 1024)} KB; the limit is ${MAX_SIGNATURE_IMAGE_BYTES / 1024} KB. ` +
+        'It is attached to every message you send, so a large one costs the recipient on every email.',
+    );
+  }
+
+  const destination = path.join(getConfigDir(), `signature-${alias}${ext}`);
+  await fs.mkdir(getConfigDir(), { recursive: true, mode: 0o700 });
+  await fs.copyFile(resolved, destination);
+  // Tolerated, not required — POSIX modes do not exist on Windows, FAT/exFAT or
+  // some network mounts, and losing a signature photo over a permission bit
+  // that cannot be set there would be absurd. Same discipline as config/store.ts.
+  try {
+    await fs.chmod(destination, 0o600);
+  } catch {
+    // no POSIX permissions here
+  }
+
+  await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    return {
+      ...current,
+      accounts: current.accounts.map((a) => (a.alias === alias ? { ...a, signatureImage: destination } : a)),
+    };
+  });
+
+  return { path: destination, bytes: stat.size };
 }
 
 export class AccountRemovalConfirmationError extends Error {

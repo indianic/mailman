@@ -111,13 +111,40 @@ test('appendSignature: an address in angle brackets is not mistaken for a tag', 
   }
 });
 
-test('appendSignature: an HTML signature cannot break out of the polished card', () => {
-  // div/p/table are not allowlisted: an unbalanced close tag would end the card
-  // early and swallow the footer.
-  const out = appendSignature('<p>hi</p>', '<i>ok</i></div><table><td>x</td></table>', 'html');
-  assert.match(out, /<i>ok<\/i>/, 'allowlisted formatting survives');
-  assert.doesNotMatch(out, /<\/div>|<table>|<td>/);
-  assert.match(out, /&lt;\/div&gt;/);
+/**
+ * Layout tags used to be banned outright, so an unbalanced `</div>` could not
+ * close the polished card and swallow the footer. A photo beside text needs a
+ * table, so they are allowed now — and the guarantee is enforced properly
+ * instead of avoided: the output is always balanced.
+ */
+test('appendSignature: a table signature survives, because email layout needs one', () => {
+  const sig = '<table><tr><td><img src="cid:mailman-signature" alt="me"></td><td><b>Name</b></td></tr></table>';
+  const out = appendSignature('<p>hi</p>', sig, 'html');
+  assert.match(out, /<table><tr><td><img src="cid:mailman-signature" alt="me"><\/td>/);
+  assert.match(out, /<b>Name<\/b>/);
+});
+
+test('appendSignature: a stray close tag is dropped, never emitted', () => {
+  // The original fear, made impossible: this `</div>` has no matching open, so
+  // it cannot reach the card wrapping the email.
+  const out = appendSignature('<p>hi</p>', '<i>ok</i></div>', 'html');
+  assert.match(out, /<i>ok<\/i>/);
+  assert.doesNotMatch(out, /<\/div>/, 'a close with no open must not escape into the email');
+});
+
+test('appendSignature: unclosed tags are closed for you', () => {
+  const out = appendSignature('<p>hi</p>', '<div><b>dangling', 'html');
+  assert.match(out, /<div><b>dangling<\/b><\/div>$/, 'everything left open is closed at the end');
+});
+
+test('appendSignature: crossed tags are untangled rather than passed through', () => {
+  // `<b><i></b>` would leave <i> open and italicise the rest of the message.
+  const out = appendSignature('x', '<b><i>both</b>after', 'html');
+  assert.doesNotMatch(out.split('<br><br>')[1], /<i>[^<]*$/, 'no tag may still be open at the end');
+  assert.ok(
+    (out.match(/<i>/g) ?? []).length === (out.match(/<\/i>/g) ?? []).length,
+    `unbalanced <i> in: ${out}`,
+  );
 });
 
 test('appendSignature: script and event handlers never survive an HTML signature', () => {
@@ -149,8 +176,11 @@ test('looksLikeHtmlSignature: distinguishes markup from prose that merely has an
   assert.equal(looksLikeHtmlSignature('Regards,\nKalpesh'), false);
   assert.equal(looksLikeHtmlSignature('Kalpesh <kalpesh@indianic.com>'), false);
   assert.equal(looksLikeHtmlSignature('Sales & Marketing'), false);
-  // Not an allowlisted tag, so still plain text — and still escaped.
-  assert.equal(looksLikeHtmlSignature('<div>x</div>'), false);
+  // Layout tags count as markup now that a table signature is supported.
+  assert.equal(looksLikeHtmlSignature('<div>x</div>'), true);
+  assert.equal(looksLikeHtmlSignature('<table><tr><td>x</td></tr></table>'), true);
+  // Still not a tag, so an address in angle brackets stays plain text.
+  assert.equal(looksLikeHtmlSignature('Kalpesh <td@indianic.com>'), false);
 });
 
 test('escapeHtml: covers the five characters that change meaning in markup', () => {

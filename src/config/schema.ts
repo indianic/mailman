@@ -38,6 +38,14 @@ export const AccountSchema = z.object({
   // treatment credentials get.
   displayName: z.string().optional(),
   signature: z.string().optional(),
+  /**
+   * Absolute path to a signature photo, attached inline (Content-ID) on every
+   * HTML send whose signature references it. A path rather than the bytes: the
+   * file lives in the config dir, is re-read at send time like every other
+   * attachment, and keeping ~40KB of base64 out of accounts.json means the
+   * credential file stays small and diffable.
+   */
+  signatureImage: z.string().optional(),
 });
 
 export const AccountsFileSchema = z.object({

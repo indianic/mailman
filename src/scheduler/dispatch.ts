@@ -1,6 +1,7 @@
 import { listScheduled, decryptContent, updateScheduledEntry } from './store.js';
 import { resolveAccount } from '../accounts.js';
 import { getProvider } from '../mail/get-provider.js';
+import { signatureInlineImages } from '../mail/compose.js';
 import { resolveAttachments } from '../tools/resolve-attachments.js';
 import { upsertRecipient } from '../contacts.js';
 import { notifyDesktop, summarizeRecipients } from '../notify.js';
@@ -54,6 +55,7 @@ export async function dispatchOne(entry: ScheduledEntry): Promise<DispatchOutcom
       fromDisplayName: account.displayName,
       inReplyTo: content.inReplyTo,
       references: content.references,
+      inlineImages: signatureInlineImages(account, content.body, content.bodyType),
     });
 
     const sentAt = new Date().toISOString();

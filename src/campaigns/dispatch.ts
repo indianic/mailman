@@ -4,6 +4,7 @@ import { resolveAttachments } from '../tools/resolve-attachments.js';
 import { upsertRecipient } from '../contacts.js';
 import { debugLog } from '../logging.js';
 import { renderTemplate } from './render.js';
+import { signatureInlineImages } from '../mail/compose.js';
 import {
   decryptCampaignContent,
   eligibleRecipients,
@@ -175,6 +176,7 @@ export async function dispatchCampaign(
         bodyType: content.bodyType,
         attachments,
         fromDisplayName: account.displayName,
+        inlineImages: signatureInlineImages(account, body, content.bodyType),
       });
 
       const sentAt = new Date().toISOString();

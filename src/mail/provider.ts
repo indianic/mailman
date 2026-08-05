@@ -13,6 +13,12 @@ export interface OutboundMessage {
   body: string;
   bodyType?: 'text' | 'html';
   attachments?: Array<{ path: string; name: string; mimeType: string }>;
+  /**
+   * Images referenced from the HTML body by `cid:` — the signature photo. Sent
+   * inline rather than linked, so they render without the recipient having to
+   * allow remote images, which Gmail and Outlook block by default.
+   */
+  inlineImages?: Array<{ cid: string; path: string }>;
   // "From Name" shown to recipients, e.g. "Kalpesh Gamit" for
   // "Kalpesh Gamit <you@gmail.com>" — omitted for a bare-address From.
   fromDisplayName?: string;

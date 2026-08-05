@@ -5,6 +5,7 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
 import { getDraft, markSent } from '../drafts.js';
 import { getProvider } from '../mail/get-provider.js';
+import { signatureInlineImages } from '../mail/compose.js';
 import { OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
 import { upsertRecipient } from '../contacts.js';
 import { notifyDesktop, summarizeRecipients } from '../notify.js';
@@ -86,6 +87,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     fromDisplayName: account.displayName,
     inReplyTo: draft.inReplyTo,
     references: draft.references,
+    inlineImages: signatureInlineImages(account, draft.body, draft.bodyType),
   };
 
   let messageId: string;

@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import path from 'node:path';
 import { formatFromAddress, buildMessageId, mailmanHeaders, htmlToPlainText } from '../mail/compose.js';
 import type { OutboundMessage } from '../mail/provider.js';
 
@@ -17,6 +18,18 @@ export function createAppPasswordTransport(credentials: AppPasswordCredentials) 
     service: 'gmail',
     auth: { user: credentials.user, pass: credentials.pass },
   });
+}
+
+const INLINE_IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+};
+
+/** Content-Type for an inline image, which cannot be inferred once the filename is omitted. */
+function inlineImageType(filePath: string): string {
+  return INLINE_IMAGE_TYPES[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream';
 }
 
 /** Pure — the exact options object handed to nodemailer, independently testable against a fake transport. */
@@ -43,11 +56,23 @@ export function buildMailOptions(credentials: AppPasswordCredentials, message: O
     inReplyTo: message.inReplyTo,
     references: message.references,
     headers: mailmanHeaders(),
-    attachments: message.attachments?.map((a) => ({
-      filename: a.name,
-      path: a.path,
-      contentType: a.mimeType,
-    })),
+    // `cid` + `Content-Disposition: inline` is what makes a part render in the
+    // body rather than download.
+    //
+    // It does NOT stop Gmail listing it in the attachment strip. Omitting the
+    // filename was tried and did not help — the chip simply relabelled itself
+    // "noname", which is worse. So the filename stays: if a client is going to
+    // show a chip regardless, it should at least name the thing.
+    attachments: [
+      ...(message.attachments ?? []).map((a) => ({ filename: a.name, path: a.path, contentType: a.mimeType })),
+      ...(message.inlineImages ?? []).map((i) => ({
+        path: i.path,
+        cid: i.cid,
+        filename: path.basename(i.path),
+        contentType: inlineImageType(i.path),
+        contentDisposition: 'inline' as const,
+      })),
+    ],
   };
 }
 

@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Signature photos, attached inline.** `signatureImage` on an account, adopted
+  with `setSignatureImage()`, referenced from the signature as
+  `<img src="cid:mailman-signature">` and attached by Content-ID on every HTML
+  send that uses it. Inline rather than linked because Gmail and Outlook block
+  remote images by default — the first email anyone gets from you would show a
+  gap where the photo should be. The file is copied into the config dir so
+  moving the original cannot silently break it, and capped at 200 KB since it
+  rides on every message.
+
+  **Known client behaviour, not a defect:** Gmail lists inline images in its
+  attachment strip whatever the sender does. Omitting the filename was tried and
+  only relabelled the chip "noname"; `multipart/related`-outermost — the shape
+  Gmail's own composer emits — was also built and tested. If a bare signature
+  matters more than a photo, do not set one.
+
+- **Signatures may use layout tags** — `table`, `td`, `div` and friends. A photo
+  beside text is a two-column layout, and in email that means a table.
+
+### Fixed
+
+- **Two more gaps in the HTML-to-text converter**, both found by reading
+  delivered mail rather than by the suite:
+  - `</td>` was not a line break, so a two-column signature collapsed its
+    columns into one run — "Kalpesh GamitAI SOLUTION ARCHITECT".
+  - Only *closing* block tags broke a line, so inline content ran straight into
+    a following block: a role in a `<span>` butted against the contact `<table>`
+    beneath it with no separation at all.
+
+### Internal
+
+- The signature sanitiser now **emits a balanced tree**. Layout tags were
+  previously banned outright so an unbalanced `</div>` could not close the
+  polished card and swallow the footer; that reasoning was right and the
+  conclusion too strict. Instead of avoiding the risk, it is closed: open tags
+  are tracked, a stray close with no matching open is dropped, anything left
+  open at the end is closed, and crossed tags (`<b><i></b>`) are untangled
+  rather than left to italicise the rest of the email.
+
 ## [1.6.2] - 2026-08-05
 
 ### Fixed
