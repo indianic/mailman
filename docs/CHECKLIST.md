@@ -208,7 +208,7 @@ hit in use rather than by the plan, which is why they sit outside the phases.
       that CI covers ubuntu only — so every 🟡 in the matrix has no runtime
       backstop
 
-### Personalised sending (campaigns) — unreleased
+### Personalised sending (campaigns) — 1.5.0
 Phase 1 of `docs/CAMPAIGNS.md`, closing GitHub issue #2. Full spec and the list
 of deliberate departures from it are in that document (§9).
 
