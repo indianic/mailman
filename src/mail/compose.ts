@@ -84,6 +84,22 @@ export function htmlToPlainText(html: string): string {
   // the polished shell would be pasted into the readable text.
   text = text.replace(/<(script|style|head|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
 
+  // Source formatting is not content. A body written as
+  //
+  //     <ul>
+  //       <li>one</li>
+  //       <li>two</li>
+  //     </ul>
+  //
+  // carries a real newline plus indentation between every tag, and those
+  // newlines used to survive into the text part — putting a blank line between
+  // each bullet, which HTML itself would never render. Collapsed to a single
+  // space rather than removed outright, because between INLINE tags
+  // (`<b>a</b>\n<i>b</i>`) that whitespace is a real word gap; the block
+  // handling below re-inserts the breaks that belong, and the per-line trim at
+  // the end drops the leftover space.
+  text = text.replace(/>[^\S\n]*\n\s*</g, '> <');
+
   // A text reader cannot click an anchor, so the URL has to survive as text.
   text = text.replace(
     /<a\b[^>]*href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi,

@@ -53,6 +53,34 @@ test('htmlToPlainText: list items become dashes', () => {
   assert.equal(htmlToPlainText('<ul><li>one</li><li>two</li></ul>'), '- one\n- two');
 });
 
+/**
+ * Source formatting is not content. The unit tests above all used HTML written
+ * on one line, so none of them saw this: a real body is indented across
+ * several lines, and those newlines were surviving into the text part as blank
+ * lines between every bullet. Caught by reading a delivered message, not by the
+ * suite.
+ */
+test('htmlToPlainText: indented source does not put blank lines between bullets', () => {
+  const html = `<ul>
+  <li>one</li>
+  <li>two</li>
+  <li>three</li>
+</ul>`;
+  assert.equal(htmlToPlainText(html), '- one\n- two\n- three');
+});
+
+test('htmlToPlainText: indented paragraphs still get exactly one blank line', () => {
+  assert.equal(htmlToPlainText('<p>a</p>\n<p>b</p>'), 'a\n\nb');
+  assert.equal(htmlToPlainText('<div>\n  <p>a</p>\n  <p>b</p>\n</div>'), 'a\n\nb');
+});
+
+test('htmlToPlainText: a line break BETWEEN inline tags is still a word gap', () => {
+  // The whitespace collapses to a space rather than vanishing — otherwise
+  // "bold italic" would come out as "bolditalic".
+  assert.equal(htmlToPlainText('<b>bold</b>\n<i>italic</i>'), 'bold italic');
+  assert.equal(htmlToPlainText('<span>a</span> <span>b</span>'), 'a b');
+});
+
 test('htmlToPlainText: images reduce to their alt text', () => {
   assert.equal(htmlToPlainText('<img src="x.png" alt="Logo">'), 'Logo');
   assert.equal(htmlToPlainText('<img src="x.png">'), '');

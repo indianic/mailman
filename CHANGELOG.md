@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2026-08-05
+
+### Fixed
+
+- **Indented HTML source put blank lines between list items in the text part.**
+  A body written across several lines carries a real newline plus indentation
+  between every tag, and those newlines survived into the `text/plain`
+  alternative — so a three-item list arrived double-spaced, which the HTML
+  itself would never render. Whitespace between tags now collapses to a single
+  space before the block handling runs, so the breaks that belong are inserted
+  by the converter rather than inherited from the author's formatting.
+
+  Collapsed to a space rather than removed, because between *inline* tags
+  (`<b>bold</b>` newline `<i>italic</i>`) that whitespace is a real word gap and
+  deleting it would run the words together.
+
+  1.6.1's unit tests all used single-line HTML, so none of them could see this.
+  Found by reading a delivered message.
+
 ## [1.6.1] - 2026-08-05
 
 ### Fixed
