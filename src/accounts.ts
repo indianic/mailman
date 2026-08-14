@@ -12,6 +12,7 @@ import {
 import { encrypt, decrypt } from './config/crypto.js';
 import { getOrCreateMasterKey, getMasterKeyOrThrow } from './config/keychain.js';
 import { getSettings, updateSettings } from './settings.js';
+import { resolveSignatureType } from './mail/compose.js';
 import { ErrorCodes, type ErrorCode } from './errors.js';
 
 export class AccountResolutionError extends Error {
@@ -147,6 +148,7 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
       credentials: encryptedCredentials,
       displayName: input.displayName,
       signature: input.signature,
+      signatureType: input.signature ? resolveSignatureType(input.signature) : undefined,
     };
     return { ...current, accounts: [...withoutSameAlias, newAccount] };
   });
@@ -186,6 +188,8 @@ export async function updateAccountCredentials(
 export interface UpdateAccountProfileInput {
   displayName?: string | null;
   signature?: string | null;
+  /** How to read `signature`. Omitted = auto-detect whenever a new signature is stored. */
+  signatureType?: 'text' | 'html';
 }
 
 /**
@@ -193,6 +197,11 @@ export interface UpdateAccountProfileInput {
  * (encrypted) credentials. `undefined` leaves a field as-is; `null` clears
  * it — distinguishing "not passed" from "explicitly remove" the same way
  * update_settings/update_account_profile's caller expects.
+ *
+ * signatureType is bound to the signature it describes: saving a new signature
+ * records the caller's declared type, or an auto-detected one as the fallback;
+ * clearing the signature clears the type with it. It is never left describing
+ * a signature that no longer exists.
  */
 export async function updateAccountProfile(alias: string, input: UpdateAccountProfileInput): Promise<Account> {
   const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
@@ -200,10 +209,21 @@ export async function updateAccountProfile(alias: string, input: UpdateAccountPr
     if (!target) {
       throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
     }
+    const signature = input.signature === null ? undefined : input.signature ?? target.signature;
+    let signatureType = target.signatureType;
+    if (input.signature === null) {
+      signatureType = undefined;
+    } else if (typeof input.signature === 'string') {
+      signatureType = input.signatureType ?? resolveSignatureType(input.signature);
+    } else if (input.signatureType && signature) {
+      // Reclassify the existing signature without re-sending it.
+      signatureType = input.signatureType;
+    }
     const updated: Account = {
       ...target,
       displayName: input.displayName === null ? undefined : input.displayName ?? target.displayName,
-      signature: input.signature === null ? undefined : input.signature ?? target.signature,
+      signature,
+      signatureType,
     };
     return { ...current, accounts: current.accounts.map((a) => (a.alias === alias ? updated : a)) };
   });

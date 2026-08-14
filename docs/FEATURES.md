@@ -292,7 +292,7 @@ flowchart TD
 | `list_contacts` / `add_contact` / `remove_contact` | Address book |
 | `preview_attachments` | What files a path/glob/dir would attach |
 | `list_accounts` / `configure_account` / `update_account_profile` / `remove_account` | Account management |
-| `get_settings` / `update_settings` | Global settings |
+| `get_settings` / `update_settings` | Global settings (incl. `autoBccSelf`) |
 | `get_status` | Configured state (accounts, security, activity) |
 
 ### Signatures
@@ -300,10 +300,21 @@ flowchart TD
 The per-account signature is appended at draft time, so the preview you approve
 is what goes out.
 
-- **Plain text or HTML, decided by content.** Paste the signature your mail
-  client gave you and its `<br>`/`<i>`/`<a href>` render as written; a plain-text
-  one has its newlines turned into `<br>` and its `&`/`<`/`>` escaped, so
-  `<name@example.com>` cannot vanish into an unknown tag.
+- **Plain text or HTML, decided by content — or declared.** Paste the signature
+  your mail client gave you and its `<br>`/`<i>`/`<a href>` render as written; a
+  plain-text one has its newlines turned into `<br>` and its `&`/`<`/`>` escaped,
+  so `<name@example.com>` cannot vanish into an unknown tag. The detected type is
+  recorded on the account as `signatureType` at save time; pin it explicitly with
+  `--signature-type text|html` (CLI) or `signatureType` (MCP) when detection
+  cannot know what you meant.
+- **Text sends get a readable signature too.** An HTML signature on a
+  `bodyType: "text"` email is converted to a plain-text fallback (tags stripped,
+  links kept as URLs) instead of being pasted in as raw markup, and the draft
+  preview warns so you can upgrade the send to HTML.
+- **Verify before it rides on real mail.** `update_account_profile` returns a
+  `signaturePreview` (`renderedHtml` + `renderedText`) — the exact output
+  compose will emit — and rejects the literal string `"null"` (a serialisation
+  accident) instead of storing it.
 - **Layout is allowed** — `table`, `td`, `div` — for a photo beside text or a
   two-column contact block. Only inline formatting and layout survive: `<script>`,
   event handlers, `javascript:` URLs and unbalanced tags are stripped, so a
@@ -331,7 +342,7 @@ message does not read as HTML-only to a spam filter.
 | `mailman account add/list/remove/set-default/profile` | Manage accounts, From Name, signature & signature photo |
 | `mailman auth login` / `auth rotate-key` | OAuth2 consent / rotate encryption key |
 | `mailman contacts list/add/remove` | Address book |
-| `mailman settings get/set` | View / change settings (incl. `desktopNotifications`) |
+| `mailman settings get/set` | View / change settings (incl. `desktopNotifications`, `autoBccSelf`) |
 | `mailman register` | Register with AI editors |
 | `mailman doctor` | Environment pre-flight checks |
 | `mailman scheduled list` | Pending/sent/failed scheduled sends |

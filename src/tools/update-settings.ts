@@ -12,6 +12,7 @@ const InputSchema = z.object({
   defaultBodyType: z.enum(['text', 'html']).optional(),
   emailTheme: z.enum(['plain', 'polished']).optional(),
   desktopNotifications: z.boolean().optional(),
+  autoBccSelf: z.boolean().optional(),
 });
 
 async function handler(rawArgs: Record<string, unknown>) {
@@ -36,6 +37,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     ...(input.defaultBodyType !== undefined ? { defaultBodyType: input.defaultBodyType } : {}),
     ...(input.emailTheme !== undefined ? { emailTheme: input.emailTheme } : {}),
     ...(input.desktopNotifications !== undefined ? { desktopNotifications: input.desktopNotifications } : {}),
+    ...(input.autoBccSelf !== undefined ? { autoBccSelf: input.autoBccSelf } : {}),
   }));
 
   return toolResponse({
@@ -45,6 +47,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     defaultBodyType: settings.defaultBodyType,
     emailTheme: settings.emailTheme,
     desktopNotifications: settings.desktopNotifications,
+    autoBccSelf: settings.autoBccSelf,
   });
 }
 
@@ -62,6 +65,7 @@ export const updateSettingsTool: Tool = {
         defaultBodyType: { type: 'string', enum: ['text', 'html'], description: "What draft_email falls back to when a call omits bodyType" },
         emailTheme: { type: 'string', enum: ['plain', 'polished'], description: 'polished = branded MailMan shell + IndiaNIC footer on HTML emails' },
         desktopNotifications: { type: 'boolean', description: 'Fire a native OS notification after each successful send (default true)' },
+        autoBccSelf: { type: 'boolean', description: 'Bcc the sending account on every draft_email send so the sender keeps a copy (default false; skipped when already a recipient; never applies to campaigns)' },
       },
       required: [],
       additionalProperties: false,

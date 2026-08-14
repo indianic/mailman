@@ -5,7 +5,7 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
 import { resolveAttachments } from './resolve-attachments.js';
-import { formatFromAddress, appendSignature, wrapPolished } from '../mail/compose.js';
+import { formatFromAddress, appendSignature, resolveSignatureType, wrapPolished } from '../mail/compose.js';
 import { normalizeRecipientFields } from '../mail/recipients.js';
 import { getTemplate, applySubjectPrefix, buildForwardedBody } from '../mail/templates.js';
 import type { Tool } from './types.js';
@@ -39,6 +39,46 @@ const InputSchema = z.object({
 
 function defaultSubject(attachments: DraftAttachment[]): string {
   return attachments.length > 0 ? `Files attached: ${attachments.map((a) => a.name).join(', ')}` : 'Files attached';
+}
+
+/**
+ * The preview must show what will actually be delivered, but a big HTML body
+ * echoed back in full on every draft is pure token overhead — cap it well above
+ * any realistic signature + theme shell and say so when it is cut.
+ */
+const FINAL_BODY_PREVIEW_LIMIT = 6000;
+
+/**
+ * Composition mistakes that were previously invisible until a recipient saw
+ * them. Every real incident here reads back to one of two mismatches: markup
+ * in a text send, or text conventions in an html send.
+ */
+export function composeWarnings(
+  body: string,
+  bodyType: 'text' | 'html',
+  signature: string | undefined,
+  signatureType?: 'text' | 'html',
+): string[] {
+  const warnings: string[] = [];
+  const hasTags = /<[a-z][a-z0-9]*(\s[^>]*)?>/i.test(body);
+
+  if (signature && bodyType === 'text' && resolveSignatureType(signature, signatureType) === 'html') {
+    warnings.push(
+      'The account signature is HTML but this email is plain text — it was converted to a text-only fallback. Send with bodyType "html" to deliver the signature as designed.',
+    );
+  }
+  if (bodyType === 'text' && hasTags) {
+    warnings.push('The body contains HTML tags but bodyType is "text" — recipients will see the raw markup, not rendered formatting.');
+  }
+  if (bodyType === 'html' && !hasTags && body.includes('\n')) {
+    warnings.push(
+      'The body has line breaks but no HTML markup, and bodyType is "html" — newlines collapse when rendered, so it will arrive as one run-on paragraph. Use <br>/<p>/<ul> markup, or send with bodyType "text".',
+    );
+  }
+  if (bodyType === 'html' && /(^|\n)\s*(?:[-*] |#{1,3} )|\*\*[^*\n]+\*\*/.test(body)) {
+    warnings.push('The body looks like Markdown, which email clients do not render — convert bullets/headings/bold to HTML tags.');
+  }
+  return warnings;
 }
 
 async function handler(rawArgs: Record<string, unknown>) {
@@ -109,7 +149,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     );
   }
 
-  let body = appendSignature(composed, account.signature, bodyType);
+  let body = appendSignature(composed, account.signature, bodyType, account.signatureType);
   const signatureAppended = Boolean(account.signature) && body !== composed;
 
   // Polished theme — opt-in, HTML only. Wraps the whole body in a clean shell.
@@ -117,11 +157,24 @@ async function handler(rawArgs: Record<string, unknown>) {
   const polished = bodyType === 'html' && theme === 'polished';
   if (polished) body = wrapPolished(body);
 
+  const warnings = composeWarnings(composed, bodyType, account.signature, account.signatureType);
+
+  // settings.autoBccSelf: the sender keeps a copy of everything they send.
+  // Skipped when their address is already a recipient anywhere — a second copy
+  // of the same message is noise, not a record.
+  const bcc = [...recipients.bcc];
+  const self = account.email.toLowerCase();
+  const alreadyRecipient = [...recipients.to, ...recipients.cc, ...recipients.bcc].some(
+    (addr) => addr.toLowerCase() === self,
+  );
+  const autoBccSelf = settings.autoBccSelf && !alreadyRecipient;
+  if (autoBccSelf) bcc.push(account.email);
+
   const draft = createDraft({
     account: account.alias,
     to: recipients.to,
     cc: recipients.cc,
-    bcc: recipients.bcc,
+    bcc,
     subject,
     body,
     bodyType,
@@ -145,17 +198,29 @@ async function handler(rawArgs: Record<string, unknown>) {
       cc: draft.cc,
       bcc: draft.bcc,
       subject: draft.subject,
-      // Preview the composed body only (pre-signature), truncated. The
-      // account signature is appended to the actual send but deliberately
-      // NOT echoed here — re-emitting the full signature HTML on every draft
-      // is pure token overhead; `signatureAppended` flags it instead.
+      // The caller's own body, truncated — quick orientation only.
       bodyPreview: input.body.length > 280 ? `${input.body.slice(0, 280)}…` : input.body,
+      // What will ACTUALLY be dispatched: body + signature + theme shell. A
+      // `signatureAppended: true` flag alone proved useless — it was accurate
+      // while the composed output was visibly broken. Capped generously so a
+      // huge body can't flood the response; the cap is flagged when hit.
+      finalBody:
+        draft.body.length > FINAL_BODY_PREVIEW_LIMIT
+          ? `${draft.body.slice(0, FINAL_BODY_PREVIEW_LIMIT)}…`
+          : draft.body,
+      ...(draft.body.length > FINAL_BODY_PREVIEW_LIMIT ? { finalBodyTruncated: true } : {}),
       ...(signatureAppended ? { signatureAppended: true } : {}),
+      ...(autoBccSelf ? { autoBccSelf: true } : {}),
+      ...(warnings.length > 0 ? { warnings } : {}),
       ...(template ? { template: template.key } : {}),
       ...(polished ? { theme: 'polished' } : {}),
       attachments: draft.attachments.map((a) => ({ name: a.name, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
     },
-    next_steps: ['Show this preview to the user and get explicit confirmation before calling confirm_send.'],
+    next_steps: [
+      warnings.length > 0
+        ? 'This draft has warnings — surface them to the user along with the preview before calling confirm_send.'
+        : 'Show this preview to the user and get explicit confirmation before calling confirm_send.',
+    ],
   });
 }
 

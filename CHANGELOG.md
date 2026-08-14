@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-08-14
+
+### Added
+
+- **`signatureType` on the account profile** (`text` | `html`). Auto-detection
+  by content stays as the fallback, but it cannot tell markup with no
+  allowlisted tag from prose that mentions `<table>` — the person saving the
+  signature can. Recorded automatically at save time, settable explicitly via
+  `update_account_profile`'s `signatureType` or the CLI's `--signature-type`,
+  and cleared together with the signature it describes.
+- **`update_account_profile` returns a test-render.** `signaturePreview`
+  carries `renderedHtml` and `renderedText` — byte-for-byte what compose will
+  emit on each body type — so a signature is verified at save time, not in a
+  recipient's inbox. A declared type that contradicts the content produces a
+  warning (stored as declared; the warning informs, the caller decides).
+- **`draft_email` preview now shows what will actually be sent.** `finalBody`
+  is the fully composed body — signature and theme shell included — capped at
+  6 KB with a `finalBodyTruncated` flag. The old `signatureAppended: true`
+  boolean stays, but it was accurate-and-useless during the real incident: the
+  flag said "appended" while the composed output was visibly broken.
+- **`draft_email` preview `warnings`.** Every mismatch that has put broken
+  output in front of a real recipient is flagged at draft time: an HTML
+  signature on a text send, HTML tags in a `text` body, a newline-separated
+  plain-text body sent as `html` (arrives as one run-on paragraph), and
+  Markdown syntax in an `html` body (email clients do not render Markdown).
+- **`autoBccSelf` setting** (default `false`). When on, every `draft_email`
+  send quietly Bcc's the sending account itself so the sender keeps a copy —
+  skipped when their address is already a recipient anywhere, surfaced in the
+  preview as `autoBccSelf: true`, and never applied to campaigns (which have
+  `bccFirstOnly`). `mailman settings set autoBccSelf true`.
+
+### Fixed
+
+- **An HTML signature on a `bodyType: "text"` send is no longer pasted in as
+  raw markup.** Recipients used to see literal `<hr style="…"><table
+  cellpadding="0">` under the message. It now gets the same readable
+  plain-text conversion the alternative part of an HTML send gets — tags
+  stripped, links kept as URLs — plus a preview warning suggesting the send be
+  upgraded to HTML. The full body-type × signature-type matrix is pinned in
+  `test/signature-matrix.test.ts`, down to the compiled MIME.
+- **`update_account_profile` rejects the literal strings `"null"` /
+  `"undefined"`.** They are a serialisation accident somewhere upstream, never
+  a signature anyone wants appended to their mail — the error spells out that
+  clearing takes JSON `null` and keeping takes omission.
+
 ## [1.7.2] - 2026-08-05
 
 ### Changed

@@ -39,6 +39,15 @@ export const AccountSchema = z.object({
   displayName: z.string().optional(),
   signature: z.string().optional(),
   /**
+   * How `signature` is meant to be read: real markup ('html') or literal text
+   * to escape ('text'). Recorded at save time — explicitly if the caller says,
+   * auto-detected otherwise — because compose-time detection alone cannot tell
+   * markup with no allowlisted tag from prose that mentions one. Optional so
+   * profiles saved before the field existed still parse (compose falls back to
+   * detection for those).
+   */
+  signatureType: z.enum(['text', 'html']).optional(),
+  /**
    * Absolute path to a signature photo, attached inline (Content-ID) on every
    * HTML send whose signature references it. A path rather than the bytes: the
    * file lives in the config dir, is re-read at send time like every other
@@ -77,6 +86,14 @@ export const SettingsFileSchema = z.object({
   // divider before the signature). Opt-in so existing draft_email calls are
   // unchanged; override per call with draft_email's `theme` param.
   emailTheme: z.enum(['plain', 'polished']).default('polished'),
+  // Quietly Bcc the sending account itself on every draft_email send, so the
+  // sender keeps a copy in their own inbox (useful where Sent doesn't sync, or
+  // for filing/audit). Off by default — a shipped default that adds a hidden
+  // recipient to other people's installs would be a surprise; opt in with
+  // `mailman settings set autoBccSelf true`. Never applies to campaigns, which
+  // have bccFirstOnly for this. .default(false) so older settings.json files
+  // still load.
+  autoBccSelf: z.boolean().default(false),
 });
 
 export type Account = z.infer<typeof AccountSchema>;
@@ -93,6 +110,7 @@ export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   defaultBodyType: 'html',
   desktopNotifications: true,
   emailTheme: 'polished',
+  autoBccSelf: false,
 };
 
 // "google-contacts" is never stored here — it's fetched live from the

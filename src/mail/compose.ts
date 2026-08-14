@@ -201,18 +201,65 @@ export function escapeHtml(value: string): string {
  * tests: `<name@example.com>` is not a tag and still cannot vanish, a bare
  * `&` is still an ampersand rather than a broken entity, and nothing in a
  * signature can close the polished card or run a script.
+ *
+ * `signatureType` is the account's stored declaration (see
+ * update_account_profile). When present it wins over detection — a signature
+ * that IS markup but happens to contain no allowlisted tag, or plain text that
+ * mentions `<table>` in prose, can only be told apart by the person who saved
+ * it. Detection remains the fallback for profiles saved before the field
+ * existed.
  */
-export function appendSignature(body: string, signature: string | undefined, bodyType: 'text' | 'html'): string {
-  if (!signature) return body;
-  if (bodyType === 'text') return `${body}\n\n${signature}`;
+export type SignatureType = 'text' | 'html';
 
-  if (looksLikeHtmlSignature(signature)) {
+export function resolveSignatureType(signature: string, declared?: SignatureType): SignatureType {
+  return declared ?? (looksLikeHtmlSignature(signature) ? 'html' : 'text');
+}
+
+export function appendSignature(
+  body: string,
+  signature: string | undefined,
+  bodyType: 'text' | 'html',
+  signatureType?: SignatureType,
+): string {
+  if (!signature) return body;
+  const sigType = resolveSignatureType(signature, signatureType);
+
+  if (bodyType === 'text') {
+    // An HTML signature pasted into a text/plain email used to go out as raw
+    // markup — `<hr style=…><table cellpadding=…>` in front of the recipient.
+    // A text send gets the same readable rendering the alternative part of an
+    // HTML send gets, and the preview warns so the caller can upgrade to html.
+    const asText = sigType === 'html' ? htmlToPlainText(signature) : signature;
+    return asText ? `${body}\n\n${asText}` : body;
+  }
+
+  if (sigType === 'html') {
     return `${body}<br><br>${sanitizeSignatureHtml(signature)}`;
   }
 
-  // Normalise CRLF/CR first so a signature typed on Windows breaks identically.
-  const asHtml = escapeHtml(signature.replace(/\r\n?/g, '\n')).replace(/\n/g, '<br>');
-  return `${body}<br><br>${asHtml}`;
+  return `${body}<br><br>${textSignatureAsHtml(signature)}`;
+}
+
+/** Normalise CRLF/CR first so a signature typed on Windows breaks identically. */
+function textSignatureAsHtml(signature: string): string {
+  return escapeHtml(signature.replace(/\r\n?/g, '\n')).replace(/\n/g, '<br>');
+}
+
+/**
+ * Both renderings of a signature, exactly as appendSignature would emit them —
+ * update_account_profile returns this so a signature can be verified at save
+ * time instead of in a recipient's inbox.
+ */
+export function renderSignaturePreview(
+  signature: string,
+  declared?: SignatureType,
+): { signatureType: SignatureType; renderedHtml: string; renderedText: string } {
+  const signatureType = resolveSignatureType(signature, declared);
+  return {
+    signatureType,
+    renderedHtml: signatureType === 'html' ? sanitizeSignatureHtml(signature) : textSignatureAsHtml(signature),
+    renderedText: signatureType === 'html' ? htmlToPlainText(signature) : signature,
+  };
 }
 
 /**

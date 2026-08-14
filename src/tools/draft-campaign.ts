@@ -234,7 +234,7 @@ async function handler(rawArgs: Record<string, unknown>) {
   // Compose exactly as draft_email would, then freeze it. Rendering happens
   // per recipient at send time against this composed string, so what the
   // reviewer approves and what leaves the machine are the same object.
-  const signed = appendSignature(input.body, account.signature, bodyType);
+  const signed = appendSignature(input.body, account.signature, bodyType, account.signatureType);
   const bodyTemplate = polished ? wrapPolished(signed) : signed;
 
   // Plan every recipient before persisting anything, so an unresolvable token

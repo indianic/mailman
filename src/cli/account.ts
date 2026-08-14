@@ -506,12 +506,14 @@ function renderProfile(account: {
   email: string;
   displayName?: string;
   signature?: string;
+  signatureType?: 'text' | 'html';
   signatureImage?: string;
 }): void {
   section(`profile — ${account.alias} (${account.email})`);
   detail(`from name   ${account.displayName ?? '(not set — recipients see the bare address)'}`);
   // Multi-line signatures render with the rail unbroken (tree.ts handles \n continuation).
   detail(`signature   ${account.signature ?? '(not set)'}`);
+  detail(`sig type    ${account.signatureType ?? '(auto-detected at compose time)'}`);
   detail(`photo       ${account.signatureImage ?? '(not set)'}`);
 }
 
@@ -533,12 +535,13 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   let alias: string | undefined;
   let displayName: string | null | undefined;
   let signature: string | null | undefined;
+  let signatureType: 'text' | 'html' | undefined;
   let signatureImage: string | null | undefined;
 
   // Only OUR flags disqualify a value — a plain startsWith('--') check
   // rejected a real user's signature of "---------------" (all dashes).
   const KNOWN_FLAGS = [
-    '--name', '--signature', '--signature-image',
+    '--name', '--signature', '--signature-type', '--signature-image',
     '--clear-name', '--clear-signature', '--clear-signature-image',
   ];
   const missingValue = (v: string | undefined) => v === undefined || KNOWN_FLAGS.includes(v);
@@ -561,6 +564,13 @@ export async function runAccountProfile(args: string[]): Promise<void> {
       // `--signature "Regards,\nKalpesh"` really produces a two-line
       // signature, as `mailman examples` promises.
       signature = signature!.replace(/\\n/g, '\n');
+    } else if (a === '--signature-type') {
+      const v = args[++i];
+      if (v !== 'text' && v !== 'html') {
+        fail('--signature-type must be "text" or "html" (omit it to auto-detect from the signature content)');
+        process.exit(1);
+      }
+      signatureType = v;
     } else if (a === '--signature-image') {
       signatureImage = args[++i];
       if (missingValue(signatureImage)) {
@@ -578,7 +588,7 @@ export async function runAccountProfile(args: string[]): Promise<void> {
     } else {
       fail(
         `Unknown argument: ${a}\nUsage: mailman account profile [alias] [--name "..."] [--signature "..."] ` +
-          '[--signature-image <path>] [--clear-name] [--clear-signature] [--clear-signature-image]',
+          '[--signature-type text|html] [--signature-image <path>] [--clear-name] [--clear-signature] [--clear-signature-image]',
       );
       process.exit(1);
     }
@@ -596,7 +606,7 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   }
 
   // No flags → just show the current profile.
-  if (displayName === undefined && signature === undefined && signatureImage === undefined) {
+  if (displayName === undefined && signature === undefined && signatureType === undefined && signatureImage === undefined) {
     renderProfile(account);
     outro('Change it: mailman account profile --name "..." --signature "..."');
     return;
@@ -621,9 +631,9 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   }
 
   const updated =
-    displayName === undefined && signature === undefined
+    displayName === undefined && signature === undefined && signatureType === undefined
       ? await resolveAccount(account.alias)
-      : await updateAccountProfile(account.alias, { displayName, signature });
+      : await updateAccountProfile(account.alias, { displayName, signature, signatureType });
   renderProfile(updated);
   outro('Profile updated. Applies to the next draft — no restart needed.');
 }
