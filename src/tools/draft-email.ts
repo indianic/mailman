@@ -179,8 +179,6 @@ async function handler(rawArgs: Record<string, unknown>) {
     body,
     bodyType,
     attachments: resolved.files,
-    rawAttachments: input.attachments,
-    recursive: input.recursive,
     inReplyTo: input.inReplyTo,
     // A reply to a root message has References = [that message]. Defaulted so a
     // caller only has to pass the one id it got from read_email; pass the array
@@ -214,7 +212,9 @@ async function handler(rawArgs: Record<string, unknown>) {
       ...(warnings.length > 0 ? { warnings } : {}),
       ...(template ? { template: template.key } : {}),
       ...(polished ? { theme: 'polished' } : {}),
-      attachments: draft.attachments.map((a) => ({ name: a.name, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
+      // The real path, not just the name — a symlink called report.pdf must not
+      // pass for one in the preview the user approves.
+      attachments: draft.attachments.map((a) => ({ name: a.name, path: a.path, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
     },
     next_steps: [
       warnings.length > 0

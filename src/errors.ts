@@ -12,6 +12,8 @@ export const ErrorCodes = {
   DRAFT_NOT_FOUND: 'DRAFT_NOT_FOUND',
   ATTACHMENT_TOO_LARGE: 'ATTACHMENT_TOO_LARGE',
   ATTACHMENT_NOT_FOUND: 'ATTACHMENT_NOT_FOUND',
+  /** The path resolves into ~/.ssh, ~/.aws, ~/.gnupg, the config dir or the key file's dir. */
+  ATTACHMENT_DENIED: 'ATTACHMENT_DENIED',
   AUTH_EXPIRED: 'AUTH_EXPIRED',
   RATE_LIMITED: 'RATE_LIMITED',
   NO_MASTER_KEY: 'NO_MASTER_KEY',

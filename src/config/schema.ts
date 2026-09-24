@@ -147,8 +147,9 @@ export const ScheduledMessageContentSchema = z.object({
   subject: z.string(),
   body: z.string(),
   bodyType: z.enum(['text', 'html']),
-  // Raw paths/globs/dirs — re-resolved fresh at fire time, never
-  // snapshotted (see docs/PLAN.md's "Scheduled sends" section).
+  // The real paths the preview showed, resolved again at fire time. Entries
+  // from 1.8.0 and earlier hold raw paths/globs/dirs, hence `recursive`
+  // (see docs/PLAN.md's "Scheduled sends" section).
   attachments: z.array(z.string()),
   recursive: z.boolean().optional(),
   // RFC 5322 threading, so a reply scheduled for 9am still lands in its thread.
@@ -205,7 +206,7 @@ export const CampaignContentSchema = z.object({
    */
   bodyTemplate: z.string(),
   bodyType: z.enum(['text', 'html']),
-  /** Raw paths/globs/dirs — re-resolved fresh at send time, never snapshotted. */
+  /** The real paths the preview showed, resolved again at send time (raw paths/globs/dirs in 1.8.0 and earlier). */
   attachments: z.array(z.string()),
   recursive: z.boolean().optional(),
   /** Attached to the first message that actually sends, then dropped (§4.5). */

@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Security
+
+- **Attachments are confined and shown by their real path** (T-008 #1). Text
+  the LLM reads could steer it to attach `~/.ssh/id_rsa`, mailman's own
+  `accounts.json` or its master key, through an absolute path, `..`, a glob, a
+  directory or a symlink named `report.pdf`, while the preview showed only a
+  file name. Every file is now resolved with `realpath`. A file inside
+  `~/.ssh`, `~/.aws`, `~/.gnupg`, the config dir or the key file's directory
+  is refused with the new `ATTACHMENT_DENIED`. The `draft_email` and
+  `draft_campaign` previews list each file's real `path`.
+- **Scheduled sends and campaigns store the file list the preview showed.**
+  `schedule_send` and `draft_campaign` used to store the raw glob or directory
+  and expand it again at send time, so the pattern could match files nobody
+  reviewed. They now store the resolved real paths. Entries queued by 1.8.0
+  still work, and the confinement check runs on them at send time.
+
+### Fixed
+
+- **`~/` in an attachment path expands to the home directory.** It used to be
+  taken literally and fail with `ATTACHMENT_NOT_FOUND`.
+
 ## [1.8.0] - 2026-08-14
 
 ### Added

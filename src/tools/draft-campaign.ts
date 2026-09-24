@@ -184,7 +184,8 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
 
   // Validated now so a bad path fails at draft time rather than at recipient 1
-  // of 39. The paths themselves are stored raw and re-resolved at send time.
+  // of 39. The resolved real paths are what gets stored — a glob re-expanded at
+  // send time could pick up files the preview never showed.
   const resolved = await resolveAttachments(input.attachments, { recursive: input.recursive });
   if ('code' in resolved) {
     return toolError(resolved.code, resolved.message);
@@ -278,8 +279,7 @@ async function handler(rawArgs: Record<string, unknown>) {
       subjectTemplate,
       bodyTemplate,
       bodyType,
-      attachments: input.attachments ?? [],
-      recursive: input.recursive,
+      attachments: resolved.files.map((f) => f.path),
       ccFirstOnly: ccParsed.addresses,
       bccFirstOnly: bccParsed.addresses,
       recipients: normalized.recipients,
@@ -345,7 +345,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     bccFirstOnly: bccParsed.addresses,
     ...(polished ? { theme: 'polished' } : {}),
     ...(template ? { template: template.key } : {}),
-    attachments: resolved.files.map((f) => ({ name: f.name, sizeBytes: f.sizeBytes, mimeType: f.mimeType })),
+    attachments: resolved.files.map((f) => ({ name: f.name, path: f.path, sizeBytes: f.sizeBytes, mimeType: f.mimeType })),
     samples: selectSamples(plans).map((p) => ({
       to: p.email,
       subject: p.subject,

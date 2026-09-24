@@ -120,7 +120,7 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `src/config/schema.ts` — zod schema for `scheduled.json`, `schemaVersion` from day one
 - [x] `src/scheduler/store.ts` — read/write `scheduled.json` through the same atomic-write + `.bak` + write-queue machinery as `config/store.ts`; encrypted at rest with the keytar-backed master key (only the message `content`; `scheduledId`/`account`/`sendAt`/`status`/`attempts` stay plaintext so the ticker's due-scan doesn't decrypt every entry)
 - [x] `src/scheduler/ticker-install.ts` — idempotent per-OS registration: `launchd` agent (macOS), `crontab` entry (Linux), Task Scheduler task (Windows); polls every 1–5 min
-- [x] `src/scheduler/dispatch.ts` — resolves attachments fresh (not snapshotted), sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed` (also enforces the size cap pre-send, matching `draft_email` — caught mid-implementation while writing this phase's tests)
+- [x] `src/scheduler/dispatch.ts` — resolves the snapshotted attachment paths fresh, sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed` (also enforces the size cap pre-send, matching `draft_email` — caught mid-implementation while writing this phase's tests)
 - [x] `schedule_send` tool — persists to `scheduled.json`, installs the ticker if not already present, returns `scheduledId`
 - [x] `list_scheduled` / `cancel_scheduled` tools; `SCHEDULE_NOT_FOUND` error code
 - [x] `mailman send-scheduled --due` CLI command (ticker's dispatch target — CLI-only, never an MCP tool)

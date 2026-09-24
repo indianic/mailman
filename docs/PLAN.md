@@ -351,6 +351,13 @@ Resolution enforces:
 - MIME-type inference for attachment headers
 - Existence/readability check with a clear error back to Claude if a path is
   missing, so it can re-resolve or ask the user
+- `~/` expands to the home directory, and every file is reported by its real
+  path (symlinks and `..` resolved). The preview lists that path, so what the
+  user approves is what gets read.
+- Confinement: a file whose real path is inside `~/.ssh`, `~/.aws`, `~/.gnupg`,
+  mailman's config dir or the master key file's directory is refused with
+  `ATTACHMENT_DENIED`, whatever the input form (T-008 #1). Text the LLM reads
+  can ask it to attach anything; these are the files that must never leave.
 
 `mailman` has no memory of "what we were just working on" — turning a phrase
 like "those docs" into real paths is Claude's responsibility, done from
@@ -509,9 +516,11 @@ conversational action; same exclusion logic as `auth rotate-key`). It reads
 `status: "pending"` through the exact same `MailProvider.send()` path
 `confirm_send` uses, then marks each `sent` or `failed`.
 
-- **Attachments are re-resolved fresh at fire time**, not snapshotted when
-  scheduled — consistent with attachment resolution always being a live
-  path lookup elsewhere in this doc. If a file's moved or deleted between
+- **The file list is snapshotted when scheduled, the files are read at fire
+  time.** schedule_send stores the real paths the preview showed, not the
+  glob or directory, so a pattern cannot match a different set of files by
+  the time the ticker fires. Each path is resolved again at fire time (the
+  confinement check runs again too). If a file's moved or deleted between
   scheduling and firing, the send fails with `ATTACHMENT_NOT_FOUND` rather
   than silently going out without it.
 - **Retries, not silent loss.** A failed dispatch (network blip, expired

@@ -50,8 +50,9 @@ async function handler(rawArgs: Record<string, unknown>) {
       subject: draft.subject,
       body: draft.body,
       bodyType: draft.bodyType,
-      attachments: draft.rawAttachments,
-      recursive: draft.recursive,
+      // The files the preview listed, by real path — not the raw glob, which
+      // could match something else by the time the ticker fires.
+      attachments: draft.attachments.map((a) => a.path),
       inReplyTo: draft.inReplyTo,
       references: draft.references,
     },

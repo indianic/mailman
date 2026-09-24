@@ -1,7 +1,11 @@
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { glob, hasMagic } from 'glob';
 import { guessMimeType } from '../mail/mime.js';
+import { getConfigDir } from '../config/paths.js';
+import { defaultKeyFilePath } from '../config/keystore/file.js';
+import { readKeystoreRecord } from '../config/keystore/pointer.js';
 
 export const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024; // Gmail's ~25 MB SMTP limit
 
@@ -23,7 +27,61 @@ export interface ResolveAttachmentsNotFound {
   message: string;
 }
 
-export type ResolveAttachmentsResult = ResolveAttachmentsSuccess | ResolveAttachmentsNotFound;
+export interface ResolveAttachmentsDenied {
+  code: 'ATTACHMENT_DENIED';
+  message: string;
+}
+
+export type ResolveAttachmentsResult = ResolveAttachmentsSuccess | ResolveAttachmentsNotFound | ResolveAttachmentsDenied;
+
+/**
+ * `~` and `~/…` only (no `~user`). A shell would have expanded it; an MCP
+ * caller passes the string through as-is.
+ */
+function expandHome(input: string): string {
+  if (input === '~') return os.homedir();
+  if (input.startsWith('~/') || (process.platform === 'win32' && input.startsWith('~\\'))) {
+    return path.join(os.homedir(), input.slice(2));
+  }
+  return input;
+}
+
+async function realpathOrResolved(p: string): Promise<string> {
+  try {
+    return await fs.realpath(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+/**
+ * Places no attachment may come from, however it was named: the paths text an
+ * LLM reads could steer it towards (T-008 #1). Compared as real paths, so `..`,
+ * a glob, a directory or a symlink called report.pdf all land on the same check.
+ * The key file's whole directory is denied, which also covers a rotation's
+ * temporary file next to it.
+ */
+async function deniedRoots(): Promise<string[]> {
+  const home = os.homedir();
+  const roots = [
+    path.join(home, '.ssh'),
+    path.join(home, '.aws'),
+    path.join(home, '.gnupg'),
+    getConfigDir(),
+    path.dirname(defaultKeyFilePath()),
+  ];
+  try {
+    const record = await readKeystoreRecord();
+    if (record?.backend === 'file' && record.keyFile) roots.push(path.dirname(record.keyFile));
+  } catch {
+    // An unreadable keystore.json still leaves the default key location denied.
+  }
+  return Promise.all(roots.map(realpathOrResolved));
+}
+
+function isInside(filePath: string, root: string): boolean {
+  return filePath === root || filePath.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
+}
 
 async function listFilesInDirectory(dir: string, recursive: boolean): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -53,11 +111,12 @@ async function listFilesInDirectory(dir: string, recursive: boolean): Promise<st
 async function expandToFilePaths(inputs: string[], recursive: boolean): Promise<string[] | { notFoundPath: string }> {
   const filePaths: string[] = [];
 
-  for (const input of inputs) {
+  for (const rawInput of inputs) {
+    const input = expandHome(rawInput);
     if (hasMagic(input)) {
       const matches = await glob(input, { nodir: true });
       if (matches.length === 0) {
-        return { notFoundPath: input };
+        return { notFoundPath: rawInput };
       }
       filePaths.push(...matches);
       continue;
@@ -67,7 +126,7 @@ async function expandToFilePaths(inputs: string[], recursive: boolean): Promise<
     try {
       stat = await fs.stat(input);
     } catch {
-      return { notFoundPath: input };
+      return { notFoundPath: rawInput };
     }
 
     if (stat.isDirectory()) {
@@ -78,7 +137,7 @@ async function expandToFilePaths(inputs: string[], recursive: boolean): Promise<
       filePaths.push(input);
       continue;
     }
-    return { notFoundPath: input };
+    return { notFoundPath: rawInput };
   }
 
   return filePaths;
@@ -100,15 +159,32 @@ export async function resolveAttachments(
     };
   }
 
+  // Every file is reported by its real path — what the preview shows is what
+  // will be read, never a link's or a traversal's spelling of it.
+  const denied = await deniedRoots();
   const files: ResolvedAttachment[] = [];
   let totalSizeBytes = 0;
   for (const filePath of expanded) {
-    const stat = await fs.stat(filePath);
+    let realPath;
+    try {
+      realPath = await fs.realpath(filePath);
+    } catch {
+      return { code: 'ATTACHMENT_NOT_FOUND', message: `Attachment not found or unreadable: ${filePath}` };
+    }
+    if (denied.some((root) => isInside(realPath, root))) {
+      return {
+        code: 'ATTACHMENT_DENIED',
+        message:
+          `Attachment refused: ${filePath} resolves to ${realPath}. mailman never attaches files from ~/.ssh, ` +
+          '~/.aws, ~/.gnupg, its own config directory or its key file.',
+      };
+    }
+    const stat = await fs.stat(realPath);
     files.push({
-      path: filePath,
-      name: path.basename(filePath),
+      path: realPath,
+      name: path.basename(realPath),
       sizeBytes: stat.size,
-      mimeType: guessMimeType(filePath),
+      mimeType: guessMimeType(realPath),
     });
     totalSizeBytes += stat.size;
   }

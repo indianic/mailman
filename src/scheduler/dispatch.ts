@@ -22,11 +22,12 @@ export function nextStatusAfterFailure(attemptsSoFar: number, maxAttempts: numbe
 export type DispatchOutcome = 'sent' | 'retry-pending' | 'failed';
 
 /**
- * Attachments are resolved fresh here, from the raw paths/globs/dirs
- * stored in `content.attachments` — never snapshotted at schedule_send
- * time (see docs/PLAN.md's "Scheduled sends" section). A moved/deleted
- * file surfaces as a dispatch failure (retried like any other failure),
- * not a silently-incomplete send.
+ * `content.attachments` holds the real paths schedule_send snapshotted from
+ * the preview (entries from 1.8.0 and earlier hold raw globs/dirs). They are
+ * resolved again here, so the confinement check runs at fire time too and a
+ * moved/deleted file surfaces as a dispatch failure (retried like any other
+ * failure), not a silently-incomplete send. See docs/PLAN.md's "Scheduled
+ * sends" section.
  */
 export async function dispatchOne(entry: ScheduledEntry): Promise<DispatchOutcome> {
   try {
