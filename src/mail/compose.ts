@@ -83,6 +83,9 @@ export function htmlToPlainText(html: string): string {
   // Non-content elements go entirely, contents included — otherwise CSS from
   // the polished shell would be pasted into the readable text.
   text = text.replace(/<(script|style|head|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  // The polished shell's chrome (preheader, brand bar, subject hero) is marked
+  // so the text part starts with the message, not with a repeat of the subject.
+  text = text.replace(/<!--mm:chrome-->[\s\S]*?<!--\/mm:chrome-->/g, '');
   // Comments too — the shell's Outlook conditionals (`<!--[if mso]>…<![endif]-->`)
   // carry ghost-table markup and an <o:PixelsPerInch>96 that would leak as "96".
   text = text.replace(/<!--[\s\S]*?-->/g, '');
@@ -541,7 +544,7 @@ function emailDocument(inner: string, opts: { background: string; align: 'left' 
     'img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;max-width:100%;height:auto}',
     `.mm-body p{margin:0 0 16px}.mm-body ul,.mm-body ol{margin:0 0 16px;padding-left:24px}.mm-body li{margin:0 0 6px}`,
     `.mm-body a{color:${ACCENT}}.mm-body h1,.mm-body h2,.mm-body h3{margin:0 0 12px;line-height:1.3;color:#111827}`,
-    '@media screen and (max-width:620px){.mm-pad{padding:20px 16px!important}.mm-card{border-radius:0!important;border-left:0!important;border-right:0!important}}',
+    '@media screen and (max-width:620px){.mm-pad{padding:20px 16px!important}.mm-card{border-radius:0!important;border-left:0!important;border-right:0!important}.mm-outer{padding:0!important}.mm-hero{font-size:26px!important}}',
     '</style>',
     '</head>',
     `<body style="margin:0;padding:0;background-color:${background}">`,
@@ -574,38 +577,87 @@ export function wrapPlain(html: string): string {
 }
 
 /**
- * Wrap an HTML body (body + signature, since appendSignature runs first) in the
- * branded MailMan shell: a brand accent bar, a readable ~600px card, and an
- * always-present IndiaNIC copyright footer. Because the signature is inside the
- * `html` passed here, it renders WITHIN the card — never dangling outside it.
- * Opt-in via settings.emailTheme / draft_email's `theme`; never touches text sends.
- *
- * The accent bar is a td with a solid bgcolor and the gradient layered on top:
- * Outlook drops gradients, and a missing bar beats a broken one.
+ * Header palettes for the polished theme — one is picked at random per email,
+ * so a thread of updates doesn't look like one message sent five times. `from`
+ * is dark enough for white text and is what Outlook paints (it drops
+ * gradients); it doubles as the footer colour on white. `to` is the bright end,
+ * used for the dot on the black brand bar.
  */
-export function wrapPolished(html: string): string {
+export const HEADER_PALETTES: ReadonlyArray<readonly [from: string, via: string, to: string]> = [
+  ['#E10600', '#FF2E88', '#FFB000'],
+  ['#4F46E5', '#7C3AED', '#DB2777'],
+  ['#0369A1', '#0891B2', '#14B8A6'],
+  ['#047857', '#059669', '#84CC16'],
+  ['#C2410C', '#EA580C', '#F59E0B'],
+  ['#9D174D', '#BE185D', '#F43F5E'],
+  ['#1E3A8A', '#4338CA', '#A78BFA'],
+  ['#0F766E', '#0E7490', '#C084FC'],
+];
+
+const SERIF = "Georgia,'Times New Roman',serif";
+
+/**
+ * The branded MailMan shell, after the Build Orchestra phase-report design: a
+ * warm page, a rounded 600px card, a dark brand bar, a gradient hero carrying
+ * the subject, the body, and an always-present IndiaNIC footer. The body (and
+ * the signature appendSignature already added) renders inside the card.
+ *
+ * The hero colour is random per call — HEADER_PALETTES. A campaign calls this
+ * once at draft time, so all its recipients share one colour; that is the
+ * frozen-what-you-approved rule, not an accident.
+ *
+ * `subject` may contain campaign {{tokens}}; escaping leaves them intact and
+ * the per-recipient render fills them in like any other body text.
+ */
+export function wrapPolished(html: string, opts: { subject?: string } = {}): string {
   const year = new Date().getFullYear();
+  const [from, via, to] = HEADER_PALETTES[Math.floor(Math.random() * HEADER_PALETTES.length)];
+  const fill = `background-color:${from};background-image:linear-gradient(135deg,${from} 0%,${via} 55%,${to} 100%)`;
+  const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const subject = opts.subject?.trim();
+  // The inbox preview line. Without it, clients show the brand bar's text.
+  const preheader = escapeHtml(htmlToPlainText(html).replace(/\s+/g, ' ').slice(0, 140));
+
   return emailDocument(
     [
+      '<!--mm:chrome-->',
+      `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`,
+      '<!--/mm:chrome-->',
       '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;max-width:600px;margin:0 auto">',
-      '<tr><td style="padding:24px 0" class="mm-outer">',
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mm-card" style="border-collapse:separate;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden" bgcolor="#ffffff">`,
-      `<tr><td height="4" bgcolor="${ACCENT}" style="height:4px;line-height:4px;font-size:0;background-color:${ACCENT};background-image:linear-gradient(90deg,#6366f1,#a21caf,#d946ef)">&nbsp;</td></tr>`,
-      `<tr><td class="mm-pad mm-body" style="padding:32px 32px 28px;font-family:${FONT_STACK};font-size:15px;line-height:1.6;color:#1f2937">`,
+      '<tr><td class="mm-outer" style="padding:28px 12px">',
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mm-card" style="border-collapse:separate;background-color:#FFFFFF;border-radius:20px;overflow:hidden;box-shadow:0 18px 40px -24px rgba(20,20,20,.35)" bgcolor="#FFFFFF">',
+      '<!--mm:chrome-->',
+      // Brand bar
+      `<tr><td class="mm-pad" bgcolor="#141414" style="padding:18px 32px;background-color:#141414">`,
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>',
+      `<td style="font-family:${SERIF};font-size:18px;font-weight:700;color:#FFFFFF">MailMan<span style="color:${to}">.</span></td>`,
+      `<td align="right" style="font-family:${FONT_STACK};font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#B9ABA6">${date}</td>`,
+      '</tr></table>',
+      '</td></tr>',
+      // Hero — the subject on a random palette; a thin colour band when there is no subject.
+      subject
+        ? `<tr><td class="mm-pad" bgcolor="${from}" style="padding:36px 32px 32px;${fill}">` +
+          `<h1 class="mm-hero" style="margin:0;font-family:${SERIF};font-size:32px;line-height:1.15;font-weight:700;color:#FFFFFF">${escapeHtml(subject)}</h1>` +
+          '</td></tr>'
+        : `<tr><td height="8" bgcolor="${from}" style="height:8px;line-height:8px;font-size:0;${fill}">&nbsp;</td></tr>`,
+      '<!--/mm:chrome-->',
+      // Body
+      `<tr><td class="mm-pad mm-body" style="padding:32px 32px 28px;font-family:${FONT_STACK};font-size:15px;line-height:1.6;color:#2A2422">`,
       html,
       '</td></tr>',
-      `<tr><td class="mm-pad" style="border-top:1px solid #eef2f7;padding:16px 32px;font-family:${FONT_STACK};font-size:12px;line-height:18px;color:#9ca3af;text-align:center">`,
-      `© ${year} IndiaNIC Infotech Ltd. · <a href="https://mailman.indianic.dev" style="color:${ACCENT};text-decoration:none">mailman.indianic.dev</a>`,
-      '<br>Sent with MailMan',
+      // Footer
+      `<tr><td class="mm-pad" style="border-top:1px solid #F0E4DF;padding:22px 32px 26px;font-family:${FONT_STACK}">`,
+      `<div style="font-family:'Brush Script MT','Segoe Script',cursive;font-size:24px;line-height:1.2;color:${from}">MailMan</div>`,
+      `<div style="margin-top:6px;font-size:12px;line-height:18px;color:#7A6E6A">© ${year} IndiaNIC Infotech Ltd. · <a href="https://mailman.indianic.dev" style="color:${from};text-decoration:none">mailman.indianic.dev</a><br>Sent with MailMan</div>`,
       '</td></tr>',
       '</table>',
       '</td></tr></table>',
     ].join(''),
-    { background: '#f6f7f9', align: 'center', maxWidth: 600 },
+    { background: '#F3ECE8', align: 'center', maxWidth: 600 },
   );
 }
 
 /** The shell for a theme — the one place draft_email and draft_campaign pick it. */
-export function wrapEmail(html: string, theme: 'plain' | 'polished'): string {
-  return theme === 'polished' ? wrapPolished(html) : wrapPlain(html);
+export function wrapEmail(html: string, theme: 'plain' | 'polished', subject?: string): string {
+  return theme === 'polished' ? wrapPolished(html, { subject }) : wrapPlain(html);
 }

@@ -66,7 +66,7 @@ export const updateSettingsTool: Tool = {
         draftTtlMinutes: { type: 'number', description: 'How long a draft stays confirmable before it expires' },
         alwaysConfirm: { type: 'boolean', description: "Require confirm_send's `confirm` flag on every send (default true)" },
         defaultBodyType: { type: 'string', enum: ['text', 'html'], description: "What draft_email falls back to when a call omits bodyType" },
-        emailTheme: { type: 'string', enum: ['plain', 'polished'], description: 'polished = branded MailMan shell + IndiaNIC footer on HTML emails' },
+        emailTheme: { type: 'string', enum: ['plain', 'polished'], description: 'polished = branded MailMan card: subject hero on a random colour palette, IndiaNIC footer' },
         desktopNotifications: { type: 'boolean', description: 'Fire a native OS notification after each successful send (default true)' },
         autoBccSelf: { type: 'boolean', description: 'Bcc the sending account on every draft_email send so the sender keeps a copy (default false; skipped when already a recipient; never applies to campaigns)' },
         autoSend: {

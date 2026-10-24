@@ -12,7 +12,7 @@ const SETTING_INFO = {
   draftTtlMinutes: { values: 'positive integer', desc: 'minutes an unsent draft stays valid' },
   alwaysConfirm: { values: 'true | false', desc: 'require confirmation before every send' },
   defaultBodyType: { values: 'text | html', desc: 'body format for new emails' },
-  emailTheme: { values: 'plain | polished', desc: 'polished = branded shell + IndiaNIC footer (HTML)' },
+  emailTheme: { values: 'plain | polished', desc: 'polished = branded card, subject hero in a random colour (HTML)' },
   desktopNotifications: { values: 'true | false', desc: 'desktop pop-up after each send' },
   autoBccSelf: { values: 'true | false', desc: 'Bcc yourself on every send, so you keep a copy (default false)' },
   autoSend: { values: 'true | false', desc: 'send drafts immediately, no confirm step (default false; campaigns still confirm)' },

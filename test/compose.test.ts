@@ -10,6 +10,8 @@ import {
   htmlToPlainText,
   wrapPlain,
   wrapPolished,
+  wrapEmail,
+  HEADER_PALETTES,
 } from '../src/mail/compose.js';
 
 test('formatFromAddress: bare email when no display name is set', () => {
@@ -259,4 +261,34 @@ for (const [name, wrap] of [['wrapPlain', wrapPlain], ['wrapPolished', wrapPolis
 
 test('wrapPlain carries no branding', () => {
   assert.doesNotMatch(wrapPlain('<p>hi</p>'), /IndiaNIC|MailMan/);
+});
+
+test('wrapPolished: the subject leads in a hero on one of the header palettes', () => {
+  const out = wrapPolished('<p>hi</p>', { subject: 'Release <1.9>' });
+  assert.match(out, /<h1 class="mm-hero"[^>]*>Release &lt;1\.9&gt;<\/h1>/);
+  const used = HEADER_PALETTES.filter(([from, via, to]) => out.includes(`linear-gradient(135deg,${from} 0%,${via} 55%,${to} 100%)`));
+  assert.equal(used.length, 1, 'exactly one palette per email');
+  assert.match(out, new RegExp(`bgcolor="${used[0][0]}"`), 'Outlook gets the solid colour');
+});
+
+test('wrapPolished: the header colour varies from email to email', () => {
+  const seen = new Set<string>();
+  for (let i = 0; i < 60; i++) seen.add(/bgcolor="(#[0-9A-F]{6})" style="padding:36px/.exec(wrapPolished('x', { subject: 's' }))![1]);
+  assert.ok(seen.size > 1, `60 emails, one colour: ${[...seen].join()}`);
+});
+
+test('wrapPolished: no subject means a thin colour band, not an empty hero', () => {
+  const out = wrapPolished('<p>hi</p>');
+  assert.doesNotMatch(out, /<h1/);
+  assert.match(out, /height:8px/);
+});
+
+test('wrapPolished: the text part starts with the message, not the chrome', () => {
+  const out = htmlToPlainText(wrapPolished('<p>Hello Kalpesh</p>', { subject: 'Big news' }));
+  assert.equal(out.split('\n')[0], 'Hello Kalpesh');
+  assert.doesNotMatch(out, /Big news/);
+});
+
+test('wrapPolished: campaign tokens in the subject survive for the per-recipient render', () => {
+  assert.match(wrapEmail('x', 'polished', 'Hi {{name|there}}'), />Hi \{\{name\|there\}\}<\/h1>/);
 });

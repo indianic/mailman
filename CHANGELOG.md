@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-24
+
+### Changed
+
+- **New `polished` theme, modelled on the Build Orchestra phase report.** It
+  has a warm page, a rounded 600px card, and a dark brand bar with the date.
+  The subject appears as a large serif headline in a gradient hero, and the
+  footer uses the same colour. The hero colour is picked at random from eight
+  palettes for each email, so a run of updates doesn't look like one message
+  repeated. Outlook gets the palette's solid colour instead of the gradient.
+  Campaigns pick one colour at draft time, so every recipient gets what was
+  approved.
+- A hidden preheader now supplies the inbox preview line. The text/plain part
+  skips the shell's decoration and starts with the message.
+
 ## [1.9.0] - 2026-10-24
 
 ### Added

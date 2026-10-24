@@ -157,7 +157,7 @@ async function handler(rawArgs: Record<string, unknown>) {
   // decides whether that is the branded card ('polished') or unbranded ('plain').
   const theme = input.theme ?? settings.emailTheme;
   const polished = bodyType === 'html' && theme === 'polished';
-  if (bodyType === 'html') body = wrapEmail(body, theme);
+  if (bodyType === 'html') body = wrapEmail(body, theme, subject);
 
   const warnings = composeWarnings(composed, bodyType, account.signature, account.signatureType);
 
@@ -284,7 +284,7 @@ export const draftEmailTool: Tool = {
         theme: {
           type: 'string',
           enum: ['plain', 'polished'],
-          description: 'HTML visual treatment. "polished" wraps the body in a clean shell. Defaults to settings.emailTheme.',
+          description: 'HTML visual treatment. "polished" = branded card with the subject in a randomly coloured hero; "plain" = unbranded. Defaults to settings.emailTheme.',
         },
         forwardedFrom: { type: 'string', description: 'fwd/reply: original sender' },
         forwardedDate: { type: 'string', description: 'fwd/reply: original date' },
