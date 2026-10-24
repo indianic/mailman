@@ -224,7 +224,8 @@ test('env: the key comes straight from the environment', async () => {
     assert.deepEqual(await adopt(envBackend()), key);
     // create() records the backend but persists no key material.
     assert.equal((await readKeystoreRecord())?.backend, 'env');
-    assert.doesNotMatch(await fs.readFile(getKeystorePath(), 'utf8'), new RegExp(key.toString('base64').slice(0, 12)));
+    // includes(), not a RegExp: base64 carries '+' and '/', which made this fail at random.
+    assert.ok(!(await fs.readFile(getKeystorePath(), 'utf8')).includes(key.toString('base64').slice(0, 12)));
   });
 });
 
