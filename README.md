@@ -1,32 +1,137 @@
-# @indianic/mailman
+# @integratex/mailman
+
+[![npm](https://img.shields.io/npm/v/@integratex/mailman?style=flat-square&logo=npm&color=cb3837&label=npm)](https://www.npmjs.com/package/@integratex/mailman)
+[![license](https://img.shields.io/npm/l/@integratex/mailman?style=flat-square&color=green)](https://opensource.org/licenses/MIT)
+[![node](https://img.shields.io/node/v/@integratex/mailman?style=flat-square&logo=node.js&logoColor=white&color=339933)](https://nodejs.org)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-29%20tools-orange?style=flat-square)
+![platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational?style=flat-square)
 
 MailMan CLI — send and read Gmail just by asking your AI assistant, built for IndiaNIC infrastructure.
+
+> 🌐 **Live tour & docs:** [mailman.indianic.dev](https://mailman.indianic.dev)
+> 📦 **Public build:** [`@integratex/mailman`](https://www.npmjs.com/package/@integratex/mailman) — `npm i -g @integratex/mailman`
+
+## See it in action
+
+Ask your AI in plain English. MailMan **drafts, previews, and only sends on your OK** — never the moment you ask.
+
+```
+You:     mailman, send those docs to you@example.com
+MailMan: Draft ready — To: you@example.com · Subject: "Docs"
+         2 attachments · 1.4 MB. Send it?
+You:     yes
+MailMan: Sent.
+```
+
+Works the same in **Claude Code · Cursor · Gemini CLI · Windsurf · Codex** —
+email happens where you already work.
+
+**[Screenshots and the full walkthrough → mailman.indianic.dev](https://mailman.indianic.dev)**
 
 ## Features
 
 - Send **and read** Gmail from your AI in plain English — "send those docs to Kalpesh," "show my last 10 emails"
 - **Draft → preview → confirm** safety — nothing sends until you approve (`confirm_send` won't dispatch without an explicit confirmation)
 - **182 message templates** + `list_templates` (FYI, follow-up, meeting, forward/reply and more — a subject prefix + a hint your AI composes from)
+- **Personalised sends** — `draft_campaign` turns one message into N, each addressed to one person by name, nobody seeing anyone else. Refuses to draft rather than send "Hi ,"; resumes a partial run instead of re-sending. `ccFirstOnly`/`bccFirstOnly` copy your manager **once**, not once per recipient
+- **Signatures that render** — plain text or HTML, your choice made by content. Table layout for a photo beside text, and the photo travels *inside* the message (Content-ID) so it shows without a "load images" prompt
+- **Every HTML email carries a plain-text part** — reply quoting, notification previews and screen readers get something readable, not a mangled auto-conversion
 - Attachments (files, folders, `*.pdf` globs), **scheduled sends** via an OS timer, inbox list / read / search, contacts + recipient suggestions
 - Multi-account, machine-bound encrypted credentials (OS keychain), desktop notifications on send
+- **Session reports** — search your past AI coding sessions by project or date, digest one or many, and email the summary. Tool output is dropped and secrets redacted before a word is composed
+- `mailman doctor` verifies your whole environment and every configured account; **`--fix`** prints the exact install command for anything missing, per platform
 - Installs into **Claude Code, Cursor, Gemini CLI, Windsurf, Codex** (`mailman register`) — cross-platform Win/Mac/Linux
-- 23 MCP tools, exposed to your AI over MCP
+- 29 MCP tools, exposed to your AI over MCP
+
 
 ## Installation
 
-Point the `@indianic` scope at the private registry, then install globally with **npm** or **pnpm**:
+Install globally from the public npm registry with **npm** or **pnpm**:
 
 ```
 # npm
-npm config set @indianic:registry https://npm.indianic.in
-npm install -g @indianic/mailman
+npm install -g @integratex/mailman
 
 # pnpm
-pnpm config set @indianic:registry https://npm.indianic.in
-pnpm add -g @indianic/mailman
+pnpm add -g @integratex/mailman
 ```
 
-(The scope config lands in your `~/.npmrc` — which npm, pnpm, and yarn all read — so no `--registry` flag is needed and public dependencies still resolve from the public registry. `mailman update` later upgrades in place with whichever manager you used.)
+(No registry configuration needed — it's a regular public package on [npmjs.com](https://www.npmjs.com/package/@integratex/mailman). `mailman update` later upgrades in place with whichever manager you used.)
+
+### If the install fails with `EEXIST: file already exists`
+
+```
+npm error code EEXIST
+npm error path /opt/homebrew/bin/mailman
+npm error File exists: /opt/homebrew/bin/mailman
+```
+
+Something else already owns the `mailman` command — usually an older install of
+this same tool under a different package name (`@indianic/mailman`, or the
+unscoped `mcp-mailman` it originally shipped as). npm never overwrites a
+command it didn't create, and it checks this *before* running any of the
+incoming package's scripts, so the package itself can't turn that into a
+friendlier message. Diagnose it with a one-off run, which needs no global
+install and so works while the install is still blocked:
+
+```
+npx -y @integratex/mailman doctor --offline
+```
+
+Its **CLI command** check names the package holding `mailman` and prints the
+fix. For the usual case, remove the old package *first*, then install:
+
+```
+npm uninstall -g @indianic/mailman     # whichever package the check named
+npm install -g @integratex/mailman
+```
+
+Prefer that over `npm install -g --force`: force relinks successfully, but
+uninstalling the old package afterwards deletes the shared `mailman` command
+along with it and leaves you with none.
+
+If the check reports a non-npm binary instead (GNU Mailman ships its own
+`/usr/bin/mailman`), keep both and use this tool's `mcp-mailman` alias.
+
+### If setup says `self-signed certificate in certificate chain`
+
+Common on managed Windows machines. Setup shows the App Password being
+rejected, but the connection never got as far as logging in — Gmail never saw
+the password, and generating a new one will not help.
+
+Corporate TLS inspection (Zscaler, Netskope, Palo Alto) and antivirus "scan
+encrypted connections" (Kaspersky, ESET, Avast, Bitdefender) terminate the
+connection and re-sign it with their own root CA. Windows trusts that root, so
+your browser is fine — but Node ships its own CA list and never reads the
+Windows store, so the handshake fails.
+
+Let Node trust the Windows certificate store, then run the command again:
+
+```
+# PowerShell
+$env:NODE_OPTIONS = "--use-system-ca"
+
+# cmd.exe
+set NODE_OPTIONS=--use-system-ca
+
+# permanent (reopen the terminal afterwards)
+setx NODE_OPTIONS "--use-system-ca"
+```
+
+macOS/Linux: `export NODE_OPTIONS=--use-system-ca`. The flag needs a Node built
+with it — `mailman doctor` says so explicitly if yours is too old, and
+upgrading Node is the simplest fix.
+
+If it still fails, the root CA isn't in the OS store either. Export it
+(Windows: `certmgr.msc` → Trusted Root Certification Authorities → export as
+Base-64 `.cer`) and point Node at the file with
+`NODE_EXTRA_CA_CERTS=C:\path\to\root.cer` — or turn off HTTPS/SSL scanning in
+the antivirus for `smtp.gmail.com:465` and `imap.gmail.com:993`.
+
+`mailman doctor` diagnoses this directly: its **SMTP/IMAP reachability** checks
+complete a fully verified TLS handshake and name the root CA the chain actually
+ends at.
 
 ## Usage
 
@@ -62,7 +167,7 @@ mailman --version
 Once installed and registered, you talk to your AI — not the CLI — for everyday email:
 
 ```
-You: mailman, send those docs to kalpesh.gamit@indianic.com
+You: mailman, send those docs to you@example.com
 AI:  [drafts subject/body, resolves attachments] Ready to send — confirm?
 You: yes
 AI:  Sent.
@@ -72,23 +177,60 @@ You: search for invoices from last month
 You: send this tomorrow at 9am instead of now   # goes out even if the tool is closed
 ```
 
-> **Package vs. command names.** The npm package is **`@indianic/mailman`**; it installs a CLI you run as **`mailman`**. A second alias, **`mcp-mailman`**, points at the same binary — use it only on a host that also has GNU Mailman's `/usr/bin/mailman`.
+> **Package vs. command names.** The npm package is **`@integratex/mailman`**; it installs a CLI you run as **`mailman`**. A second alias, **`mcp-mailman`**, points at the same binary — use it only on a host that also has GNU Mailman's `/usr/bin/mailman`.
+
+## Sending to many people: broadcast or merge
+
+Two shapes, and picking the wrong one is visible to the recipient.
+
+**Broadcast** — `draft_email` with everyone in `to`/`cc`. One message, one reply
+thread, everyone can see it is a group email. Right for announcements and policy
+changes.
+
+**Personalised merge** — `draft_campaign` → `confirm_campaign`. N separate
+messages, each addressed only to that person, their name rendered into the body.
+Right for outreach and individual nudges, where a shared envelope would leak the
+recipient list and read as bulk to spam filters.
+
+> "email the 12 people on this list about Thursday's demo, use their first names"
+
+```
+draft_campaign  →  preview: 12 recipients, ~1 min, 2 sample renderings,
+                   plus every warning — who has no name on file, whether the
+                   body says "Hi team" and should have been a broadcast
+confirm_campaign → one approval sends all 12, paced at 20/min
+```
+
+What makes it safe to run unattended:
+
+- **It refuses to draft** if any recipient has an unresolvable `{{placeholder}}`
+  — "Hi ," is worse than any group greeting, and draft time is the last moment
+  it costs nothing to stop. Give a token a fallback with `{{first_name|there}}`.
+- **Resume, never restart.** A recipient is marked sent only after the transport
+  returns a message id, so a crash or a retry continues where it stopped rather
+  than emailing everyone twice.
+- **`ccFirstOnly` / `bccFirstOnly`** attach to the first message that *actually
+  sends*, so a manager sees the campaign went out once — not once per recipient.
+- **It aborts** at ~25% failures instead of grinding through a list with bad
+  credentials.
+
+Full design notes: [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md).
 
 ## How it works
 
-A native stdio **MCP server**: your editor launches it via `npx -y @indianic/mailman` and Claude calls its tools from natural language. It reaches Gmail two ways — **SMTP/IMAP** for App Password accounts, or the **Gmail REST API** for OAuth2 accounts. Pure Node.js, so behavior is identical on macOS, Linux, and Windows. Configured once, globally — available from any project.
+A native stdio **MCP server**: your editor launches it via `npx -y @integratex/mailman` and Claude calls its tools from natural language. It reaches Gmail two ways — **SMTP/IMAP** for App Password accounts, or the **Gmail REST API** for OAuth2 accounts. Pure Node.js, so behavior is identical on macOS, Linux, and Windows. Configured once, globally — available from any project.
 
 Manual MCP config (what `init`/`register` write for you — note it carries **no secrets**, credentials live in the OS keychain):
 
 ```json
 {
   "mcpServers": {
-    "mailman": { "command": "npx", "args": ["-y", "@indianic/mailman"] }
+    "mailman": { "command": "npx", "args": ["-y", "@integratex/mailman"] }
   }
 }
 ```
 
-- **Claude Code** — `claude mcp add mailman -- npx -y @indianic/mailman`
+- **Claude Code** — `claude mcp add mailman -- npx -y @integratex/mailman`
 - **Cursor / Windsurf / Gemini CLI / Codex** — add the block to that tool's MCP config file.
 
 ## Docs
@@ -97,6 +239,7 @@ Manual MCP config (what `init`/`register` write for you — note it carries **no
 - [docs/PLAN.md](docs/PLAN.md) — architecture: auth, storage, tools, flows
 - [docs/SKILLS.md](docs/SKILLS.md) — the MCP tools this server exposes
 - [docs/CLI.md](docs/CLI.md) — every terminal command (setup, accounts, diagnostics)
+- [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md) — personalised sends: design, guarantees, what shipped
 - [docs/CROSS-OS.md](docs/CROSS-OS.md) — per-OS support matrix
 
 ## OAuth2 / browser sign-in (the passwordless path)
@@ -120,9 +263,50 @@ Scopes requested: `gmail.send`, `gmail.readonly`, `contacts.readonly`. (`gmail.r
 
 ## Security
 
-Credentials are **machine-bound**, not just encrypted: the encryption key lives in your OS's native store (macOS Keychain, Windows Credential Manager, Linux Secret Service via `keytar`), never in the config dir. Copying `accounts.json` to another machine yields useless ciphertext — `mailman` there refuses to decrypt rather than degrade. Every tool call is appended to a local `activity.log` (tool name + non-sensitive metadata only — never bodies/credentials).
+Credentials are encrypted at rest with AES-256-GCM, and the key is **never in the config dir**. Copying `accounts.json` to another machine yields useless ciphertext — `mailman` there refuses to decrypt rather than degrade. mailman never falls back to storing secrets in plaintext. Every tool call is appended to a local `activity.log` (tool name + non-sensitive metadata only — never bodies/credentials).
 
-> Linux headless needs a running Secret Service provider (gnome-keyring, kwallet). No keyring → setup fails with instructions rather than storing plaintext. See [docs/CROSS-OS.md](docs/CROSS-OS.md).
+Where the key itself lives is a **keystore backend**. On a desktop you never choose one — the OS credential store is the default and nothing changes:
+
+| Keystore | Where the key is | Protects against | Does **not** protect against |
+|---|---|---|---|
+| `os-keychain` *(default)* | macOS Keychain, Windows Credential Manager, Linux Secret Service | the config dir being copied anywhere; the key is bound to this machine and user | anything running as you on this machine while the keyring is unlocked |
+| `passphrase` | nowhere — derived with scrypt from a passphrase you type. Only a salt is stored | the config dir being copied *and* read; no key material exists at rest | someone who has both the config dir and the passphrase — unlike `os-keychain`, this is **not** machine-bound |
+| `env` | nowhere — handed to the process in `MAILMAN_MASTER_KEY` | whatever your platform's secret store protects; mailman persists nothing | anything that can read the process environment |
+| `file` | a 0600 file **outside** the config dir | the config dir being copied with the key left behind (rsync, `docker COPY`, a stray commit) | anything running as you that can read the file. **`doctor` reports this backend as degraded** |
+
+`mailman doctor` prints which one is active. To change it, move the key deliberately — never by just switching the setting:
+
+```bash
+mailman auth migrate-keystore --to passphrase   # re-encrypts, or moves the key, as appropriate
+```
+
+### Headless Linux, Docker, CI
+
+The OS credential store needs a **running Secret Service daemon**, not just the `libsecret` library — and a headless server has no desktop session to unlock one. Making `gnome-keyring` work there takes ~16 extra packages (`gcr4` pulls in GTK4), a `gnome-keyring-daemon --unlock` systemd user service fed a password file, and `loginctl enable-linger`. Don't. Pick a keystore that needs no session:
+
+```bash
+# A person is present at setup, and unattended runs read the passphrase from the environment
+MAILMAN_KEYSTORE=passphrase mailman init
+
+# Containers, CI, systemd — your platform already manages secrets, so let it
+export MAILMAN_MASTER_KEY="$(node -e 'console.log(require("crypto").randomBytes(32).toString("base64"))')"
+MAILMAN_KEYSTORE=env mailman init
+```
+
+This also makes **Alpine/musl** work, which it previously didn't: keytar installs there but its binary can't load without libsecret, and nothing else needs it. Verified on `node:20-alpine` — nothing to install, just pick a keystore.
+
+Be clear-eyed about the trade: on a headless box an auto-unlocked `gnome-keyring` is roughly equivalent to a root-owned key file, with far more moving parts. `passphrase` is stronger than either *only* while the passphrase is not sitting next to the ciphertext — which means a `MAILMAN_MASTER_PASSPHRASE` line in a crontab is a key file with extra steps, and a worse one, since a passphrase is likelier to be reused elsewhere than 32 random bytes are. For unattended sends prefer `env` (platform-managed) or accept `file` knowingly.
+
+**Scheduled sends on Linux** run from crontab, which has no D-Bus session. mailman writes `DBUS_SESSION_BUS_ADDRESS`, `XDG_RUNTIME_DIR`, `MCP_MAILMAN_CONFIG_DIR` and `MAILMAN_KEYSTORE` into the line it manages, and repairs an older line the next time you schedule something. It will **not** write your passphrase or key there — that is your call to make. On a server, also run `loginctl enable-linger $USER`, or `/run/user/$UID` disappears at logout and takes the session bus with it.
+
+| Env var | Purpose |
+|---|---|
+| `MAILMAN_KEYSTORE` | `os-keychain` \| `passphrase` \| `env` \| `file`. Overrides the recorded backend — unset it after migrating, or it keeps winning |
+| `MAILMAN_MASTER_PASSPHRASE` | passphrase for the `passphrase` keystore, for unattended runs |
+| `MAILMAN_MASTER_KEY` | base64 32-byte key for the `env` keystore |
+| `MAILMAN_MASTER_KEY_FILE` | overrides where the `file` keystore keeps its key |
+
+See [docs/HEADLESS-KEYSTORE.md](docs/HEADLESS-KEYSTORE.md) for the design and [docs/CROSS-OS.md](docs/CROSS-OS.md) for the per-OS matrix.
 
 ## Config location
 
@@ -153,6 +337,19 @@ mailman update    # or: mailman upgrade
 
 Restart your AI tools afterward so their MCP server picks up the new version.
 
+## Contributing
+
+Issues and pull requests are welcome — you don't need commit access, the
+standard fork → branch → PR flow works. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the development loop
+(`lint` / `typecheck` / `test` — exactly what CI runs), where things live, and
+which changes won't be merged and why.
+
+- 🐞 [Report a bug](https://github.com/indianic/mailman/issues/new?template=bug_report.yml) — include your `mailman doctor` output
+- 💡 [Request a feature](https://github.com/indianic/mailman/issues/new?template=feature_request.yml)
+- 💬 [Ask or discuss](https://github.com/indianic/mailman/discussions)
+- 🔐 Security issues: email hello@indianic.com — **not** a public issue
+
 ## License
 
-MIT
+[MIT](LICENSE)

@@ -1,7 +1,7 @@
 import { intro, outro } from '@clack/prompts';
 import { resolveTools, writeSelectedEditors, promptAndWriteEditorConfigs } from './register-editors.js';
 import { requireTty } from './interactive.js';
-import type { Scope } from './editor-config.js';
+import { NPM_PACKAGE, type Scope } from './editor-config.js';
 
 /**
  * `mailman register` — register mailman with your AI editors.
@@ -37,5 +37,5 @@ export async function runRegister(args: string[]): Promise<void> {
   }
 
   // Bare form — print the copy-pasteable command (plain, no tree glyphs so a paste is clean).
-  process.stdout.write('claude mcp add mailman -- npx -y @indianic/mailman\n');
+  process.stdout.write(`claude mcp add mailman -- npx -y ${NPM_PACKAGE}\n`);
 }

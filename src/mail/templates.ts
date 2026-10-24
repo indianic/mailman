@@ -9,6 +9,11 @@
  * exposes it (filterable by category/search) and draft_email accepts `template`.
  */
 
+// Shared with compose.ts rather than duplicated: that copy also escapes the
+// quote characters, and two subtly different escapers in one mail pipeline is
+// how one of them ends up wrong.
+import { escapeHtml } from './compose.js';
+
 export type TemplateKind = 'hint' | 'mechanical';
 
 export interface EmailTemplate {
@@ -27,7 +32,7 @@ export const CORE_KEYS = new Set([
   'quick-question', 'action-required', 'approval-request', 'feedback-request',
   'review-request', 'meeting-request', 'reschedule', 'status-update', 'eod-report',
   'blocker', 'decision-needed', 'intro', 'thank-you', 'congrats', 'apology',
-  'announcement', 'fwd', 'reply',
+  'announcement', 'fwd', 'reply', 'session-report',
 ]);
 
 export const TEMPLATES: EmailTemplate[] = [
@@ -94,6 +99,7 @@ export const TEMPLATES: EmailTemplate[] = [
   { key: 'kickoff', category: 'reporting', subjectPrefix: 'Project kickoff:', hint: 'Start a project: goals, scope, roles, timeline.', kind: 'hint' },
   { key: 'wrap-up', category: 'reporting', subjectPrefix: 'Project wrap-up:', hint: 'Close a project: outcomes, learnings, thanks.', kind: 'hint' },
   { key: 'handover', category: 'reporting', subjectPrefix: 'Handover:', hint: 'Transfer ownership: state, access, open items, contacts.', kind: 'hint' },
+  { key: 'session-report', category: 'reporting', subjectPrefix: 'Session report:', hint: 'Summarize AI coding sessions (see read_session_digest): what changed, files touched, commits, open items. Group by project when several.', kind: 'hint' },
 
   // ── Decisions & approvals ───────────────────────────────────────────────
   { key: 'decision', category: 'decisions', subjectPrefix: 'Decision:', hint: 'Communicate a decision and the reasoning briefly.', kind: 'hint' },
@@ -295,10 +301,6 @@ export function applySubjectPrefix(prefix: string, subject: string): string {
   if (!s) return prefix;
   if (s.toLowerCase().startsWith(prefix.toLowerCase())) return s;
   return `${prefix} ${s}`;
-}
-
-function escapeHtml(v: string): string {
-  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export interface ForwardedFields {

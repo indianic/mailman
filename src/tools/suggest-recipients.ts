@@ -67,10 +67,11 @@ export const suggestRecipientsTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string' },
-        account: { type: 'string' },
+        query: { type: 'string', description: 'Partial name or email to match, e.g. "John" or "kal"' },
+        account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
       },
       required: ['query'],
+      additionalProperties: false,
     },
   },
   handler,

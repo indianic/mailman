@@ -1,6 +1,526 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+### Security
+
+- **Attachments are confined and shown by their real path** (T-008 #1). Text
+  the LLM reads could steer it to attach `~/.ssh/id_rsa`, mailman's own
+  `accounts.json` or its master key, through an absolute path, `..`, a glob, a
+  directory or a symlink named `report.pdf`, while the preview showed only a
+  file name. Every file is now resolved with `realpath`. A file inside
+  `~/.ssh`, `~/.aws`, `~/.gnupg`, the config dir or the key file's directory
+  is refused with the new `ATTACHMENT_DENIED`. The `draft_email` and
+  `draft_campaign` previews list each file's real `path`.
+- **Scheduled sends and campaigns store the file list the preview showed.**
+  `schedule_send` and `draft_campaign` used to store the raw glob or directory
+  and expand it again at send time, so the pattern could match files nobody
+  reviewed. They now store the resolved real paths. Entries queued by 1.8.0
+  still work, and the confinement check runs on them at send time.
+
+### Fixed
+
+- **`~/` in an attachment path expands to the home directory.** It used to be
+  taken literally and fail with `ATTACHMENT_NOT_FOUND`.
+
+## [1.8.0] - 2026-08-14
+
+### Added
+
+- **`signatureType` on the account profile** (`text` | `html`). Auto-detection
+  by content stays as the fallback, but it cannot tell markup with no
+  allowlisted tag from prose that mentions `<table>` — the person saving the
+  signature can. Recorded automatically at save time, settable explicitly via
+  `update_account_profile`'s `signatureType` or the CLI's `--signature-type`,
+  and cleared together with the signature it describes.
+- **`update_account_profile` returns a test-render.** `signaturePreview`
+  carries `renderedHtml` and `renderedText` — byte-for-byte what compose will
+  emit on each body type — so a signature is verified at save time, not in a
+  recipient's inbox. A declared type that contradicts the content produces a
+  warning (stored as declared; the warning informs, the caller decides).
+- **`draft_email` preview now shows what will actually be sent.** `finalBody`
+  is the fully composed body — signature and theme shell included — capped at
+  6 KB with a `finalBodyTruncated` flag. The old `signatureAppended: true`
+  boolean stays, but it was accurate-and-useless during the real incident: the
+  flag said "appended" while the composed output was visibly broken.
+- **`draft_email` preview `warnings`.** Every mismatch that has put broken
+  output in front of a real recipient is flagged at draft time: an HTML
+  signature on a text send, HTML tags in a `text` body, a newline-separated
+  plain-text body sent as `html` (arrives as one run-on paragraph), and
+  Markdown syntax in an `html` body (email clients do not render Markdown).
+- **`autoBccSelf` setting** (default `false`). When on, every `draft_email`
+  send quietly Bcc's the sending account itself so the sender keeps a copy —
+  skipped when their address is already a recipient anywhere, surfaced in the
+  preview as `autoBccSelf: true`, and never applied to campaigns (which have
+  `bccFirstOnly`). `mailman settings set autoBccSelf true`.
+
+### Fixed
+
+- **An HTML signature on a `bodyType: "text"` send is no longer pasted in as
+  raw markup.** Recipients used to see literal `<hr style="…"><table
+  cellpadding="0">` under the message. It now gets the same readable
+  plain-text conversion the alternative part of an HTML send gets — tags
+  stripped, links kept as URLs — plus a preview warning suggesting the send be
+  upgraded to HTML. The full body-type × signature-type matrix is pinned in
+  `test/signature-matrix.test.ts`, down to the compiled MIME.
+- **`update_account_profile` rejects the literal strings `"null"` /
+  `"undefined"`.** They are a serialisation accident somewhere upstream, never
+  a signature anyone wants appended to their mail — the error spells out that
+  clearing takes JSON `null` and keeping takes omission.
+
+## [1.7.2] - 2026-08-05
+
+### Changed
+
+- **The maintainer's personal address is out of the public repo.** Every example
+  in tests, docs and code comments now uses `example.com`. The places that ask
+  someone to actually write in — the security contact in `README`/`CONTRIBUTING`
+  and the GitHub issue templates — use `hello@indianic.com` instead, because
+  `example.com` there would silently discard vulnerability reports.
+- **Screenshots removed from the README.** They were never in the npm tarball
+  (`files` is `dist`, `bin`, `README.md`) — the registry pulled them from
+  raw.githubusercontent.com, so they were a second copy of material that lives on
+  the site and had to be kept in step by hand. Replaced with a short worked
+  example and a link to <https://mailman.indianic.dev>; 988 KB of PNGs dropped
+  from the repo.
+- The MCP badge said **23 tools**. There are 29.
+
+## [1.7.1] - 2026-08-05
+
+### Added
+
+- **`mailman account profile --signature-image <path>` / `--clear-signature-image`.**
+  1.7.0 shipped inline signature photos with **no way for a user to enable
+  them** — `setSignatureImage()` existed only as a function, reachable from
+  neither the CLI nor an MCP tool. Caught by a documentation audit rather than
+  by any test. Clearing also deletes the copied file, since leaving a picture of
+  someone on disk after they asked for it to be removed is not "cleared".
+
+### Changed
+
+- **Docs audited against everything 1.5.0–1.7.0 actually shipped.** Two claims
+  had become wrong rather than merely incomplete:
+  - `docs/CLI.md` still said block tags in a signature "are escaped rather than
+    rendered". They have been allowed since 1.7.0, with balance enforced instead.
+  - `docs/CLI.md` still described `auth rotate-key` as re-encrypting **two**
+    files. It has covered three since 1.5.0 — `campaigns.json` too.
+- `docs/PLAN.md` gains the two architecture sections it had no equivalent of:
+  **Four send modes** (which store each uses, and why campaigns are not N
+  scheduled entries) and the **Compose pipeline** (signature rendering, the
+  HTML/text split, inline images).
+- `bccFirstOnly` is documented — it shipped in 1.6.0 and appeared in no document.
+- README gains a broadcast-versus-merge section, since choosing the wrong one is
+  visible to the recipient.
+- `emailTheme` added to the documented settings list; `mailman examples` and the
+  `account profile` command summary mention the photo flag.
+
+## [1.7.0] - 2026-08-05
+
+### Added
+
+- **Signature photos, attached inline.** `signatureImage` on an account, adopted
+  with `setSignatureImage()`, referenced from the signature as
+  `<img src="cid:mailman-signature">` and attached by Content-ID on every HTML
+  send that uses it. Inline rather than linked because Gmail and Outlook block
+  remote images by default — the first email anyone gets from you would show a
+  gap where the photo should be. The file is copied into the config dir so
+  moving the original cannot silently break it, and capped at 200 KB since it
+  rides on every message.
+
+  **Known client behaviour, not a defect:** Gmail lists inline images in its
+  attachment strip whatever the sender does. Omitting the filename was tried and
+  only relabelled the chip "noname"; `multipart/related`-outermost — the shape
+  Gmail's own composer emits — was also built and tested. If a bare signature
+  matters more than a photo, do not set one.
+
+- **Signatures may use layout tags** — `table`, `td`, `div` and friends. A photo
+  beside text is a two-column layout, and in email that means a table.
+
+### Fixed
+
+- **Two more gaps in the HTML-to-text converter**, both found by reading
+  delivered mail rather than by the suite:
+  - `</td>` was not a line break, so a two-column signature collapsed its
+    columns into one run — "Kalpesh GamitAI SOLUTION ARCHITECT".
+  - Only *closing* block tags broke a line, so inline content ran straight into
+    a following block: a role in a `<span>` butted against the contact `<table>`
+    beneath it with no separation at all.
+
+### Internal
+
+- The signature sanitiser now **emits a balanced tree**. Layout tags were
+  previously banned outright so an unbalanced `</div>` could not close the
+  polished card and swallow the footer; that reasoning was right and the
+  conclusion too strict. Instead of avoiding the risk, it is closed: open tags
+  are tracked, a stray close with no matching open is dropped, anything left
+  open at the end is closed, and crossed tags (`<b><i></b>`) are untangled
+  rather than left to italicise the rest of the email.
+
+## [1.6.2] - 2026-08-05
+
+### Fixed
+
+- **Indented HTML source put blank lines between list items in the text part.**
+  A body written across several lines carries a real newline plus indentation
+  between every tag, and those newlines survived into the `text/plain`
+  alternative — so a three-item list arrived double-spaced, which the HTML
+  itself would never render. Whitespace between tags now collapses to a single
+  space before the block handling runs, so the breaks that belong are inserted
+  by the converter rather than inherited from the author's formatting.
+
+  Collapsed to a space rather than removed, because between *inline* tags
+  (`<b>bold</b>` newline `<i>italic</i>`) that whitespace is a real word gap and
+  deleting it would run the words together.
+
+  1.6.1's unit tests all used single-line HTML, so none of them could see this.
+  Found by reading a delivered message.
+
+## [1.6.1] - 2026-08-05
+
+### Fixed
+
+- **HTML emails went out with no `text/plain` alternative.** Every HTML send —
+  `draft_email` and campaigns alike — was HTML-only, so any client that reads
+  text rather than markup had to invent its own conversion. Found in a real
+  reply: the quoted signature came back as `Thanks & RegardsKalpesh Gamit` and
+  `IndiaNIC Infotech Ltd.Mobile: +91…`, because Gmail's converter dropped the
+  `<br>`s inside the `<i>` tags. The same gap affects reply quoting,
+  notification previews, screen readers and watch faces, and a missing text
+  part reads as a mild spam signal — which matters more for a 39-recipient
+  campaign than for one message to a colleague.
+
+  HTML sends are now `multipart/alternative`. The HTML part is byte-for-byte
+  unchanged; a generated text part rides alongside it. `<br>` becomes one line
+  break and a block boundary becomes a blank line, entities are decoded
+  (`&amp;` last, so an authored `&amp;lt;` stays the literal `&lt;`), list items
+  become dashes, `<style>`/`<script>` contents are dropped rather than pasted in
+  as text, and links keep their URL — `<a href="…">Site</a>` renders as
+  `Site (https://…)`, because a text reader cannot click an anchor. An HTML body
+  with no readable text at all sends no text part rather than an empty one.
+
+## [1.6.0] - 2026-08-05
+
+### Added
+
+- **`bccFirstOnly` on `draft_campaign`.** Same first-message-only rule as
+  `ccFirstOnly`, but invisible — for an archive address or a manager who should
+  see the send happened without appearing on it. When both are set they ride the
+  *same* message, not the first two, and both follow the first message that
+  actually sends rather than the first attempted.
+
+### Fixed
+
+- **`cc` and `bcc` were silently discarded by `draft_campaign`.** The call
+  returned success and copied nobody, so a sender would believe their manager
+  had been included. Zod strips unknown keys, and the `additionalProperties:
+  false` in the tool's JSON Schema is documentation that nothing enforces —
+  nothing validates arguments against it before dispatch. Both are now refused
+  with a message naming the field to use instead and why a plain `cc` is wrong
+  on a merge (it would copy that person on every one of N messages). A stray
+  `to` is refused the same way.
+- **A typo'd parameter is now an error rather than a silent no-op.** The input
+  schema is `.strict()`, so `throttlePerMin` fails loudly instead of quietly
+  sending at the default rate.
+
+### Internal
+
+- `test/bcc-privacy.test.ts` pins the property nothing else would notice
+  breaking: the SMTP path strips `Bcc:` from the delivered headers and carries
+  the address in the envelope only, while the Gmail API path deliberately keeps
+  the header because it has no envelope and that is how Gmail is told to deliver
+  it. The two transports differing is correct; only the SMTP side leaking would
+  be a privacy failure, and it is now asserted in both directions.
+- Two evals: `draft_campaign` must declare exactly the recipient fields it
+  honours — a declared-but-ignored one is silent loss — and both copy fields
+  must state their first-message-only semantics in prose, since the schema
+  cannot express it.
+
+## [1.5.2] - 2026-08-05
+
+### Fixed
+
+- **An HTML signature was escaped and shown as source in every HTML email.** A
+  stored signature of `---<br><i>Thanks &amp; Regards…` arrived as literal
+  `&lt;br&gt;&lt;i&gt;Thanks &amp;amp; Regards…`. This was **not** new in 1.5.x
+  and was never campaign-specific — `appendSignature` is shared, so every HTML
+  send from an account whose signature contains markup has looked like this.
+  Found by reading the first real campaign as a recipient rather than as a test
+  assertion.
+
+  The escaping was deliberate and fixed two genuine bugs (a signature containing
+  `<name@example.com>` vanishing into an unknown tag; `Sales & Marketing`
+  becoming an invalid entity), on the reasoning that the field is documented
+  plain text. But people paste the signature their mail client hands them, which
+  is markup, and "a visibly literal tag is better than silent loss" was choosing
+  between two failures rather than fixing both.
+
+  The content now decides. A signature containing recognisable formatting tags
+  is treated as HTML and passed through an allowlist; anything else takes the
+  previous escaping path, unchanged. Every original guarantee still holds:
+  `<name@example.com>` is not a tag and cannot vanish, a bare `&` is still an
+  ampersand, and block tags (`div`, `table`), `<script>`, `on*` handlers and
+  `javascript:` URLs are escaped or dropped — so a signature can never close the
+  polished card, swallow the footer, or run anything. `data:image` sources are
+  allowed, since that is how inline logos arrive.
+
+## [1.5.1] - 2026-08-05
+
+Found by the first live campaign — four real emails to four colleagues, which
+is also the first thing 1.5.0 was asked to do.
+
+### Fixed
+
+- **`draft_campaign` could not mix the two recipient forms.** `recipients`
+  accepted `string[]` *or* `{email, vars}[]` and nothing in between, so the
+  shape a real campaign actually has — most people resolvable from contacts,
+  one or two needing a name supplied — was rejected outright. All-or-nothing
+  forced every entry to be rewritten as an object because of two exceptions.
+  The array is now heterogeneous, and de-duplication spans both forms so the
+  same address written twice, once each way, is still sent to once.
+- **An unreadable error when `recipients` did not parse.** A failed zod union
+  serialises as three parallel branch failures nested in `unionErrors`, none of
+  which says what to do. `src/mail/recipients.ts` already learned this for
+  `draft_email`: a dump invites a model to give up or quietly restructure the
+  call, and here that means silently dropping recipients. Replaced with a
+  sentence naming both accepted forms and the fact that they mix.
+
+## [1.5.0] - 2026-08-05
+
+### Added
+
+- **Personalised sending — `draft_campaign` / `confirm_campaign` /
+  `campaign_status` / `cancel_campaign`.** `draft_email` could only produce one
+  message with one `to`/`cc`/`bcc` set, so every multi-recipient send was a
+  broadcast: "Hi team" instead of "Hi Priya", the sender in their own `To:`, and
+  N hidden recipients on one envelope — a textbook bulk signature that costs
+  deliverability exactly when it matters. A campaign is N separate messages, one
+  per recipient, each addressed only to that person. Phase 1 of
+  `docs/CAMPAIGNS.md`; closes GitHub issue #2.
+- `{{name}}` / `{{first_name}}` / `{{email}}` plus custom per-recipient `vars`,
+  resolved from contacts or supplied inline as `"Name <addr>"`. Merged values are
+  HTML-escaped for HTML bodies — `Sales & Marketing` and `O'Brien` are real
+  address-book entries, and a name carried verbatim into HTML is at best mangled.
+- **`draft_campaign` refuses to draft** when a placeholder has no value for some
+  recipient, and persists nothing. `Hi ,` is worse than any group greeting, and
+  draft time is the last moment it costs nothing to stop. The error names every
+  recipient, every token, and all three remedies; `{{first_name|there}}` opts
+  into a fallback explicitly.
+- **`ccFirstOnly`** attaches the Cc to the first message that *actually sends* —
+  not the first attempted, so a failed first message hands it to the next and
+  leadership gets exactly one copy rather than none. Cc'ing them on all N is the
+  failure this exists to make impossible.
+- Preview samples deliberately surface the *awkward* rendering (fallback
+  greeting, one-word name) rather than two flattering ones. One approval covers
+  all N sends, so that preview is the only review that happens. Warnings cover a
+  group-addressed body, a `ccFirstOnly` address that is also a recipient, and a
+  body where nothing actually personalises.
+
+### Fixed
+
+- **`auth rotate-key` and `auth migrate-keystore` re-encrypted two files, not
+  three.** `campaigns.json` is encrypted under the same master key, and a
+  campaign left behind by a rotation is a half-delivered merge whose remaining
+  recipients can no longer be read — neither resumable nor listable. Same class
+  of bug that once left `scheduled.json` behind.
+
+### Internal
+
+- Campaign state lives in `campaigns.json`, built to the scheduler store's
+  pattern: content encrypted, per-recipient bookkeeping in the clear and keyed by
+  `seq` so no address sits in the plaintext half. Not `drafts.ts`, which is an
+  in-memory map with a 10-minute TTL — a 39-recipient run dying at #20 would
+  leave no record of who received it, and the retry would double-send.
+- Idempotency: a recipient is marked `sent` only after the transport returns a
+  message id; terminal recipients are never eligible again, so re-calling
+  `confirm_campaign` resumes rather than restarts; one attempt per recipient per
+  run, capped at 3 across runs; ~25% failures (floor 3) aborts the run rather
+  than producing N failures from one bad credential.
+- The safety-invariant eval tier now declares the dispatcher and drafter sets and
+  iterates them. Campaigns introduce mailman's **second** dispatcher, and the old
+  "exactly one tool dispatches" guard passed only because `confirm_campaign` does
+  not match its name regex — a false negative. A third of either now cannot be
+  added without being declared or failing the guard.
+- 54 new tests across rendering, dispatch and the tool surface; 5 new evals.
+
+## [1.4.1] - 2026-08-03
+
+### Fixed
+
+- **The `file` keystore threw on filesystems without POSIX permissions.** Its
+  `chmod` was unguarded, so Windows, FAT/exFAT volumes and some network mounts
+  would fail the write — losing the only copy of the master key over a permission
+  bit that cannot exist there. Now tolerated the same way `config/store.ts`
+  tolerates it: the create-time mode is the guarantee, the `chmod` is a
+  re-assertion, and `read()` still warns on every load if the file is
+  group/world readable. Introduced in 1.3.0 and caught by an eval that had no
+  runner.
+- **The passphrase keystore imported a prompt library into the config layer.**
+  `@clack/prompts` was reachable from `src/config/keystore/`, which the MCP stdio
+  server also loads — a layer where there is nobody to ask and where anything on
+  stdout corrupts the JSON-RPC stream. The prompt is now injected by the CLI
+  (`setPassphrasePrompter`, registered in `src/cli/main.ts`), so the server is
+  structurally incapable of prompting rather than relying on an `isTTY` check.
+
+### Internal
+
+- **`npm run eval` and `npm run verify` now exist.** `eval/` holds 10 files and
+  113 assertions and *nothing ran them* — no script, and the directory is
+  local-only. Five real defects had accumulated behind that gap, three of them
+  mine from 1.3.0–1.4.0. `verify` is lint + typecheck + build + test + eval.
+- Three evals were reading `src/config/keychain.ts` for code that moved into
+  `src/config/keystore/` in 1.3.0. They were not failing loudly — `indexOf`
+  returned -1 and the assertions passed against an empty string, which is worse.
+  Retargeted at the real files.
+- The test-isolation eval now accepts delegation to `test/support/isolate.ts`
+  instead of demanding the sandbox variable appear literally in every test file.
+- `privacy.eval.ts`'s "the master key must never leave the OS store" is
+  **restated, not dropped**: mailman now has an opt-in file keystore by design.
+  What is enforced instead is that writing key material is confined to that one
+  backend, that it is reachable only through the explicit `case 'file'` arm, and
+  that it reports itself as degraded.
+
+## [1.4.0] - 2026-08-03
+
+### Added
+
+- **Replies now thread.** `draft_email` accepts `inReplyTo` and `references`, and
+  emits the RFC 5322 `In-Reply-To`/`References` headers. Previously mailman set
+  only `X-Mailer` and a fresh `Message-ID`, so a reply arrived as a brand-new
+  message: Gmail's web UI often regrouped it by subject, but Outlook, Apple Mail
+  and Thunderbird thread strictly on those headers and showed it detached. The
+  `reply` template could quote the original but never thread it — the tool
+  surface advertised reply support it could not actually deliver.
+- **`read_email` returns `messageId`**, the original's RFC 5322 header. Nothing in
+  the surface carried it before, so a reply was impossible to construct even by
+  hand: `id` is a provider-local handle (an IMAP UID or Gmail API id) and will not
+  thread anything. The schema says which of the two it wants, because passing the
+  wrong one fails silently.
+- `references` defaults to `[inReplyTo]` — correct for replying to a root message,
+  so a caller only needs the single id `read_email` hands back. Pass the array
+  explicitly to preserve a longer chain.
+
+Threading carries through the whole path: draft → `confirm_send`, and draft →
+`schedule_send` → the encrypted entry → dispatch, so a reply queued for 9am still
+lands in its thread. The scheduled fields are optional, so entries queued by an
+earlier version still parse rather than becoming undecryptable on upgrade.
+
+Both transports covered: the App Password/SMTP path via nodemailer, and the Gmail
+API path asserted on the compiled RFC-822 bytes. A fresh message emits neither
+header — an empty `In-Reply-To` is malformed and would thread the message under
+nothing.
+
+### Internal
+
+- One `escapeHtml`, not two. `templates.ts` had a private copy escaping only
+  `& < >` while `compose.ts` gained a more complete one in 1.3.2; two subtly
+  different escapers in one mail pipeline is how one of them ends up wrong.
+
+## [1.3.2] - 2026-08-03
+
+### Fixed
+
+- **HTML email signatures were broken two ways.** The account signature is a
+  plain-text field — `account profile --signature "Regards,\nKalpesh"` stores a
+  real newline — but it was dropped into an HTML body verbatim. Newlines
+  collapsed, so a multi-line signature arrived as one run-on line ("Regards,
+  Kalpesh Gamit IndiaNIC"), and markup characters were interpreted rather than
+  shown: a signature containing `<name@example.com>` **disappeared entirely**
+  because the browser read it as an unknown tag, and `Sales & Marketing` was an
+  invalid entity. Silent loss of content in every outgoing HTML email. The
+  signature is now escaped and then newline-converted (that order matters — the
+  reverse escapes the `<br>` it just inserted), CRLF/CR are normalised so a
+  signature typed on Windows breaks identically, and a stored signature can no
+  longer close the polished theme's card or open a tag that swallows the footer.
+  Text bodies are unchanged. The trade-off, stated plainly: a signature that
+  deliberately contained HTML now shows its tags literally instead of rendering —
+  correct for a field documented as plain text, and a visibly literal tag beats
+  content that vanishes.
+
+## [1.3.1] - 2026-08-03
+
+Internal release tooling only — **no change to the published package.** `dist/`
+is byte-identical to 1.3.0; this exists because the version was bumped, not
+because anything users install has changed.
+
+- `scripts/release-auto` — wraps `scripts/release` and supplies the two
+  credentials it otherwise stops to ask for, so a release needs no prompts. The
+  npm token must be an *Automation* token (the only type that bypasses 2FA for
+  publishing) and is injected through a 0600 temp npmrc deleted on every exit
+  path; nothing is written to `~/.npmrc` or the repo. Not shipped: `scripts/` is
+  excluded from both the npm tarball and the GitHub mirror.
+
+## [1.3.0] - 2026-08-03
+
+### mailman now works on headless Linux — servers, containers, CI, WSL
+
+Installing on a desktop-less Ubuntu box used to fail three times in a row: a raw `libsecret-1.so.0: cannot open shared object file` linker crash, then `Keyring backend: unreachable` once the library was installed, then `doctor --fix` advising you to "log into a desktop session" on a machine with no session to log into. Getting `gnome-keyring` working headlessly took ~16 extra packages, an `--unlock` systemd user service fed a password file, and `loginctl enable-linger`. That is not an install path for a mail CLI.
+
+The master key now lives behind a **keystore backend** (`src/config/keystore/`). `keychain.ts` keeps its exact public surface — `getOrCreateMasterKey`, `getMasterKeyOrThrow`, `setMasterKey`, `generateMasterKey`, `getServiceName`, `NoMasterKeyError`, `KeyringUnavailableError` — and every one of its callers is unchanged.
+
+- **`os-keychain`** (default, unchanged) — macOS Keychain, Windows Credential Manager, Linux Secret Service. Same service name, same account name, same storage location: **no existing install migrates or re-keys.**
+- **`passphrase`** — scrypt from `MAILMAN_MASTER_PASSPHRASE` or an interactive prompt, plus a random salt. **No key material at rest.** A wrong passphrase is rejected with a sentence rather than a GCM auth-tag failure from inside a send.
+- **`env`** — a base64 key handed over in `MAILMAN_MASTER_KEY`. Nothing is persisted; the platform owns the secret. The right answer for Docker/Kubernetes secrets, systemd `LoadCredential=`, and CI.
+- **`file`** — opt-in `0600` key file created with `O_EXCL`, **outside** the config dir so key and ciphertext are not copied together. Reported by `doctor` as degraded, not healthy.
+
+**Existing secrets are never orphaned.** A recorded backend always beats a probe, so a reachable keychain cannot silently take over a `passphrase` install. Setting `MAILMAN_KEYSTORE` to something other than where the key already lives is *refused* when credentials exist, rather than quietly minting a second key that leaves the first batch unreadable — the failure mode this whole design is arranged around. Where the key lives is recorded in a new `keystore.json` (backend name, scrypt salt, key-file path — **no key material**), because an unreachable Secret Service is otherwise indistinguishable from an empty one, and guessing wrong is what destroys credentials.
+
+- **New: `mailman auth migrate-keystore --to <backend>`** — the sanctioned way to move the key. A target that can hold a key receives the existing one and nothing is re-encrypted; a target that supplies its own key causes every stored credential to be rewritten under it. The key is read back out of the target and verified *before* the old copy is removed.
+- **`mailman auth rotate-key` works on every backend.** For `passphrase` that means a fresh salt against the same passphrase; `env` refuses, because there is nowhere for mailman to put a new key.
+- **`mailman reset` no longer orphans a `file` key.** It removes key material through the backend, so a key deliberately kept outside the config dir doesn't survive the wipe as 32 bytes of live secret in `~/.local/state`.
+
+### Fixed
+
+- **A missing `libsecret` produced a raw linker stack trace instead of the no-keyring guidance.** The keytar import sat *outside* the try/catch in all three of `keychain.ts`'s functions, so a native-load failure escaped as a bare `Error` and slipped past every `instanceof KeyringUnavailableError` handler in the codebase — the exact handlers that exist to explain this. (`--help`, `doctor` and `status` were always fine; keytar has been lazily imported for a long time.)
+- **`auth rotate-key` silently killed pending scheduled sends.** It re-encrypted `accounts.json` only, but `scheduled.json`'s message content uses the same master key. Every queued entry was left readable solely under the discarded key: `scheduled list` broke, and the ticker's GCM auth-tag failure was swallowed as a retryable error, so those sends died quietly after 5 attempts. Both files now rotate together, with an up-front dry run — an undecryptable *account* blocks the rotation before anything is written, an already-orphaned *scheduled* entry is reported and skipped so pre-existing damage can't block rotation forever.
+- **Scheduled sends on Linux failed at 3am with `Cannot autolaunch D-Bus without X11 $DISPLAY`.** The crontab line carried `PATH` and nothing else, and cron has no session bus. It now also carries `DBUS_SESSION_BUS_ADDRESS`, `XDG_RUNTIME_DIR`, `MCP_MAILMAN_CONFIG_DIR` and `MAILMAN_KEYSTORE`, and an older line is repaired the next time a send is scheduled. Secrets are deliberately *not* written there — `doctor` reports the passphrase-under-cron combination instead of quietly putting your passphrase in a crontab.
+- **`doctor` claimed `libsecret: present (keytar can reach the Secret Service)`** off a bare `ldconfig` grep. That is false on a headless box — present library, no daemon. Library and daemon are now separate rows, `--fix` routes off what the probe actually reported rather than what `ldconfig` guessed (fixing two mis-routings: a present-but-unusable library was told to install gnome-keyring, and an `ldconfig`-less image got no hint at all), and the credential store is only reported as *failed* when it is the store actually in use.
+- **`doctor`'s keyring probe wrote into the real keychain namespace** even under `MCP_MAILMAN_CONFIG_DIR`, which exists precisely to keep isolated profiles away from real credentials. It now probes under `getServiceName()`.
+- **`doctor --fix` sent headless servers further into the trap.** With no libsecret it printed only `sudo apt install libsecret-1-0`, which moves the machine from "no library" to "library, but no Secret Service daemon" — the next state in the same dead end, and the start of the 16-package detour. The `libsecret` hint now offers the keystore route too (and names `apk` for musl). Found on a real Ubuntu container; the unit tests could not see it because they never asked which of the two Linux failure modes was in play.
+- **A working headless setup was reported as broken.** libsecret is a dependency of exactly one backend, but it was reported as a missing dependency regardless — so on Alpine, where the `passphrase` keystore works end to end, `doctor` still printed `missing: libsecret` and "Some checks failed". It is now only counted when `os-keychain` is the active keystore.
+- fix: `schedule_send` now returns `DRAFT_ALREADY_SENT` for a draft that has already gone out, instead of `DRAFT_EXPIRED`. The two mean opposite things to a caller deciding what to do next — an expired draft can be recreated and scheduled, whereas an already-sent one means the mail is gone and scheduling it again would send a second copy. `DRAFT_ALREADY_SENT` was declared in `ErrorCodes` and returned by nothing, so a model branching on it had a permanently dead path.
+- fix: `chmod` on the config files and the activity log no longer throws where POSIX permissions do not exist (Windows, FAT/exFAT volumes, some network mounts). Both files are now created with mode `0o600` directly and the `chmod` is a re-assertion that is allowed to fail — previously it could take down the surrounding write, credentials included, because a permission bit could not be set.
+- `DRAFT_NOT_FOUND` messages now say what to do about it. "No such draft: `<id>`" named the problem and left the caller with nowhere to go; each of the three sites now explains that drafts are in-memory and expire, except `cancel_draft`, where the honest answer is that nothing is pending and no action is needed.
+- Docs: `docs/SKILLS.md` now lists the error codes `schedule_send` and `cancel_draft` can return, and says which of them are worth branching on separately.
+
+### Newly supported
+
+- **Alpine/musl works.** `docs/CROSS-OS.md` listed it as a known risk ("no prebuild → source build needs libsecret headers + toolchain"). Verified on `node:20-alpine`: `npm install -g` succeeds, keytar's binary then fails to *load* for want of libsecret, and `MAILMAN_KEYSTORE=passphrase` (or `env`) carries the whole flow with `doctor` reporting green.
+
+### Internal
+
+- `npm test` passes with **no OS keyring at all** (verified under a loader hook that makes `import('keytar')` fail exactly as a missing libsecret does). Tests default to the keyring-free `passphrase` keystore via a new shared `test/support/isolate.ts`; the 14 that are genuinely *about* the OS credential store are skipped rather than failed where none exists. `.gitlab-ci.yml` measured the old state as 25 failures with `libsecret` but no daemon — which is exactly what `.github/workflows/ci.yml` provides, so the mirror's `npm test` was red.
+- Full design, and the corrections the investigation made to the original bug report, in [docs/HEADLESS-KEYSTORE.md](docs/HEADLESS-KEYSTORE.md).
+
+## [1.2.1] - 2026-07-30
+
+- `mailman doctor` gained a **dependencies** section and a `--fix` flag. It already reported that the keyring was unreachable but never why, and on Linux there are two causes that look identical from the outside and need different fixes. The section now checks `npm` (which `mailman update` shells out to) and, on Linux only, `libsecret` — keytar's native backend; macOS and Windows ship their own credential store, so nothing is checked or suggested there. `--fix` prints the exact platform command: `sudo apt install libsecret-1-0` when the library is absent, versus `sudo apt install gnome-keyring` when it is present but no Secret Service daemon is running. Both cases verified against real containers. Commands are printed, never executed — installing a system library needs root. Where `ldconfig` is unavailable (musl/Alpine) it reports "could not verify" rather than claiming the library is missing.
+- **Every MCP tool schema is now closed and fully documented.** All 25 declare `additionalProperties: false` and an explicit `required` array, and all 34 previously undescribed parameters — including `confirm_send.draftId` and `draft_email.body` — now carry descriptions. Nothing validates arguments against these schemas before dispatch (each handler's zod parse strips unknown keys), so the schema was the only place the contract could be stated: without it a model that invented an argument got a success it should not have and never learned the parameter did not exist. Both fields are now required by `ToolDefinition`, so the compiler rejects a new tool that omits them. No runtime behaviour changed and no existing caller can break.
+- Docs: the README advertised 23 MCP tools when the server exposes 25; `list_templates` shipped with no `docs/SKILLS.md` entry at all; and `mailman account password` was implemented and in `mailman help` but missing from `docs/CLI.md`. All three corrected.
+
+## [1.2.0] - 2026-07-30
+
+- Session reports: turn past AI coding sessions into an email. Two new MCP tools — `list_sessions` (search this machine's own transcripts by project, text, branch or recency; metadata only, never transcript content) and `read_session_digest` (a compact, secret-scrubbed skeleton of up to 10 sessions) — plus `mailman session list` / `mailman session report` in the CLI and a `session-report` template. Neither tool summarizes: they extract, and the calling Claude session composes, then sends through the usual `draft_email` → preview → `confirm_send` flow. The skeleton drops every tool result, which is both the bulk of a transcript's bytes and where pasted secrets land — a 986 KB session becomes 19 KB, and across three real transcripts holding 11 credential-shaped strings none reached the skeleton. Surviving text is scrubbed for known token shapes. Indexing is cached on mtime+size, so a first build over 2,258 sessions takes ~4.4s and later runs ~0.2s.
+
+## [1.1.4] - 2026-07-28
+
+- fix: a blocked TLS handshake is no longer reported as a wrong password. On machines with corporate TLS inspection or antivirus HTTPS scanning — routine on managed Windows — setup failed with `self-signed certificate in certificate chain` under the headline "Gmail rejected these credentials", sending users off to regenerate an App Password that Gmail had never seen. Verification now distinguishes certificate-trust, network, anti-abuse and genuine credential failures, headlines each one accurately, and for a trust failure prints the fix (`NODE_OPTIONS=--use-system-ca` in the right shell syntax for the platform, or `NODE_EXTRA_CA_CERTS`) — Node ships its own CA list and never reads the Windows certificate store, which is why the browser works and mailman doesn't. The retry menu now offers "keep the App Password I entered" first whenever the password was never actually checked.
+- `mailman doctor`'s SMTP/IMAP reachability checks now complete a fully verified TLS handshake instead of a bare TCP connect. Both Gmail ports are implicit TLS, so the old check reported "reachable ✓" on exactly the machines where nothing could connect; on a trust failure it now names the root CA the chain ends at and prints the same fix once below the checks.
+
+## [1.1.3] - 2026-07-27
+
+- fix: `draft_email` no longer rejects multiple recipients in `to`. A comma/semicolon-separated string (`"alice@example.com, bob@example.com"`) and the `"Name <alice@example.com>"` form are now accepted for `to`/`cc`/`bcc` — previously only an exact bare address or array passed, so callers hit `INVALID_INPUT` and worked around it by demoting a recipient to `cc`. `cc`/`bcc` also accept a bare string now, matching `to`. Unparseable addresses still fail, with an error naming the field and entry.
+- `mailman doctor` now reports which `mailman` the shell actually runs. When another package name owns that command (`@indianic/mailman`, `mcp-mailman`) or a non-npm binary shadows it (GNU Mailman's `/usr/bin/mailman`), the check fails and prints the uninstall-then-install fix — the state behind npm's bare `EEXIST: file already exists` install error, which npm raises before any of the incoming package's scripts can run. Reachable as `npx -y @integratex/mailman doctor --offline` while a global install is still blocked.
+
+## [1.1.2] - 2026-07-21
+
+- Fix public build: package name (editor MCP configs, scheduled-send ticker, self-update) now resolved from package.json at runtime, so the public @integratex/mailman build no longer references the private @indianic package. Public npmjs install is now the documented path on GitHub; private-registry docs moved to INTERNAL.md (excluded from the mirror).
+
+## [1.1.0] - 2026-07-06
+
+- feat: mailman account password — update an account's App Password in place (picker + live verify)
+
 ## [1.0.0] - 2026-07-03
 
 - release: 1.0.0 — first stable release

@@ -18,20 +18,23 @@ send (which needs live creds and stays the macOS-verified manual step).
 
 | Capability | macOS | Linux (desktop) | Linux (headless) | WSL | Windows |
 |---|---|---|---|---|---|
-| Credential store (master key) | ✅ Keychain (login) | ✅ Secret Service via libsecret / gnome-keyring (Docker) | ❌ by design — fails with instructions, never plaintext | ❌ like headless Linux (no Secret Service daemon by default) | 🟡 Credential Manager |
+| Credential store (master key) | ✅ Keychain (login) | ✅ Secret Service via libsecret / gnome-keyring (Docker) | ✅ **not needed** — `passphrase`/`env`/`file` keystores need no session bus (was ❌ by design before 1.3.0) | ✅ same as headless Linux | 🟡 Credential Manager |
 | Config dir | ✅ `~/Library/Application Support/mcp-mailman/` | ✅ `~/.config/mcp-mailman/` (Docker) | ✅ same | 🟡 same | 🟡 `%APPDATA%\mcp-mailman\` |
-| Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | ✅ ciphertext-only + decrypt roundtrip (Docker) | — | — | 🟡 same code path |
+| Encryption at rest (AES-256-GCM, key never on disk) | ✅ real account | ✅ ciphertext-only + decrypt roundtrip (Docker) | ✅ configure + decrypt via `passphrase`/`env`/`file` (Docker, incl. musl) | ✅ same as headless Linux | 🟡 same code path |
 | No-keyring failure mode (clear error, no plaintext fallback) | ✅ simulated (deleted keychain entry → clean `NO_MASTER_KEY`) | ✅ missing key → `NoMasterKeyError` (Docker) | ✅ configureAccount → `KeyringUnavailableError`, no accounts.json (Docker) | 🟡 | 🟡 |
-| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves `@indianic/mailman` (Docker) | ✅ same | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) |
+| Scheduled-send ticker | ✅ launchd agent (live fire verified) | ✅ cron line resolves the `mailman` bin (Docker) | ✅ same, and the line now carries `DBUS_SESSION_BUS_ADDRESS`/`XDG_RUNTIME_DIR`/`MAILMAN_KEYSTORE` | 🟡 crontab (needs cron running) | 🟡 Task Scheduler (`schtasks`) — **no env block**, so a non-default `MCP_MAILMAN_CONFIG_DIR` is not carried through |
 | CLI bins (`mailman` + `mcp-mailman` alias) | ✅ | ✅ both on PATH (Docker) | ✅ same | 🟡 | 🟡 npm `.cmd`/`.ps1` shims; no GNU collision |
 | MCP stdio server + editor config write | ✅ (Claude Code, real `~/.claude.json`) | ✅ `register --tools claude` wrote valid `~/.claude.json` (Docker) | ❌ interactive `init` needs a TTY (guard added) | 🟡 | 🟡 |
 | Real Gmail send + read | ✅ (App Password, live) | 🟡 not run in container (needs live creds) | — | — | 🟡 |
 
 ## How the credential store works per OS
 
-One code path (`src/config/keychain.ts`) — `keytar.setPassword('mcp-mailman',
-'master-key', <256-bit key>)` — backed by a different OS facility on each
-platform:
+`src/config/keychain.ts` is still the only master-key surface every caller uses,
+but since 1.3.0 it delegates to one of four **keystore backends**
+(`src/config/keystore/`) — see [HEADLESS-KEYSTORE.md](HEADLESS-KEYSTORE.md).
+`os-keychain` is the default wherever the OS store is reachable and behaves
+exactly as it always did: `keytar.setPassword('mcp-mailman', 'master-key',
+<256-bit key>)`, backed by a different OS facility on each platform:
 
 - **macOS** — the login Keychain. Inspect with Keychain Access → search
   "mcp-mailman". No extra setup.
@@ -65,7 +68,7 @@ after itself — no hardware needed:
 ```
 
 It `npm pack`s a **hermetic tarball** (mailman installs from that, never
-from `npm.indianic.in` — no registry token in any image layer), builds an
+from a registry — no registry token in any image layer), builds an
 Ubuntu 24.04 + node 20 image, then runs the checklist twice: **desktop**
 (gnome-keyring up via `dbus-run-session` → success path) and **headless**
 (no keyring → must fail clean). A timestamped report lands in
@@ -83,8 +86,8 @@ Same script on each target — check off per OS:
 
 1. [ ] Node ≥ 18 on PATH (`node --version`); old-Node guard prints the
        friendly message when run with an old binary.
-2. [ ] `npm install -g @indianic/mailman` resolves via the `@indianic`
-       scope routing in `~/.npmrc`; both `mailman` and `mcp-mailman` bins
+2. [ ] `npm install -g @integratex/mailman` resolves from the public npm
+       registry; both `mailman` and `mcp-mailman` bins
        land on PATH (Windows: `.cmd` shims work from cmd + PowerShell).
 3. [ ] `mailman doctor` — keyring probe passes (or, headless: fails with
        the daemon-naming message); SMTP/IMAP reachability green.
@@ -100,13 +103,28 @@ Same script on each target — check off per OS:
 7. [ ] Scheduler: `schedule_send` installs the OS ticker (crontab line /
        schtasks task), a send fires with the MCP process closed, and the
        entry is marked `sent`.
-8. [ ] `mailman update` self-updates from npm.indianic.in.
+8. [ ] `mailman update` self-updates from the npm registry.
 9. [ ] `mailman reset --yes` wipes the config dir **and** removes the
        credential-store entry (verify in the OS credential UI).
 
 macOS column of the matrix is filled from the real verification runs on
 2026-07-01/02 (see CHECKLIST.md Phases 1, 3, 7 and the `mailman init` run
 that wrote `~/.claude.json`).
+
+## File permissions where POSIX modes do not exist
+
+`accounts.json`, `settings.json`, `scheduled.json` and `activity.log` are all
+written owner-only (`0o600`), in a directory created `0o700`. On Windows,
+FAT/exFAT volumes and some network mounts those modes have no meaning and
+`fs.chmod` **throws** rather than silently doing nothing.
+
+So the mode is applied at **creation** — `writeFile`/`appendFile` take it
+directly — and the follow-up `chmod` is a re-assertion for a file that already
+existed (say, one written by an older build under a looser umask). That second
+call is wrapped and allowed to fail. Losing an entire config write, credentials
+included, because a permission bit could not be set would be far worse than
+relying on the mode the file was born with; and on Windows the user profile is
+restricted by other means anyway.
 
 ## Known risks / backlog
 
@@ -115,7 +133,27 @@ that wrote `~/.claude.json`).
   cross-read of the real keytar-written entry verified in both directions
   on macOS (zero-migration swap), musl/Alpine prebuilds included. Full
   findings + phased plan: [KEYTAR-MIGRATION.md](KEYTAR-MIGRATION.md).
-- **musl/Alpine**: no prebuild → source build needs libsecret headers +
-  toolchain; document or ship a prebuild if container use becomes real.
-- **WSL**: behaves like headless Linux. If demand appears, document the
-  `gnome-keyring-daemon` recipe explicitly rather than auto-starting one.
+- **musl/Alpine**: ~~no prebuild → source build needs libsecret headers +
+  toolchain~~ — **resolved 2026-08-03, verified on node:20-alpine.**
+  `npm install -g` succeeds (keytar does ship a musl prebuild); the binary then
+  fails to *load* for want of libsecret, which the keystore backends make
+  survivable. `MAILMAN_KEYSTORE=passphrase` (or `env`) works end to end and
+  `doctor` reports the whole run green — libsecret is no longer counted as a
+  missing dependency when the active keystore has no use for it. Covered by
+  `./docker/test-headless-keystore.sh musl` (50 checks).
+- **WSL**: behaves like headless Linux — which since 1.3.0 means it works out
+  of the box with `MAILMAN_KEYSTORE=passphrase` or `env`. The
+  `gnome-keyring-daemon` recipe is deliberately still not documented or
+  auto-started: on a machine with no session it buys nothing a key file
+  doesn't.
+- **Windows Task Scheduler carries no environment.** `schtasks /TR` takes a bare
+  command, so unlike cron and launchd the ticker there does not inherit a
+  non-default `MCP_MAILMAN_CONFIG_DIR` or a pinned `MAILMAN_KEYSTORE`. Harmless
+  on a default install (Credential Manager is reachable from a task running as
+  the same user); it would bite an isolated profile. Not fixed because it cannot
+  be verified on this hardware — see the Windows column above.
+- **CI covers one platform.** `.github/workflows/ci.yml` runs `ubuntu-latest`
+  only, so every 🟡 in the matrix above has no runtime backstop at all — the
+  Windows column is verified by unit tests and static rubrics and nothing else.
+  Adding `macos-latest` and `windows-latest` to the matrix is the fix; until
+  then, treat 🟡 as literally as the legend says.

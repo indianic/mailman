@@ -229,6 +229,7 @@ export class GmailApiProvider implements MailProvider {
 
     return {
       id: message.id,
+      messageId: headerValue(headers, 'Message-ID') || undefined,
       from: headerValue(headers, 'From'),
       to: splitAddresses(headerValue(headers, 'To')),
       cc: splitAddresses(headerValue(headers, 'Cc')),

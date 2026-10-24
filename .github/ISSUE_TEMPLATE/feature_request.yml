@@ -1,0 +1,65 @@
+name: 💡 Feature request
+description: Suggest a capability or improvement
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: mailman is deliberately small. The bar is "does this make
+        sending or reading mail from an AI session better," not "more features."
+
+        Worth knowing — a few things are **deliberately** absent, and requests
+        for them will be declined (see [`docs/PLAN.md`](https://github.com/indianic/mailman/blob/main/docs/PLAN.md)):
+
+        - Sending mail without a confirmed draft preview
+        - Key rotation or credential export as an MCP tool
+        - Recurring/repeating scheduled sends
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: Describe the situation you're in, not the solution you have in mind.
+      placeholder: >
+        I use Outlook at work, so I can't use mailman at all — it only talks to
+        Gmail.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+      description: If you have a specific shape in mind — a new tool, a flag, a setting — describe it.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area does this touch?
+      options:
+        - Sending (draft / confirm / templates / attachments)
+        - Reading (inbox, search, overview)
+        - Scheduling
+        - Accounts & auth (App Password, OAuth2)
+        - A new mail provider (Outlook, generic SMTP/IMAP, …)
+        - AI tool registration (a host mailman should configure)
+        - CLI / diagnostics
+        - Docs
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How do you handle it today?
+      description: A workaround tells us how much this actually costs you.
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Would you be willing to work on this?
+      options:
+        - label: I'd be up for opening a PR (see CONTRIBUTING.md)

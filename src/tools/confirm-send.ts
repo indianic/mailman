@@ -5,6 +5,7 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
 import { getDraft, markSent } from '../drafts.js';
 import { getProvider } from '../mail/get-provider.js';
+import { signatureInlineImages } from '../mail/compose.js';
 import { OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
 import { upsertRecipient } from '../contacts.js';
 import { notifyDesktop, summarizeRecipients } from '../notify.js';
@@ -34,7 +35,10 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const draft = getDraft(draftId);
   if (!draft) {
-    return toolError(ErrorCodes.DRAFT_NOT_FOUND, `No such draft: ${draftId}`);
+    return toolError(
+      ErrorCodes.DRAFT_NOT_FOUND,
+      `No such draft: ${draftId} — drafts are in-memory and expire; call draft_email again to create a new one.`,
+    );
   }
 
   // Idempotent replay: a retried confirm_send after an ambiguous prior
@@ -81,6 +85,9 @@ async function handler(rawArgs: Record<string, unknown>) {
     bodyType: draft.bodyType,
     attachments: draft.attachments.map((a) => ({ path: a.path, name: a.name, mimeType: a.mimeType })),
     fromDisplayName: account.displayName,
+    inReplyTo: draft.inReplyTo,
+    references: draft.references,
+    inlineImages: signatureInlineImages(account, draft.body, draft.bodyType),
   };
 
   let messageId: string;
@@ -128,13 +135,14 @@ export const confirmSendTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        draftId: { type: 'string' },
+        draftId: { type: 'string', description: 'The draftId returned by draft_email' },
         confirm: {
           type: 'boolean',
           description: 'Set true ONLY after the user has explicitly approved this exact draft. Required to send while alwaysConfirm is on.',
         },
       },
       required: ['draftId'],
+      additionalProperties: false,
     },
   },
   handler,

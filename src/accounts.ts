@@ -1,4 +1,6 @@
-import { getAccountsPath } from './config/paths.js';
+import path from 'node:path';
+import { promises as fs } from 'node:fs';
+import { getAccountsPath, getConfigDir } from './config/paths.js';
 import { readJsonFile, updateJsonFile } from './config/store.js';
 import {
   AccountsFileSchema,
@@ -10,6 +12,7 @@ import {
 import { encrypt, decrypt } from './config/crypto.js';
 import { getOrCreateMasterKey, getMasterKeyOrThrow } from './config/keychain.js';
 import { getSettings, updateSettings } from './settings.js';
+import { resolveSignatureType } from './mail/compose.js';
 import { ErrorCodes, type ErrorCode } from './errors.js';
 
 export class AccountResolutionError extends Error {
@@ -145,6 +148,7 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
       credentials: encryptedCredentials,
       displayName: input.displayName,
       signature: input.signature,
+      signatureType: input.signature ? resolveSignatureType(input.signature) : undefined,
     };
     return { ...current, accounts: [...withoutSameAlias, newAccount] };
   });
@@ -158,9 +162,34 @@ export async function configureAccount(input: ConfigureAccountInput): Promise<{ 
   return { account, isDefault };
 }
 
+/**
+ * Replace ONLY an app-password account's stored credentials (email, method,
+ * displayName, signature are all preserved) — the "my App Password changed /
+ * was revoked" path, so the user doesn't have to re-run the full add wizard.
+ * Re-encrypts with the current master key.
+ */
+export async function updateAccountCredentials(
+  alias: string,
+  credentials: { user: string; pass: string },
+): Promise<Account> {
+  const masterKey = await getOrCreateMasterKey();
+  const encryptedCredentials = encrypt(masterKey, JSON.stringify(credentials));
+  const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    const updated: Account = { ...target, credentials: encryptedCredentials };
+    return { ...current, accounts: current.accounts.map((a) => (a.alias === alias ? updated : a)) };
+  });
+  return file.accounts.find((a) => a.alias === alias)!;
+}
+
 export interface UpdateAccountProfileInput {
   displayName?: string | null;
   signature?: string | null;
+  /** How to read `signature`. Omitted = auto-detect whenever a new signature is stored. */
+  signatureType?: 'text' | 'html';
 }
 
 /**
@@ -168,6 +197,11 @@ export interface UpdateAccountProfileInput {
  * (encrypted) credentials. `undefined` leaves a field as-is; `null` clears
  * it — distinguishing "not passed" from "explicitly remove" the same way
  * update_settings/update_account_profile's caller expects.
+ *
+ * signatureType is bound to the signature it describes: saving a new signature
+ * records the caller's declared type, or an auto-detected one as the fallback;
+ * clearing the signature clears the type with it. It is never left describing
+ * a signature that no longer exists.
  */
 export async function updateAccountProfile(alias: string, input: UpdateAccountProfileInput): Promise<Account> {
   const file = await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
@@ -175,14 +209,124 @@ export async function updateAccountProfile(alias: string, input: UpdateAccountPr
     if (!target) {
       throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
     }
+    const signature = input.signature === null ? undefined : input.signature ?? target.signature;
+    let signatureType = target.signatureType;
+    if (input.signature === null) {
+      signatureType = undefined;
+    } else if (typeof input.signature === 'string') {
+      signatureType = input.signatureType ?? resolveSignatureType(input.signature);
+    } else if (input.signatureType && signature) {
+      // Reclassify the existing signature without re-sending it.
+      signatureType = input.signatureType;
+    }
     const updated: Account = {
       ...target,
       displayName: input.displayName === null ? undefined : input.displayName ?? target.displayName,
-      signature: input.signature === null ? undefined : input.signature ?? target.signature,
+      signature,
+      signatureType,
     };
     return { ...current, accounts: current.accounts.map((a) => (a.alias === alias ? updated : a)) };
   });
   return file.accounts.find((a) => a.alias === alias)!;
+}
+
+/** Gmail-safe ceiling for something that rides on EVERY message you send. */
+export const MAX_SIGNATURE_IMAGE_BYTES = 200 * 1024;
+
+const SIGNATURE_IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+};
+
+/**
+ * Adopt a signature photo: validate it, copy it into the config dir, and record
+ * the copy's path on the account.
+ *
+ * Copied rather than referenced in place because the source is wherever the
+ * user happened to have it — a Downloads folder, an external drive, a path with
+ * their name in it. A signature that silently stops rendering because a file
+ * moved is exactly the kind of quiet breakage that only shows up in someone
+ * else's inbox.
+ */
+export async function setSignatureImage(alias: string, sourcePath: string): Promise<{ path: string; bytes: number }> {
+  const resolved = path.resolve(sourcePath);
+  const ext = path.extname(resolved).toLowerCase();
+  if (!SIGNATURE_IMAGE_TYPES[ext]) {
+    throw new Error(
+      `Unsupported signature image type "${ext || '(none)'}" — use ${Object.keys(SIGNATURE_IMAGE_TYPES).join(', ')}.`,
+    );
+  }
+
+  let stat;
+  try {
+    stat = await fs.stat(resolved);
+  } catch {
+    throw new Error(`No such file: ${resolved}`);
+  }
+  if (!stat.isFile()) throw new Error(`Not a file: ${resolved}`);
+  if (stat.size > MAX_SIGNATURE_IMAGE_BYTES) {
+    throw new Error(
+      `Signature image is ${Math.round(stat.size / 1024)} KB; the limit is ${MAX_SIGNATURE_IMAGE_BYTES / 1024} KB. ` +
+        'It is attached to every message you send, so a large one costs the recipient on every email.',
+    );
+  }
+
+  const destination = path.join(getConfigDir(), `signature-${alias}${ext}`);
+  await fs.mkdir(getConfigDir(), { recursive: true, mode: 0o700 });
+  await fs.copyFile(resolved, destination);
+  // Tolerated, not required — POSIX modes do not exist on Windows, FAT/exFAT or
+  // some network mounts, and losing a signature photo over a permission bit
+  // that cannot be set there would be absurd. Same discipline as config/store.ts.
+  try {
+    await fs.chmod(destination, 0o600);
+  } catch {
+    // no POSIX permissions here
+  }
+
+  await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    return {
+      ...current,
+      accounts: current.accounts.map((a) => (a.alias === alias ? { ...a, signatureImage: destination } : a)),
+    };
+  });
+
+  return { path: destination, bytes: stat.size };
+}
+
+/**
+ * Forget the signature photo. The copied file is deleted too — leaving it in
+ * the config dir would keep a picture of someone on disk after they asked for
+ * it to be removed.
+ */
+export async function clearSignatureImage(alias: string): Promise<void> {
+  let previous: string | undefined;
+  await updateJsonFile(getAccountsPath(), AccountsFileSchema, DEFAULT_ACCOUNTS_FILE, (current) => {
+    const target = current.accounts.find((a) => a.alias === alias);
+    if (!target) {
+      throw new AccountResolutionError(ErrorCodes.ACCOUNT_NOT_FOUND, `No configured account with alias "${alias}"`);
+    }
+    previous = target.signatureImage;
+    return {
+      ...current,
+      accounts: current.accounts.map((a) => (a.alias === alias ? { ...a, signatureImage: undefined } : a)),
+    };
+  });
+
+  if (previous) {
+    // Best-effort: the account record is already updated, so a file that
+    // cannot be removed must not fail the command.
+    try {
+      await fs.rm(previous, { force: true });
+    } catch {
+      // already gone, or not ours to delete
+    }
+  }
 }
 
 export class AccountRemovalConfirmationError extends Error {

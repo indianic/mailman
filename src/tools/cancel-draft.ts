@@ -14,7 +14,10 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const draft = cancelDraft(parsed.data.draftId);
   if (!draft) {
-    return toolError(ErrorCodes.DRAFT_NOT_FOUND, `No such draft: ${parsed.data.draftId}`);
+    return toolError(
+      ErrorCodes.DRAFT_NOT_FOUND,
+      `No such draft: ${parsed.data.draftId} — it may have already expired or been cancelled; nothing is pending to discard.`,
+    );
   }
 
   return toolResponse({ cancelled: true });
@@ -27,9 +30,10 @@ export const cancelDraftTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        draftId: { type: 'string' },
+        draftId: { type: 'string', description: 'The draftId returned by draft_email' },
       },
       required: ['draftId'],
+      additionalProperties: false,
     },
   },
   handler,

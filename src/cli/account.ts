@@ -5,6 +5,9 @@ import {
   removeAccount,
   resolveAccount,
   updateAccountProfile,
+  setSignatureImage,
+  clearSignatureImage,
+  updateAccountCredentials,
   getDefaultAlias,
   findAccountByEmail,
   AccountResolutionError,
@@ -12,11 +15,13 @@ import {
   DuplicateEmailError,
 } from '../accounts.js';
 import { updateSettings } from '../settings.js';
+import { SIGNATURE_IMAGE_CID } from '../mail/compose.js';
 import { KeyringUnavailableError } from '../config/keychain.js';
-import { verifyAppPasswordCredentials } from '../auth/verify.js';
+import { verifyAppPasswordCredentials, type VerifyFailureKind } from '../auth/verify.js';
 import { authorizeOAuth2Account } from './auth-login.js';
 import { promptProfileDetails } from './prompt-profile.js';
 import { promptAndWriteEditorConfigs } from './register-editors.js';
+import { NPM_PACKAGE } from './editor-config.js';
 import { isInteractiveTerminal, requireTty } from './interactive.js';
 import { section, detail, fail, info, attention } from './tree.js';
 
@@ -105,15 +110,9 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
   printAppPasswordSetupGuide();
 
   // Ask for the address + App Password and actually log in to Gmail before
-  // moving on. A wrong App Password is the #1 setup mistake (and silently
-  // breaks every later send), so we verify the pair — but a failed verify is
-  // NEVER a dead end: after each rejection the user chooses retry / save-
-  // anyway / cancel. "Save anyway" matters because Google temporarily blocks
-  // sign-in after several failed attempts (so a *correct* password can be
-  // refused for a few minutes), and because verify is best-effort. The address
-  // is pre-filled on retry so only the mistyped password needs fixing.
+  // moving on. One email = one account, so a duplicate is caught before the
+  // (slow) verify and re-prompted rather than dead-ending.
   let email = '';
-  let pass = '';
   for (;;) {
     const emailInput = await text({
       message: 'Gmail address',
@@ -126,8 +125,6 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     }
     email = String(emailInput).trim();
 
-    // One email = one account — catch a duplicate before the (slow) verify,
-    // and re-prompt rather than dead-ending.
     const dupe = await findAccountByEmail(email, alias);
     if (dupe) {
       log.error(
@@ -136,28 +133,66 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
       );
       continue;
     }
+    break;
+  }
 
-    const passInput = await password({
-      message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
-      validate: (v) => (v.trim().length > 0 ? undefined : 'App Password is required'),
-    });
-    if (isCancel(passInput)) {
-      cancel('Cancelled.');
-      process.exit(1);
-    }
-    // Gmail App Passwords are shown grouped as "abcd efgh ijkl mnop" — users
-    // paste them with spaces constantly, and SMTP rejects the spaces. Strip.
-    pass = String(passInput).replace(/\s+/g, '');
+  const pass = await promptVerifiedAppPassword(email);
+  const { displayName, signature } = await promptProfileDetails();
 
-    // The single most common mistake this catches: typing a regular account
-    // password (which Google refuses for SMTP/IMAP) instead of a 16-char App
-    // Password. Flag the length mismatch up front, before the slow verify.
-    if (pass.length !== 16) {
-      log.warn(
-        `That's ${pass.length} characters — a Gmail App Password is exactly 16. ` +
-          'Your normal account password will NOT work here (Google blocks it for SMTP/IMAP). ' +
-          'Generate an App Password at https://myaccount.google.com/apppasswords (needs 2-Step Verification on).',
-      );
+  return { alias, email, pass, displayName, signature };
+}
+
+/**
+ * What the spinner says when verification fails. Keyed by cause because the
+ * headline is the first thing the user reads and acts on — "Gmail rejected
+ * these credentials" printed over an intercepted TLS handshake is simply
+ * false, and costs people an afternoon of regenerating App Passwords.
+ */
+const VERIFY_FAILURE_HEADLINE: Record<VerifyFailureKind, string> = {
+  auth: 'Gmail rejected these credentials',
+  tls: "Couldn't establish a trusted connection to Gmail — credentials not sent",
+  network: "Couldn't reach Gmail",
+  throttled: 'Google is temporarily blocking sign-in attempts',
+  unknown: "Couldn't verify with Gmail",
+};
+
+/**
+ * Prompt for an App Password and verify it live against Gmail — shared by the
+ * add wizard and `account password`. A failed verify is NEVER a dead end:
+ * after each rejection the user picks retry / save-anyway / cancel. "Save
+ * anyway" matters because Google temporarily blocks sign-in after several
+ * failed attempts (a *correct* password can be refused for minutes) and verify
+ * is best-effort. Returns the (space-stripped) password to store.
+ */
+async function promptVerifiedAppPassword(email: string): Promise<string> {
+  // Carried across iterations so a failure that never reached Gmail's login
+  // (a blocked handshake, a dropped connection) can be retried with the same
+  // password instead of forcing the user to type all 16 characters again.
+  let pass: string | null = null;
+
+  for (;;) {
+    if (pass === null) {
+      const passInput = await password({
+        message: 'Gmail App Password (16 characters, from https://myaccount.google.com/apppasswords)',
+        validate: (v) => (v.trim().length > 0 ? undefined : 'App Password is required'),
+      });
+      if (isCancel(passInput)) {
+        cancel('Cancelled.');
+        process.exit(1);
+      }
+      // Gmail shows App Passwords grouped as "abcd efgh ijkl mnop"; users paste
+      // them with spaces, which SMTP rejects. Strip.
+      pass = String(passInput).replace(/\s+/g, '');
+
+      // Catches the #1 mistake: a regular account password (which Google refuses
+      // for SMTP/IMAP) instead of the 16-char App Password.
+      if (pass.length !== 16) {
+        log.warn(
+          `That's ${pass.length} characters — a Gmail App Password is exactly 16. ` +
+            'Your normal account password will NOT work here (Google blocks it for SMTP/IMAP). ' +
+            'Generate an App Password at https://myaccount.google.com/apppasswords (needs 2-Step Verification on).',
+        );
+      }
     }
 
     const s = spinner();
@@ -166,37 +201,43 @@ async function promptAppPasswordDetails(): Promise<AppPasswordDetails> {
     if (result.ok) {
       s.stop('Gmail accepted these credentials ✓');
       if (result.imapWarning) log.warn(result.imapWarning);
-      break;
+      return pass;
     }
-    s.stop('Gmail rejected these credentials ✗');
+    // Only `auth` means Gmail looked at the password and said no. Announcing a
+    // rejection for a blocked TLS handshake or a dead network sends the user
+    // off to regenerate an App Password that was never the problem.
+    s.stop(`${VERIFY_FAILURE_HEADLINE[result.kind ?? 'unknown']} ✗`);
     log.error(result.error ?? 'Verification failed.');
 
+    // Credentials reached Gmail and were refused → the password is the thing to
+    // change. Anything else → it was never checked, so offer the cheap retry first.
+    const isAuthFailure = result.kind === 'auth';
     const next = await select({
       message: 'What next?',
       options: [
-        { value: 'retry', label: 'Re-enter the address and App Password' },
+        ...(isAuthFailure
+          ? []
+          : [{ value: 'recheck', label: 'Try again — keep the App Password I entered' }]),
+        { value: 'retry', label: 'Re-enter the App Password' },
         { value: 'save', label: "Save it anyway without verifying (I'm sure it's correct)" },
-        { value: 'cancel', label: 'Cancel — add nothing' },
+        { value: 'cancel', label: 'Cancel' },
       ],
-      initialValue: 'retry',
+      initialValue: isAuthFailure ? 'retry' : 'recheck',
     });
     if (isCancel(next) || next === 'cancel') {
-      cancel('Cancelled — no account added.');
+      cancel('Cancelled — no changes made.');
       process.exit(1);
     }
     if (next === 'save') {
       log.warn(
-        'Saved without verification. If the credentials are wrong, sends will fail silently — ' +
-          'run `mailman doctor` to test the login, or `mailman account remove` then re-add to fix.',
+        'Saved without verification. If it is wrong, sends will fail silently — ' +
+          'run `mailman doctor` to test the login.',
       );
-      break;
+      return pass;
     }
-    // retry → loop again
+    if (next === 'retry') pass = null;
+    // recheck → loop again with the same password
   }
-
-  const { displayName, signature } = await promptProfileDetails();
-
-  return { alias, email, pass, displayName, signature };
 }
 
 async function addAppPasswordAccount(details: AppPasswordDetails, setDefault?: boolean) {
@@ -305,7 +346,7 @@ export async function runInit(_args: string[]): Promise<void> {
   } else {
     outro(
       `Added "${account.alias}"${isDefault ? ' (default)' : ''}. To register it later, run ` +
-        '`mailman register --tools claude` (or `claude mcp add mailman -- npx -y @indianic/mailman`).',
+        `\`mailman register --tools claude\` (or \`claude mcp add mailman -- npx -y ${NPM_PACKAGE}\`).`,
     );
   }
 }
@@ -412,11 +453,68 @@ export async function runAccountSetDefault(args: string[]): Promise<void> {
   outro(`"${alias}" is now the default account.`);
 }
 
-function renderProfile(account: { alias: string; email: string; displayName?: string; signature?: string }): void {
+/**
+ * `mailman account password [alias]` — update an app-password account's App
+ * Password in place (pick from a list if no alias given). For the "my App
+ * Password was revoked/changed" case, so the user doesn't re-run the whole add
+ * wizard. Verifies the new password live; preserves email/name/signature.
+ */
+export async function runAccountPassword(args: string[]): Promise<void> {
+  intro('mailman — update App Password');
+  requireTty('`mailman account password`');
+
+  let alias = args.filter((a) => !a.startsWith('--')).join(' ').trim();
+  const accounts = await listAccounts();
+  if (accounts.length === 0) {
+    fail('No accounts configured — run `mailman init`.');
+    process.exit(1);
+  }
+  if (!alias) {
+    alias = await pickAccount('Which account’s App Password do you want to update?');
+  }
+
+  const account = accounts.find((a) => a.alias === alias);
+  if (!account) {
+    fail(`No configured account with alias "${alias}"\n${await aliasListHint()}`);
+    process.exit(1);
+  }
+  if (account.method === 'oauth2') {
+    fail(
+      `"${alias}" is an OAuth2 (browser sign-in) account — it has no App Password. ` +
+        `Re-authorize it with:\n  mailman auth login ${alias}`,
+    );
+    process.exit(1);
+  }
+
+  printAppPasswordSetupGuide();
+  const pass = await promptVerifiedAppPassword(account.email);
+
+  try {
+    await updateAccountCredentials(alias, { user: account.email, pass });
+  } catch (err) {
+    if (err instanceof KeyringUnavailableError) {
+      fail(err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
+  outro(`Updated the App Password for "${alias}" (${account.email}).`);
+}
+
+function renderProfile(account: {
+  alias: string;
+  email: string;
+  displayName?: string;
+  signature?: string;
+  signatureType?: 'text' | 'html';
+  signatureImage?: string;
+}): void {
   section(`profile — ${account.alias} (${account.email})`);
   detail(`from name   ${account.displayName ?? '(not set — recipients see the bare address)'}`);
   // Multi-line signatures render with the rail unbroken (tree.ts handles \n continuation).
   detail(`signature   ${account.signature ?? '(not set)'}`);
+  detail(`sig type    ${account.signatureType ?? '(auto-detected at compose time)'}`);
+  detail(`photo       ${account.signatureImage ?? '(not set)'}`);
 }
 
 /**
@@ -437,10 +535,15 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   let alias: string | undefined;
   let displayName: string | null | undefined;
   let signature: string | null | undefined;
+  let signatureType: 'text' | 'html' | undefined;
+  let signatureImage: string | null | undefined;
 
   // Only OUR flags disqualify a value — a plain startsWith('--') check
   // rejected a real user's signature of "---------------" (all dashes).
-  const KNOWN_FLAGS = ['--name', '--signature', '--clear-name', '--clear-signature'];
+  const KNOWN_FLAGS = [
+    '--name', '--signature', '--signature-type', '--signature-image',
+    '--clear-name', '--clear-signature', '--clear-signature-image',
+  ];
   const missingValue = (v: string | undefined) => v === undefined || KNOWN_FLAGS.includes(v);
 
   for (let i = 0; i < args.length; i++) {
@@ -461,14 +564,32 @@ export async function runAccountProfile(args: string[]): Promise<void> {
       // `--signature "Regards,\nKalpesh"` really produces a two-line
       // signature, as `mailman examples` promises.
       signature = signature!.replace(/\\n/g, '\n');
+    } else if (a === '--signature-type') {
+      const v = args[++i];
+      if (v !== 'text' && v !== 'html') {
+        fail('--signature-type must be "text" or "html" (omit it to auto-detect from the signature content)');
+        process.exit(1);
+      }
+      signatureType = v;
+    } else if (a === '--signature-image') {
+      signatureImage = args[++i];
+      if (missingValue(signatureImage)) {
+        fail('--signature-image requires a path (use --clear-signature-image to remove it)');
+        process.exit(1);
+      }
     } else if (a === '--clear-name') {
       displayName = null;
     } else if (a === '--clear-signature') {
       signature = null;
+    } else if (a === '--clear-signature-image') {
+      signatureImage = null;
     } else if (!a.startsWith('--') && alias === undefined) {
       alias = a;
     } else {
-      fail(`Unknown argument: ${a}\nUsage: mailman account profile [alias] [--name "..."] [--signature "..."] [--clear-name] [--clear-signature]`);
+      fail(
+        `Unknown argument: ${a}\nUsage: mailman account profile [alias] [--name "..."] [--signature "..."] ` +
+          '[--signature-type text|html] [--signature-image <path>] [--clear-name] [--clear-signature] [--clear-signature-image]',
+      );
       process.exit(1);
     }
   }
@@ -485,13 +606,34 @@ export async function runAccountProfile(args: string[]): Promise<void> {
   }
 
   // No flags → just show the current profile.
-  if (displayName === undefined && signature === undefined) {
+  if (displayName === undefined && signature === undefined && signatureType === undefined && signatureImage === undefined) {
     renderProfile(account);
     outro('Change it: mailman account profile --name "..." --signature "..."');
     return;
   }
 
-  const updated = await updateAccountProfile(account.alias, { displayName, signature });
+  // The photo first: adopting it can fail on a bad path, an unsupported type or
+  // an oversized file, and failing AFTER the name and signature had been
+  // written would leave the profile half-updated.
+  if (typeof signatureImage === 'string') {
+    try {
+      const adopted = await setSignatureImage(account.alias, signatureImage);
+      attention(
+        `Photo copied into the config dir (${Math.round(adopted.bytes / 1024)} KB). Reference it from the signature ` +
+          `with <img src="cid:${SIGNATURE_IMAGE_CID}"> — it is attached only when the signature actually uses it.`,
+      );
+    } catch (err) {
+      fail(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  } else if (signatureImage === null) {
+    await clearSignatureImage(account.alias);
+  }
+
+  const updated =
+    displayName === undefined && signature === undefined && signatureType === undefined
+      ? await resolveAccount(account.alias)
+      : await updateAccountProfile(account.alias, { displayName, signature, signatureType });
   renderProfile(updated);
   outro('Profile updated. Applies to the next draft — no restart needed.');
 }

@@ -20,10 +20,23 @@ async function handler(rawArgs: Record<string, unknown>) {
 
   const draft = getDraft(draftId);
   if (!draft) {
-    return toolError(ErrorCodes.DRAFT_NOT_FOUND, `No such draft: ${draftId}`);
+    return toolError(
+      ErrorCodes.DRAFT_NOT_FOUND,
+      `No such draft: ${draftId} — drafts are in-memory and expire; call draft_email again to create a new one.`,
+    );
+  }
+  // An already-sent draft has its own code. Reporting it as DRAFT_EXPIRED
+  // (which it did) tells a model the wrong thing: expiry is recoverable by
+  // re-drafting the same message, whereas "already sent" means the mail is
+  // gone and scheduling it again would send it twice.
+  if (draft.state === 'sent') {
+    return toolError(
+      ErrorCodes.DRAFT_ALREADY_SENT,
+      'This draft was already sent — call draft_email again if you want to schedule a new message.',
+    );
   }
   if (draft.state !== 'pending') {
-    const reason = draft.state === 'sent' ? 'already sent' : draft.state === 'scheduled' ? 'already scheduled' : draft.state;
+    const reason = draft.state === 'scheduled' ? 'already scheduled' : draft.state;
     return toolError(ErrorCodes.DRAFT_EXPIRED, `This draft is ${reason} — call draft_email again.`);
   }
 
@@ -37,8 +50,11 @@ async function handler(rawArgs: Record<string, unknown>) {
       subject: draft.subject,
       body: draft.body,
       bodyType: draft.bodyType,
-      attachments: draft.rawAttachments,
-      recursive: draft.recursive,
+      // The files the preview listed, by real path — not the raw glob, which
+      // could match something else by the time the ticker fires.
+      attachments: draft.attachments.map((a) => a.path),
+      inReplyTo: draft.inReplyTo,
+      references: draft.references,
     },
   });
 
@@ -58,10 +74,11 @@ export const scheduleSendTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        draftId: { type: 'string' },
+        draftId: { type: 'string', description: 'The draftId returned by draft_email' },
         sendAt: { type: 'string', description: 'Absolute ISO-8601 instant — resolve relative phrases before calling' },
       },
       required: ['draftId', 'sendAt'],
+      additionalProperties: false,
     },
   },
   handler,

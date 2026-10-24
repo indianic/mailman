@@ -5,14 +5,18 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
 import { resolveAttachments } from './resolve-attachments.js';
-import { formatFromAddress, appendSignature, wrapPolished } from '../mail/compose.js';
+import { formatFromAddress, appendSignature, resolveSignatureType, wrapPolished } from '../mail/compose.js';
+import { normalizeRecipientFields } from '../mail/recipients.js';
 import { getTemplate, applySubjectPrefix, buildForwardedBody } from '../mail/templates.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({
-  to: z.union([z.string().email(), z.array(z.string().email()).min(1)]),
-  cc: z.array(z.string().email()).optional(),
-  bcc: z.array(z.string().email()).optional(),
+  // Shape only — the addresses themselves are validated by
+  // normalizeRecipientFields, which also accepts the separated-string and
+  // "Name <addr>" forms that a bare z.string().email() rejects outright.
+  to: z.union([z.string(), z.array(z.string()).min(1)]),
+  cc: z.union([z.string(), z.array(z.string())]).optional(),
+  bcc: z.union([z.string(), z.array(z.string())]).optional(),
   subject: z.string().optional(),
   body: z.string(),
   bodyType: z.enum(['text', 'html']).optional(),
@@ -29,10 +33,52 @@ const InputSchema = z.object({
   forwardedSubject: z.string().optional(),
   forwardedTo: z.string().optional(),
   forwardedBody: z.string().optional(),
+  inReplyTo: z.string().optional(),
+  references: z.array(z.string()).optional(),
 });
 
 function defaultSubject(attachments: DraftAttachment[]): string {
   return attachments.length > 0 ? `Files attached: ${attachments.map((a) => a.name).join(', ')}` : 'Files attached';
+}
+
+/**
+ * The preview must show what will actually be delivered, but a big HTML body
+ * echoed back in full on every draft is pure token overhead — cap it well above
+ * any realistic signature + theme shell and say so when it is cut.
+ */
+const FINAL_BODY_PREVIEW_LIMIT = 6000;
+
+/**
+ * Composition mistakes that were previously invisible until a recipient saw
+ * them. Every real incident here reads back to one of two mismatches: markup
+ * in a text send, or text conventions in an html send.
+ */
+export function composeWarnings(
+  body: string,
+  bodyType: 'text' | 'html',
+  signature: string | undefined,
+  signatureType?: 'text' | 'html',
+): string[] {
+  const warnings: string[] = [];
+  const hasTags = /<[a-z][a-z0-9]*(\s[^>]*)?>/i.test(body);
+
+  if (signature && bodyType === 'text' && resolveSignatureType(signature, signatureType) === 'html') {
+    warnings.push(
+      'The account signature is HTML but this email is plain text — it was converted to a text-only fallback. Send with bodyType "html" to deliver the signature as designed.',
+    );
+  }
+  if (bodyType === 'text' && hasTags) {
+    warnings.push('The body contains HTML tags but bodyType is "text" — recipients will see the raw markup, not rendered formatting.');
+  }
+  if (bodyType === 'html' && !hasTags && body.includes('\n')) {
+    warnings.push(
+      'The body has line breaks but no HTML markup, and bodyType is "html" — newlines collapse when rendered, so it will arrive as one run-on paragraph. Use <br>/<p>/<ul> markup, or send with bodyType "text".',
+    );
+  }
+  if (bodyType === 'html' && /(^|\n)\s*(?:[-*] |#{1,3} )|\*\*[^*\n]+\*\*/.test(body)) {
+    warnings.push('The body looks like Markdown, which email clients do not render — convert bullets/headings/bold to HTML tags.');
+  }
+  return warnings;
 }
 
 async function handler(rawArgs: Record<string, unknown>) {
@@ -69,7 +115,11 @@ async function handler(rawArgs: Record<string, unknown>) {
     return toolError('INVALID_INPUT', `Unknown template "${input.template}". Call list_templates to see available keys.`);
   }
 
-  const to = Array.isArray(input.to) ? input.to : [input.to];
+  const recipients = normalizeRecipientFields({ to: input.to, cc: input.cc, bcc: input.bcc });
+  if (!recipients.ok) {
+    return toolError('INVALID_INPUT', recipients.message);
+  }
+
   const settings = await getSettings();
   const bodyType = input.bodyType ?? settings.defaultBodyType;
 
@@ -99,7 +149,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     );
   }
 
-  let body = appendSignature(composed, account.signature, bodyType);
+  let body = appendSignature(composed, account.signature, bodyType, account.signatureType);
   const signatureAppended = Boolean(account.signature) && body !== composed;
 
   // Polished theme — opt-in, HTML only. Wraps the whole body in a clean shell.
@@ -107,17 +157,33 @@ async function handler(rawArgs: Record<string, unknown>) {
   const polished = bodyType === 'html' && theme === 'polished';
   if (polished) body = wrapPolished(body);
 
+  const warnings = composeWarnings(composed, bodyType, account.signature, account.signatureType);
+
+  // settings.autoBccSelf: the sender keeps a copy of everything they send.
+  // Skipped when their address is already a recipient anywhere — a second copy
+  // of the same message is noise, not a record.
+  const bcc = [...recipients.bcc];
+  const self = account.email.toLowerCase();
+  const alreadyRecipient = [...recipients.to, ...recipients.cc, ...recipients.bcc].some(
+    (addr) => addr.toLowerCase() === self,
+  );
+  const autoBccSelf = settings.autoBccSelf && !alreadyRecipient;
+  if (autoBccSelf) bcc.push(account.email);
+
   const draft = createDraft({
     account: account.alias,
-    to,
-    cc: input.cc,
-    bcc: input.bcc,
+    to: recipients.to,
+    cc: recipients.cc,
+    bcc,
     subject,
     body,
     bodyType,
     attachments: resolved.files,
-    rawAttachments: input.attachments,
-    recursive: input.recursive,
+    inReplyTo: input.inReplyTo,
+    // A reply to a root message has References = [that message]. Defaulted so a
+    // caller only has to pass the one id it got from read_email; pass the array
+    // explicitly to preserve a longer chain.
+    references: input.references ?? (input.inReplyTo ? [input.inReplyTo] : undefined),
     ttlMinutes: settings.draftTtlMinutes,
   });
 
@@ -130,17 +196,31 @@ async function handler(rawArgs: Record<string, unknown>) {
       cc: draft.cc,
       bcc: draft.bcc,
       subject: draft.subject,
-      // Preview the composed body only (pre-signature), truncated. The
-      // account signature is appended to the actual send but deliberately
-      // NOT echoed here — re-emitting the full signature HTML on every draft
-      // is pure token overhead; `signatureAppended` flags it instead.
+      // The caller's own body, truncated — quick orientation only.
       bodyPreview: input.body.length > 280 ? `${input.body.slice(0, 280)}…` : input.body,
+      // What will ACTUALLY be dispatched: body + signature + theme shell. A
+      // `signatureAppended: true` flag alone proved useless — it was accurate
+      // while the composed output was visibly broken. Capped generously so a
+      // huge body can't flood the response; the cap is flagged when hit.
+      finalBody:
+        draft.body.length > FINAL_BODY_PREVIEW_LIMIT
+          ? `${draft.body.slice(0, FINAL_BODY_PREVIEW_LIMIT)}…`
+          : draft.body,
+      ...(draft.body.length > FINAL_BODY_PREVIEW_LIMIT ? { finalBodyTruncated: true } : {}),
       ...(signatureAppended ? { signatureAppended: true } : {}),
+      ...(autoBccSelf ? { autoBccSelf: true } : {}),
+      ...(warnings.length > 0 ? { warnings } : {}),
       ...(template ? { template: template.key } : {}),
       ...(polished ? { theme: 'polished' } : {}),
-      attachments: draft.attachments.map((a) => ({ name: a.name, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
+      // The real path, not just the name — a symlink called report.pdf must not
+      // pass for one in the preview the user approves.
+      attachments: draft.attachments.map((a) => ({ name: a.name, path: a.path, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
     },
-    next_steps: ['Show this preview to the user and get explicit confirmation before calling confirm_send.'],
+    next_steps: [
+      warnings.length > 0
+        ? 'This draft has warnings — surface them to the user along with the preview before calling confirm_send.'
+        : 'Show this preview to the user and get explicit confirmation before calling confirm_send.',
+    ],
   });
 }
 
@@ -152,12 +232,22 @@ export const draftEmailTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        to: { description: 'Recipient email address, or an array of addresses' },
-        cc: { type: 'array', items: { type: 'string' } },
-        bcc: { type: 'array', items: { type: 'string' } },
+        to: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description:
+            'Recipients. An array is clearest for several: ["alice@example.com","bob@example.com"]. One comma- or semicolon-separated string works too, as does "Name <alice@example.com>". Every address given lands in To — never move an extra recipient to cc to work around a rejection.',
+        },
+        cc: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description: 'Same accepted forms as `to`.',
+        },
+        bcc: {
+          anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+          description: 'Same accepted forms as `to`.',
+        },
         subject: { type: 'string', description: 'Optional — a minimal default is filled in if omitted' },
-        body: { type: 'string' },
-        bodyType: { type: 'string', enum: ['text', 'html'] },
+        body: { type: 'string', description: 'The message body you compose. Plain text unless bodyType is "html".' },
+        bodyType: { type: 'string', enum: ['text', 'html'], description: 'Defaults to settings.defaultBodyType when omitted' },
         attachments: {
           type: 'array',
           items: { type: 'string' },
@@ -180,8 +270,19 @@ export const draftEmailTool: Tool = {
         forwardedSubject: { type: 'string', description: 'fwd/reply: original subject' },
         forwardedTo: { type: 'string', description: 'fwd/reply: original recipients' },
         forwardedBody: { type: 'string', description: 'fwd/reply: original body to quote' },
+        inReplyTo: {
+          type: 'string',
+          description:
+            "The original's Message-ID, from read_email's messageId (e.g. \"<abc@mail.gmail.com>\"). Set this on a reply or the message arrives as a new thread rather than under the one it answers. Not the read_email `id`, which is a provider-local handle.",
+        },
+        references: {
+          type: 'array',
+          items: { type: 'string' },
+          description: "Full Message-ID chain for a deep thread. Omit and it defaults to [inReplyTo], which is correct for replying to a root message.",
+        },
       },
       required: ['to', 'body'],
+      additionalProperties: false,
     },
   },
   handler,

@@ -1,6 +1,7 @@
 import { listScheduled, decryptContent, updateScheduledEntry } from './store.js';
 import { resolveAccount } from '../accounts.js';
 import { getProvider } from '../mail/get-provider.js';
+import { signatureInlineImages } from '../mail/compose.js';
 import { resolveAttachments } from '../tools/resolve-attachments.js';
 import { upsertRecipient } from '../contacts.js';
 import { notifyDesktop, summarizeRecipients } from '../notify.js';
@@ -21,11 +22,12 @@ export function nextStatusAfterFailure(attemptsSoFar: number, maxAttempts: numbe
 export type DispatchOutcome = 'sent' | 'retry-pending' | 'failed';
 
 /**
- * Attachments are resolved fresh here, from the raw paths/globs/dirs
- * stored in `content.attachments` — never snapshotted at schedule_send
- * time (see docs/PLAN.md's "Scheduled sends" section). A moved/deleted
- * file surfaces as a dispatch failure (retried like any other failure),
- * not a silently-incomplete send.
+ * `content.attachments` holds the real paths schedule_send snapshotted from
+ * the preview (entries from 1.8.0 and earlier hold raw globs/dirs). They are
+ * resolved again here, so the confinement check runs at fire time too and a
+ * moved/deleted file surfaces as a dispatch failure (retried like any other
+ * failure), not a silently-incomplete send. See docs/PLAN.md's "Scheduled
+ * sends" section.
  */
 export async function dispatchOne(entry: ScheduledEntry): Promise<DispatchOutcome> {
   try {
@@ -52,6 +54,9 @@ export async function dispatchOne(entry: ScheduledEntry): Promise<DispatchOutcom
       bodyType: content.bodyType,
       attachments: resolved.files.map((f) => ({ path: f.path, name: f.name, mimeType: f.mimeType })),
       fromDisplayName: account.displayName,
+      inReplyTo: content.inReplyTo,
+      references: content.references,
+      inlineImages: signatureInlineImages(account, content.body, content.bodyType),
     });
 
     const sentAt = new Date().toISOString();

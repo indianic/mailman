@@ -92,9 +92,11 @@ export const getMailboxOverviewTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        account: { type: 'string' },
+        account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
         limit: { type: 'number', description: 'Per-folder limit, defaults to 10, capped at 50' },
       },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

@@ -2,18 +2,19 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { intro, outro } from '@clack/prompts';
 import { section, detail, fail } from './tree.js';
-import { getPackageVersion } from '../version.js';
+import { getPackageName, getPackageVersion } from '../version.js';
 import { detectPackageManager, installGlobalCommand } from './pkg-manager.js';
 
 const execFileAsync = promisify(execFile);
-const PKG = '@indianic/mailman';
+const PKG = getPackageName();
 
 /**
- * `mailman update` (alias: `upgrade`) — check npm.indianic.in for a newer
+ * `mailman update` (alias: `upgrade`) — check the registry for a newer
  * version and update the global install in place, using whichever package
- * manager installed it (npm or pnpm; yarn too). Relies on ~/.npmrc's
- * @indianic scope routing, which npm/pnpm/yarn all read — no --registry flag,
- * so mailman's public deps keep resolving from the public registry.
+ * manager installed it (npm or pnpm; yarn too). The package name comes from
+ * package.json, so the public build checks npmjs and the internal build's
+ * @indianic scope routing in ~/.npmrc sends it to the private registry —
+ * no --registry flag either way.
  */
 export async function runUpdate(_args: string[]): Promise<void> {
   intro('mailman — update');

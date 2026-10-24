@@ -14,6 +14,7 @@ const SETTING_INFO = {
   defaultBodyType: { values: 'text | html', desc: 'body format for new emails' },
   emailTheme: { values: 'plain | polished', desc: 'polished = branded shell + IndiaNIC footer (HTML)' },
   desktopNotifications: { values: 'true | false', desc: 'desktop pop-up after each send' },
+  autoBccSelf: { values: 'true | false', desc: 'Bcc yourself on every send, so you keep a copy (default false)' },
 } as const;
 
 const SETTABLE_KEYS = Object.keys(SETTING_INFO) as (keyof typeof SETTING_INFO)[];
@@ -37,6 +38,7 @@ export async function runSettingsGet(_args: string[]): Promise<void> {
   row('defaultBodyType', settings.defaultBodyType);
   row('emailTheme', settings.emailTheme);
   row('desktopNotifications', settings.desktopNotifications);
+  row('autoBccSelf', settings.autoBccSelf);
   outro('settings');
 }
 
@@ -81,6 +83,12 @@ export async function runSettingsSet(args: string[]): Promise<void> {
       process.exit(1);
     }
     await updateSettings((current) => ({ ...current, desktopNotifications: value === 'true' }));
+  } else if (key === 'autoBccSelf') {
+    if (value !== 'true' && value !== 'false') {
+      fail('autoBccSelf must be "true" or "false"');
+      process.exit(1);
+    }
+    await updateSettings((current) => ({ ...current, autoBccSelf: value === 'true' }));
   } else if (key === 'emailTheme') {
     if (value !== 'plain' && value !== 'polished') {
       fail('emailTheme must be "plain" or "polished"');

@@ -52,17 +52,23 @@ test('buildMailOptions sets a "Name <email>" From when fromDisplayName is set', 
   assert.equal(sent.from.address, 'me@example.com');
 });
 
-test('buildMailOptions sends HTML body under `html`, not `text`', async () => {
+test('buildMailOptions sends an HTML body as multipart/alternative, not HTML-only', async () => {
+  // This used to assert `text: undefined`, pinning what turned out to be a
+  // real defect: with no text/plain part, every client that reads text rather
+  // than markup had to invent its own conversion. A colleague's reply quoted
+  // the signature as "Thanks & RegardsKalpesh Gamit" because Gmail's converter
+  // dropped the <br>s. The HTML is unchanged; a generated text part rides
+  // alongside it.
   const transport = nodemailer.createTransport({ jsonTransport: true });
   const options = buildMailOptions(
     { user: 'me@example.com', pass: 'irrelevant' },
-    { to: ['a@example.com'], subject: 'Hi', body: '<b>bold</b>', bodyType: 'html' },
+    { to: ['a@example.com'], subject: 'Hi', body: '<p>Hi <b>bold</b></p>', bodyType: 'html' },
   );
 
   const info = await transport.sendMail(options);
   const sent = JSON.parse((info as unknown as { message: string }).message);
-  assert.equal(sent.html, '<b>bold</b>');
-  assert.equal(sent.text, undefined);
+  assert.equal(sent.html, '<p>Hi <b>bold</b></p>', 'the HTML part must be untouched');
+  assert.equal(sent.text, 'Hi bold', 'and a readable text alternative must ride with it');
 });
 
 test('buildMailOptions maps attachments to nodemailer\'s filename/path/contentType shape', async () => {
@@ -89,4 +95,43 @@ test('buildMailOptions maps attachments to nodemailer\'s filename/path/contentTy
   assert.equal(sent.attachments[0].contentType, 'application/pdf');
 
   await fs.unlink(filePath);
+});
+
+/**
+ * The App Password / SMTP half of threading. Round-tripped through nodemailer's
+ * JSON transport so this asserts what nodemailer actually emits, not just the
+ * options object mailman built.
+ */
+test('buildMailOptions threads a reply via In-Reply-To and References', async () => {
+  const transport = nodemailer.createTransport({ jsonTransport: true });
+  const parent = '<CAF=abc123@mail.gmail.com>';
+
+  const info = await transport.sendMail(
+    buildMailOptions(
+      { user: 'me@example.com', pass: 'irrelevant' },
+      {
+        to: ['sandeep@indianic.com'],
+        subject: 'Re: mailman on headless Linux',
+        body: 'done',
+        inReplyTo: parent,
+        references: [parent],
+      },
+    ),
+  );
+
+  const sent = JSON.parse(info.message as unknown as string);
+  assert.equal(sent.inReplyTo, parent);
+  // nodemailer normalises `references` to a space-joined string per RFC 5322.
+  assert.equal(typeof sent.references === 'string' ? sent.references : sent.references.join(' '), parent);
+});
+
+test('buildMailOptions leaves the threading headers unset on a fresh message', async () => {
+  const options = buildMailOptions(
+    { user: 'me@example.com', pass: 'irrelevant' },
+    { to: ['a@example.com'], subject: 'fresh', body: 'hello' },
+  );
+  // undefined, not '' — an empty In-Reply-To is malformed and would thread the
+  // message under nothing.
+  assert.equal(options.inReplyTo, undefined);
+  assert.equal(options.references, undefined);
 });

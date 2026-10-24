@@ -16,7 +16,7 @@ Cursor, Gemini CLI, Windsurf, Codex) and talks to your Gmail directly. You
 set it up once, and it works from anywhere you use your AI tool.
 
 > **Under the hood:** mailman is a Node.js **MCP server** (Model Context
-> Protocol). Your AI tool launches it over a pipe (`npx -y @indianic/mailman`)
+> Protocol). Your AI tool launches it over a pipe (`npx -y @integratex/mailman`)
 > and calls its “tools” from natural language. It reaches Gmail two ways:
 > **SMTP/IMAP** (for App Password accounts) or the **Gmail REST API** (for
 > OAuth2 accounts). Pure Node — same behavior on macOS, Linux, Windows.
@@ -162,9 +162,44 @@ flowchart LR
   when a newer version is published (cached daily, never slows you down).
 - **Self-update** — `mailman update` upgrades the global install in place.
 
-### 4.10 Diagnostics & maintenance
-- `mailman doctor` — pre-flight checks (Node version, keychain reachable,
-  Gmail SMTP/IMAP reachable, scheduler installed).
+### 4.10 Session reports
+- **Turn past AI sessions into an email** — search this machine's own
+  transcripts by project, branch or date, digest one or several, and send the
+  summary. Useful for end-of-day reports and handovers.
+- **`list_sessions`** returns metadata only (id, title, project, dates) —
+  never transcript content. Call it with `projectsOnly: true` first for a
+  per-project roll-up.
+- **`read_session_digest`** returns a compact, scrubbed skeleton of up to 10
+  sessions.
+- **`mailman session list` / `session report`** do the same from the terminal,
+  with a two-step picker (project, then sessions).
+
+> **Under the hood:** the skeleton drops **every tool result** — both the bulk
+> of a transcript's bytes and where pasted secrets land — keeping only prompts,
+> one truncated line per reply, and each tool call's name + target. On a real
+> 986 KB session that is a 51× cut to 19 KB. What survives is then scrubbed for
+> known token shapes (API keys, GitHub/npm/Slack tokens, JWTs, `KEY=value`
+> pairs, private-key blocks) and home paths shortened to `~`.
+>
+> **Neither tool summarizes.** They extract; the calling Claude session
+> composes and sends through `draft_email` → preview → `confirm_send`. The CLI
+> has no model, so `session report` prints a *mechanical* digest — files
+> touched, commits, counts — and says so rather than pretending otherwise.
+
+### 4.11 Diagnostics & maintenance
+- `mailman doctor` — pre-flight checks in two parts: a **dependencies**
+  section (Node, npm, and on Linux `libsecret`) and the environment checks
+  (keychain reachable, Gmail SMTP/IMAP reachable with a verified TLS
+  handshake, scheduler installed, plus a live login for every configured
+  account). `--offline` skips the network checks.
+- **`mailman doctor --fix`** — prints the exact install command for anything
+  missing, per platform. It distinguishes two Linux failures that look
+  identical from the outside: `libsecret` absent
+  (`sudo apt install libsecret-1-0`) versus present-but-no-running-Secret-
+  Service-daemon (`sudo apt install gnome-keyring`). Commands are **printed,
+  never executed** — installing a system library needs root, and a CLI that
+  silently `sudo`s to fix its own prerequisite is acting on a machine it does
+  not own.
 - `mailman status` — what’s configured right now, as a clean tree.
 - `mailman reset` — wipe everything for a clean re-setup (requires `--yes`).
 
@@ -176,7 +211,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A["npx @indianic/mailman init"] --> B["Enter email + App Password"]
+    A["npx @integratex/mailman init"] --> B["Enter email + App Password"]
     B --> C["Optional: From Name + signature"]
     C --> D["Credentials encrypted → OS keychain"]
     D --> E["Pick AI tools to register"]
@@ -243,6 +278,10 @@ flowchart TD
 | `list_templates` | Browse message templates (subject prefix + composition hint); `category`/`search`/`all` |
 | `confirm_send` | Send the drafted email (only tool that sends) |
 | `cancel_draft` | Discard a pending draft |
+| `draft_campaign` | Prepare a personalised merge — N messages, one per recipient, with `{{name}}` placeholders (does not send) |
+| `confirm_campaign` | Send a campaign; one approval covers all N. Resumes a partial run, never re-sends |
+| `campaign_status` | Per-recipient state — sent / failed / pending; call with no id to list campaigns |
+| `cancel_campaign` | Stop a campaign; pending become `skipped`, already-sent are reported |
 | `schedule_send` | Send a draft at a future time |
 | `list_scheduled` / `cancel_scheduled` | List / cancel scheduled sends |
 | `list_recent_emails` | Recent inbox or sent mail |
@@ -253,18 +292,57 @@ flowchart TD
 | `list_contacts` / `add_contact` / `remove_contact` | Address book |
 | `preview_attachments` | What files a path/glob/dir would attach |
 | `list_accounts` / `configure_account` / `update_account_profile` / `remove_account` | Account management |
-| `get_settings` / `update_settings` | Global settings |
+| `get_settings` / `update_settings` | Global settings (incl. `autoBccSelf`) |
 | `get_status` | Configured state (accounts, security, activity) |
+
+### Signatures
+
+The per-account signature is appended at draft time, so the preview you approve
+is what goes out.
+
+- **Plain text or HTML, decided by content — or declared.** Paste the signature
+  your mail client gave you and its `<br>`/`<i>`/`<a href>` render as written; a
+  plain-text one has its newlines turned into `<br>` and its `&`/`<`/`>` escaped,
+  so `<name@example.com>` cannot vanish into an unknown tag. The detected type is
+  recorded on the account as `signatureType` at save time; pin it explicitly with
+  `--signature-type text|html` (CLI) or `signatureType` (MCP) when detection
+  cannot know what you meant.
+- **Text sends get a readable signature too.** An HTML signature on a
+  `bodyType: "text"` email is converted to a plain-text fallback (tags stripped,
+  links kept as URLs) instead of being pasted in as raw markup, and the draft
+  preview warns so you can upgrade the send to HTML.
+- **Verify before it rides on real mail.** `update_account_profile` returns a
+  `signaturePreview` (`renderedHtml` + `renderedText`) — the exact output
+  compose will emit — and rejects the literal string `"null"` (a serialisation
+  accident) instead of storing it.
+- **Layout is allowed** — `table`, `td`, `div` — for a photo beside text or a
+  two-column contact block. Only inline formatting and layout survive: `<script>`,
+  event handlers, `javascript:` URLs and unbalanced tags are stripped, so a
+  signature can never break the surrounding email.
+- **A photo travels inside the message.** `mailman account profile
+  --signature-image <path>` copies it into the config dir; reference it from the
+  signature as `<img src="cid:mailman-signature">` and it is attached inline on
+  every send that uses it. Inline rather than linked, because Gmail and Outlook
+  block remote images by default. Capped at 200 KB — it rides on every message.
+  *Gmail lists inline images in its attachment strip regardless of how the
+  message is built; that is client behaviour, not something a sender controls.*
+
+### Every HTML email carries a plain-text alternative
+
+HTML sends go out as `multipart/alternative`. The HTML is untouched and a
+generated text part rides alongside, so reply quoting, notification previews and
+screen readers get something readable instead of an auto-conversion — and the
+message does not read as HTML-only to a spam filter.
 
 ### CLI commands (what you type)
 
 | Command | Purpose |
 |---|---|
 | `mailman init` | First-run setup wizard |
-| `mailman account add/list/remove/set-default/profile` | Manage accounts, From Name & signature |
+| `mailman account add/list/remove/set-default/profile` | Manage accounts, From Name, signature & signature photo |
 | `mailman auth login` / `auth rotate-key` | OAuth2 consent / rotate encryption key |
 | `mailman contacts list/add/remove` | Address book |
-| `mailman settings get/set` | View / change settings (incl. `desktopNotifications`) |
+| `mailman settings get/set` | View / change settings (incl. `desktopNotifications`, `autoBccSelf`) |
 | `mailman register` | Register with AI editors |
 | `mailman doctor` | Environment pre-flight checks |
 | `mailman scheduled list` | Pending/sent/failed scheduled sends |
@@ -285,9 +363,9 @@ flowchart TD
 - **Verified against a live Gmail account** (App Password): send, list, read,
   and search all confirmed end-to-end on **macOS** and **Linux** (Docker).
 - **Descoped by decision** (not open gaps): OAuth2 real-delivery verification
-  (App Password is the supported path; OAuth2 stays smoke-tested), Windows
-  hardware verification (accepted as-is), and a public `npm` release
-  (distribution is `@indianic/mailman` on the IndiaNIC private registry).
+  (App Password is the supported path; OAuth2 stays smoke-tested) and Windows
+  hardware verification (accepted as-is). A public npm release has since
+  shipped as [`@integratex/mailman`](https://www.npmjs.com/package/@integratex/mailman).
 
 *See also: [README.md](../README.md) · [PLAN.md](PLAN.md) (architecture) ·
 [SKILLS.md](SKILLS.md) (tool specs) · [CLI.md](CLI.md) (commands) ·

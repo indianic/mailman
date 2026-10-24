@@ -322,6 +322,8 @@ export class ImapSmtpProvider implements MailProvider {
 
         return {
           id,
+          // Already in the envelope we fetch — no extra round trip.
+          messageId: structureMsg.envelope?.messageId ?? undefined,
           from: structureMsg.envelope?.from?.[0] ? formatAddress(structureMsg.envelope.from[0]) : '',
           to: (structureMsg.envelope?.to ?? []).map(formatAddress),
           cc: (structureMsg.envelope?.cc ?? []).map(formatAddress),

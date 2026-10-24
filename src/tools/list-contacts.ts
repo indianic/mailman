@@ -41,7 +41,15 @@ export const listContactsTool: Tool = {
       'Return the full local address book (no query filter), merged with Google Contacts for OAuth2 accounts — the "get my contacts" case.',
     inputSchema: {
       type: 'object',
-      properties: { account: { type: 'string' } },
+      properties: {
+        account: {
+          type: 'string',
+          description:
+            'Account alias; omit to use the only/default account. Determines whether Google Contacts are merged in (oauth2 accounts only).',
+        },
+      },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

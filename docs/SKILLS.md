@@ -18,6 +18,15 @@ error-code table in
 branch on `code` (e.g. re-ask the user on `AMBIGUOUS_ACCOUNT`, back off and
 retry on `RATE_LIMITED`) instead of pattern-matching the message text.
 
+**Session summarization is not a tool, deliberately.** `read_session_digest`
+extracts a skeleton; it never writes the summary. Putting a
+`summarize_session` tool here would break the rule at the top of this file
+and would need a model inside an MCP server that currently has no model
+dependency at all. The `mailman session report` CLI is the same story from
+the other side: with no model in the process it prints a *mechanical*
+digest (files, commits, counts) and says so, rather than pretending to
+summarize.
+
 **Not exposed as MCP tools, deliberately**: key rotation
 (`mailman auth rotate-key`), the scheduled-send ticker's dispatch
 target (`mailman send-scheduled`), and attachment-content download are
@@ -101,9 +110,17 @@ spacing) stays consistent instead of drifting command by command.
 Resolves recipients/attachments/account and returns a preview. **Does not
 send.**
 
-- **Input**: `{ to: string | string[], cc?: string[], bcc?: string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string }`
+- **Input**: `{ to: string | string[], cc?: string | string[], bcc?: string | string[], subject?: string, body: string, bodyType?: "text" | "html", attachments?: string[], account?: string, inReplyTo?: string, references?: string[] }`
 - **Output**: `{ draftId: string, expiresAt: string, preview: { from, to, cc, bcc, subject, bodyPreview, attachments: [{ name, sizeBytes, mimeType }] }, next_steps?: string[] }`
-- **Notes**: `subject` is optional — if omitted, mailman fills a minimal
+- **Notes**: each of `to`/`cc`/`bcc` accepts one address, an array, or a
+  single comma/semicolon-separated string, and tolerates the
+  `"Name <addr>"` form (the display name is dropped — drafts carry bare
+  addresses so scheduled entries and contact auto-upsert stay valid).
+  Every address passed to `to` ends up in `To`; duplicates within a field
+  collapse case-insensitively. An address that can't be parsed fails the
+  call with `INVALID_INPUT` naming the field and the offending entry —
+  recipients are never silently dropped or shuffled to another field.
+  `subject` is optional — if omitted, mailman fills a minimal
   templated default. `attachments` accepts explicit paths, a glob, or a
   directory (expanded non-recursively unless `recursive: true`). `next_steps`
   is a belt-and-suspenders hint (e.g. "show this preview and get explicit
@@ -114,8 +131,33 @@ send.**
   is set, and `preview.bodyPreview` already includes the account's
   `signature`, if any — the preview shown here is exactly what
   `confirm_send` later dispatches.
-- **Example trigger**: *"mailman, send those docs to kalpesh.gamit@indianic.com"*
+
+  **Replying**: pass `inReplyTo` with the `messageId` from `read_email` and the
+  message threads under the one it answers. Omit it and the reply arrives as a
+  new message — Gmail's web UI often regroups it by subject, but Outlook, Apple
+  Mail and Thunderbird thread strictly on the header and will show it detached.
+  `references` defaults to `[inReplyTo]`, which is correct for replying to a root
+  message; pass the full chain explicitly for a deep thread. Both carry through
+  `schedule_send`, so a reply queued for 9am still lands in its thread.
+- **Example trigger**: *"mailman, send those docs to you@example.com"*
   → Claude resolves "those docs" to paths, composes subject/body, calls this.
+
+## `list_templates`
+
+Lists message templates — a `subjectPrefix` plus a one-line structural `hint`
+you compose from. mailman never substitutes text; the template shapes *your*
+writing.
+
+- **Input**: `{ category?: string, search?: string, all?: boolean }`
+- **Output**: `{ total, returned, view?: "core" | "all", categories: string[], templates: [{ key, category, subjectPrefix, hint, kind }], next_steps }`
+- **Notes**: with no filter and no `all: true` this returns only the tight
+  **core** set, to keep the response high-signal — the full catalog (177+
+  templates) is one `all: true` away. `kind` is `"hint"` for the vast majority;
+  the only `"mechanical"` templates are `fwd`/`reply`, which build a real quoted
+  block via `draft_email`'s `forwarded*` fields. Pass a chosen `key` as
+  `draft_email`'s `template`.
+- **Example trigger**: *"send this as a status update"* → Claude looks up the
+  `status-update` template and follows its hint when composing.
 
 ## `confirm_send`
 
@@ -139,7 +181,99 @@ Dispatches the exact draft produced by `draft_email`.
 Discards a pending draft without sending.
 
 - **Input**: `{ draftId: string }`
-- **Output**: `{ cancelled: true }`
+- **Output**: `{ cancelled: true }`, or `DRAFT_NOT_FOUND` if there is no such
+  pending draft. That error needs no remedy and should not be retried: the
+  draft has already expired or been cancelled, so the goal is already met.
+
+## `draft_campaign`
+
+Prepares a **personalised merge**: N separate messages, one per recipient, each
+with only that recipient in `To:` and their name in the body. Renders and
+previews; sends nothing.
+
+- **Input**: `{ recipients, body }` required, plus `subject` (required in
+  practice — a subjectless merge reads as spam), `bodyType`, `theme`, `account`,
+  `template`, `attachments`, `recursive`, `ccFirstOnly`, `bccFirstOnly`,
+  `throttlePerMinute`.
+  `recipients` accepts bare addresses, `"Name <addr>"` to supply the name
+  inline, or `{ email, vars }` objects for per-recipient values.
+- **Output**: `{ campaignId, total, estimatedDuration, samples, warnings, … }`
+- **Placeholders**: `{{name}}`, `{{first_name}}`, `{{email}}`, plus any custom
+  token passed in `vars`. Names not given inline are looked up in contacts.
+  `{{first_name|there}}` supplies a fallback.
+
+**Choosing this over `draft_email` is a judgement call, and getting it wrong is
+visible to the recipient.** Use `draft_campaign` when each person should be
+addressed individually and must not see the others — outreach, individual
+nudges, "your account needs X". Use `draft_email` when the message is genuinely
+collective and a shared reply thread is wanted — an announcement, a policy
+change, "the demo is Thursday". "Hi Priya" on a message that says *"bring your
+questions to the session"* fakes intimacy that everyone can see through;
+broadcast is the right mode there, not the degraded one.
+
+- **Copying someone in**: `ccFirstOnly` and `bccFirstOnly` attach to the **first
+  message that actually sends**, then are dropped — which is how a manager sees
+  the campaign went out without receiving one email per recipient. There is no
+  plain `cc`/`bcc` on a campaign: passing one is refused with an error, not
+  silently ignored, because a plain Cc would copy that person on all N messages.
+  When both are set they ride the same message, not the first two.
+- **Errors**: `CAMPAIGN_UNRESOLVED` when any recipient has a placeholder with no
+  value. **Nothing is drafted** — this is deliberate, because `Hi ,` is worse
+  than any group greeting and this is the last moment it can be stopped for
+  free. The message names the recipients and tokens; fix it by adding the names
+  (`add_contact`), passing them inline as `vars`, or giving the token a fallback.
+- **Notes**: show the returned `samples` **and every warning** to the user
+  verbatim. The samples deliberately include the *ugly* rendering (the fallback
+  greeting, the one-word name), not two flattering ones — that is the case worth
+  reviewing. Warnings cover recipients who will get a fallback greeting, a body
+  that addresses a group, a `ccFirstOnly` address that is also a recipient, and a
+  body where nothing actually personalises.
+
+## `confirm_campaign`
+
+Sends a campaign. **One approval covers all N messages** — with `alwaysConfirm`
+on (default), approving each of 39 sends individually would be unusable, which
+is exactly why the `draft_campaign` preview has to be shown honestly first.
+
+- **Input**: `{ campaignId, confirm: true, maxRuntimeSeconds? }`
+- **Output**: `{ status, total, sent, failed, skipped, pending, failures[],
+  resumable, ccAppliedTo?, abortReason? }`
+- **Notes**: **safe to re-call.** It resumes a partially-sent campaign and never
+  re-sends a recipient already marked `sent`; only pending and retriable failures
+  are eligible. A recipient is marked sent only after the transport returns a
+  message id, so a crash mid-run costs a report, never a duplicate. Sends are
+  paced at `throttlePerMinute` (default 20). `ccFirstOnly` rides with the first
+  message that actually sends, then is dropped. A run that fails for structural
+  reasons (bad credentials, a rate limit) aborts at ~25% failures with
+  `abortReason` rather than grinding through everyone.
+- **Reporting**: report `failures` verbatim. Do not round "36 of 39" off to
+  "sent". If `resumable` is true, say how many are still pending.
+- **Errors**: `CONFIRMATION_REQUIRED` (show the preview, get approval, call again
+  with `confirm:true`), `CAMPAIGN_NOT_FOUND`, `CAMPAIGN_CANCELLED`.
+
+## `campaign_status`
+
+Per-recipient state of a campaign — who was sent, who failed and why, who is
+still pending.
+
+- **Input**: `{ campaignId?, account? }` — omit `campaignId` to list every
+  campaign instead of detailing one.
+- **Output**: totals plus a `recipients[]` array with `status`, `attempts`,
+  `sentAt`, `messageId`, `error`, and `retriable` for failures.
+- **Notes**: this is how a partial or aborted run is inspected before deciding
+  whether to resume it. Reach for it whenever `confirm_campaign` came back
+  `resumable` or with failures.
+
+## `cancel_campaign`
+
+Stops a campaign. Pending recipients become `skipped` and are never sent.
+
+- **Input**: `{ campaignId: string }`
+- **Output**: `{ cancelled: true, status, sent, skipped, …, note }`
+- **Notes**: **cancelling is not a recall.** Messages already sent are untouched
+  and reported back in the response — say so to the user rather than reporting a
+  bare "cancelled". Takes effect between messages, so it also stops a run that is
+  currently in flight.
 
 ## `schedule_send`
 
@@ -157,6 +291,12 @@ actually fire it later. Nothing is sent by this call itself.
   TTL expires — once scheduled, the entry lives independently in
   `scheduled.json`, decoupled from the ephemeral draft store. One-time
   sends only; there's no recurring/repeating schedule support.
+- **Errors**: `DRAFT_NOT_FOUND` (drafts are in-memory and expire — call
+  `draft_email` again), `DRAFT_ALREADY_SENT` if the draft has already gone out,
+  and `DRAFT_EXPIRED` for a draft that lapsed or is already scheduled. The first
+  two are worth branching on separately: an expired draft can be recreated and
+  scheduled, whereas an already-sent one means the mail is gone and scheduling
+  it again would send a second copy.
 
 ## `list_scheduled`
 
@@ -335,12 +475,15 @@ registration, and recent activity counts.
 Reads the full content of one email.
 
 - **Input**: `{ account?: string, id: string }`
-- **Output**: `{ id, from, to, cc, subject, date, bodyText, bodyHtml?, truncated: boolean, attachments: [{ name, sizeBytes, mimeType }] }`
+- **Output**: `{ id, messageId?, from, to, cc, subject, date, bodyText, bodyHtml?, truncated: boolean, attachments: [{ name, sizeBytes, mimeType }] }`
 - **Notes**: attachment entries are metadata only — this tool does not
   download attachment bytes. `id` comes from a prior `list_recent_emails` or
   `search_emails` call. `bodyText`/`bodyHtml` are capped at ~20,000
   characters each; `truncated: true` marks an email that hit the cap, so
-  Claude knows not to treat the returned body as complete.
+  Claude knows not to treat the returned body as complete. **`messageId` is the
+  RFC 5322 header** (e.g. `"<abc@mail.gmail.com>"`) and is the value to pass as
+  `draft_email`'s `inReplyTo` when replying — `id` is a provider-local handle (an
+  IMAP UID or Gmail API id) and will not thread anything.
 
 ## `get_mailbox_overview`
 
@@ -365,3 +508,59 @@ folds that into one call.
   failing the whole call.
 - **Example trigger**: *"mailman, give me a mailbox overview"* / *"show me
   my recent sent and inbox mail with attachments."*
+
+## `list_sessions`
+
+Searches this machine's **past AI coding sessions** — the input side of a
+session-summary email. Reads the host's own transcripts
+(`~/.claude/projects/**/*.jsonl`; override with `MAILMAN_SESSIONS_DIR`).
+
+- **Input**: `{ project?: string, search?: string, since?: string, branch?: string, limit?: number, projectsOnly?: boolean, refresh?: boolean }`
+- **Output**: `{ total, returned, truncated?, projects?: [{ project, projectPath, sessions, lastActivity }], sessions: [{ id, title, project, projectPath, branch, startedAt, endedAt, messages, sizeBytes }], next_steps }`
+- **Notes**: **metadata only — no transcript content ever crosses this
+  boundary.** `since` takes `24h`/`7d`/`2w`/`3mo` or an ISO date; an
+  unparseable value is rejected with `INVALID_INPUT` rather than silently
+  ignored (a typo'd window that quietly returns everything is worse than an
+  error). `limit` defaults to 20 and is capped at 100, same
+  bounded-context convention as `list_recent_emails`. Call with
+  `projectsOnly: true` first for the cheap per-project roll-up, then drill
+  in with `project` — on a real store (2,258 sessions across 75 projects)
+  returning every session row is neither useful nor affordable. `title` is
+  the host's own generated session title, falling back to the first user
+  prompt. Backed by an mtime/size-keyed cache; `refresh: true` forces a
+  full re-scan.
+- **Example trigger**: *"what did I work on in mailman last week?"*
+
+## `read_session_digest`
+
+Returns a compact, secret-scrubbed **skeleton** of one or more sessions —
+the raw material a summary is written from.
+
+- **Input**: `{ sessionIds: string | string[], maxTurns?: number, includeTurns?: boolean }`
+- **Output**: `{ sessions: [{ id, title, project, branch, startedAt, endedAt, userPrompts, filesTouched, commits, toolCounts, truncated, turns? }], digest: string, redaction: string, next_steps }`
+- **Notes**: the reduction that makes this viable is that **every tool
+  RESULT is dropped**. Results are simultaneously the bulk of a
+  transcript's bytes and the place pasted secrets and `.env` contents
+  actually land — on a real 986 KB session the skeleton is 19 KB, a 51×
+  cut, and across three transcripts containing 11 real credential-shaped
+  strings, zero reached the skeleton because all 11 sat in results. What
+  survives is intent: user prompts, one truncated line per reply, and each
+  tool call's NAME + TARGET. Surviving text is then run through a redactor
+  for known token shapes (API keys, GitHub/npm/Slack tokens, JWTs, AWS
+  keys, `KEY=value` assignments, private-key blocks) and home paths are
+  shortened to `~`. Sub-agent (`isSidechain`) turns are dropped too.
+  Sessions longer than `maxTurns` (default 80, cap 200) keep the opening
+  and the close and drop the middle, flagged as `truncated: true`.
+  `includeTurns: false` returns facts only — much cheaper when the files/
+  commits/tool counts are enough. Max 10 sessions per call; beyond that,
+  digest in batches and combine the summaries yourself.
+- **This tool does not summarize.** Same division of labor as every other
+  tool here: mailman extracts, the calling Claude session composes. Send
+  the result with `draft_email` (`template: "session-report"`) → preview →
+  `confirm_send`.
+- **Never auto-send a session summary.** Even scrubbed, a digest carries
+  real project detail (file paths, branch names, commit subjects, what the
+  user asked for). `draft_email`'s mandatory preview is the gate — show the
+  full body and get explicit approval, exactly as with any other send.
+- **Example trigger**: *"summarize my last 3 mailman sessions and email
+  them to kalpesh@example.com"*

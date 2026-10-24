@@ -21,6 +21,12 @@ import { cancelScheduledTool } from './cancel-scheduled.js';
 import { getStatusTool } from './get-status.js';
 import { getMailboxOverviewTool } from './get-mailbox-overview.js';
 import { listTemplatesTool } from './list-templates.js';
+import { draftCampaignTool } from './draft-campaign.js';
+import { confirmCampaignTool } from './confirm-campaign.js';
+import { campaignStatusTool } from './campaign-status.js';
+import { cancelCampaignTool } from './cancel-campaign.js';
+import { listSessionsTool } from './list-sessions.js';
+import { readSessionDigestTool } from './read-session-digest.js';
 import type { Tool } from './types.js';
 
 export const allTools: Tool[] = [
@@ -28,6 +34,10 @@ export const allTools: Tool[] = [
   listTemplatesTool,
   confirmSendTool,
   cancelDraftTool,
+  draftCampaignTool,
+  confirmCampaignTool,
+  campaignStatusTool,
+  cancelCampaignTool,
   configureAccountTool,
   updateAccountProfileTool,
   previewAttachmentsTool,
@@ -47,4 +57,6 @@ export const allTools: Tool[] = [
   cancelScheduledTool,
   getStatusTool,
   getMailboxOverviewTool,
+  listSessionsTool,
+  readSessionDigestTool,
 ];

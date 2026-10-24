@@ -35,10 +35,11 @@ export const readEmailTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        account: { type: 'string' },
-        id: { type: 'string' },
+        account: { type: 'string', description: 'Account alias; omit to use the only/default configured account' },
+        id: { type: 'string', description: 'Message id from a prior list_recent_emails or search_emails call' },
       },
       required: ['id'],
+      additionalProperties: false,
     },
   },
   handler,

@@ -82,15 +82,15 @@ export const configureAccountTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        alias: { type: 'string' },
-        email: { type: 'string' },
-        method: { type: 'string', enum: ['app-password', 'oauth2'] },
+        alias: { type: 'string', description: 'Short name for this account, e.g. "work". Re-using an existing alias updates it.' },
+        email: { type: 'string', description: 'The Gmail address. One email = one account; a duplicate under a different alias is rejected.' },
+        method: { type: 'string', enum: ['app-password', 'oauth2'], description: 'How to authenticate: a 16-char Gmail App Password, or browser OAuth2' },
         credentials: {
           type: 'object',
           description:
             'For app-password: { user, pass }. For oauth2: { clientId, clientSecret, refreshToken }.',
         },
-        setDefault: { type: 'boolean' },
+        setDefault: { type: 'boolean', description: 'Make this the default account. The first account added becomes default automatically.' },
         displayName: { type: 'string', description: '"From Name" shown to recipients, e.g. "Kalpesh Gamit"' },
         signature: { type: 'string', description: 'Appended to every draft from this account' },
         skipVerify: {
@@ -99,6 +99,7 @@ export const configureAccountTool: Tool = {
         },
       },
       required: ['alias', 'email', 'method', 'credentials'],
+      additionalProperties: false,
     },
   },
   handler,

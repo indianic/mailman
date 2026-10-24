@@ -8,28 +8,10 @@ import { isDue, nextStatusAfterFailure, dispatchOne, dispatchDueEntries, MAX_ATT
 import { createScheduledEntry, listScheduled } from '../src/scheduler/store.js';
 import { configureAccount } from '../src/accounts.js';
 import type { ScheduledEntry } from '../src/config/schema.js';
+import { withIsolatedConfig } from './support/isolate.js';
 
-async function withIsolatedEnv(fn: () => Promise<void>): Promise<void> {
-  const dir = path.join(os.tmpdir(), `mailman-scheduler-test-${crypto.randomBytes(6).toString('hex')}`);
-  const prior = process.env.MCP_MAILMAN_CONFIG_DIR;
-  process.env.MCP_MAILMAN_CONFIG_DIR = dir;
-  try {
-    await fn();
-  } finally {
-    try {
-      const keytar = (await import('keytar')).default;
-      const { getServiceName } = await import('../src/config/keychain.js');
-      await keytar.deletePassword(getServiceName(), 'master-key');
-    } catch {
-      // best-effort cleanup
-    }
-    if (prior === undefined) {
-      delete process.env.MCP_MAILMAN_CONFIG_DIR;
-    } else {
-      process.env.MCP_MAILMAN_CONFIG_DIR = prior;
-    }
-  }
-}
+// See test/support/isolate.ts — keyring-free by default.
+const withIsolatedEnv = (fn: () => Promise<void>) => withIsolatedConfig(() => fn());
 
 function fakeEntry(overrides: Partial<ScheduledEntry>): ScheduledEntry {
   return {

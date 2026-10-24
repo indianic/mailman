@@ -9,7 +9,8 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 > pending items were **descoped by decision**: OAuth2 real-delivery
 > verification (App Password is the supported auth path), Windows hardware
 > verification (accepted as-is), and a public `mcp-mailman` npm release
-> (distribution is `@indianic/mailman` on the IndiaNIC private registry).
+> (a public build has since shipped under the scoped name
+> [`@integratex/mailman`](https://www.npmjs.com/package/@integratex/mailman) instead).
 
 ## Phase 0 — Project setup
 
@@ -119,7 +120,7 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `src/config/schema.ts` — zod schema for `scheduled.json`, `schemaVersion` from day one
 - [x] `src/scheduler/store.ts` — read/write `scheduled.json` through the same atomic-write + `.bak` + write-queue machinery as `config/store.ts`; encrypted at rest with the keytar-backed master key (only the message `content`; `scheduledId`/`account`/`sendAt`/`status`/`attempts` stay plaintext so the ticker's due-scan doesn't decrypt every entry)
 - [x] `src/scheduler/ticker-install.ts` — idempotent per-OS registration: `launchd` agent (macOS), `crontab` entry (Linux), Task Scheduler task (Windows); polls every 1–5 min
-- [x] `src/scheduler/dispatch.ts` — resolves attachments fresh (not snapshotted), sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed` (also enforces the size cap pre-send, matching `draft_email` — caught mid-implementation while writing this phase's tests)
+- [x] `src/scheduler/dispatch.ts` — resolves the snapshotted attachment paths fresh, sends via the same `MailProvider.send()` `confirm_send` uses, retries up to 5 attempts across ticks before marking `failed` (also enforces the size cap pre-send, matching `draft_email` — caught mid-implementation while writing this phase's tests)
 - [x] `schedule_send` tool — persists to `scheduled.json`, installs the ticker if not already present, returns `scheduledId`
 - [x] `list_scheduled` / `cancel_scheduled` tools; `SCHEDULE_NOT_FOUND` error code
 - [x] `mailman send-scheduled --due` CLI command (ticker's dispatch target — CLI-only, never an MCP tool)
@@ -134,11 +135,148 @@ each item and [docs/SKILLS.md](SKILLS.md) for exact tool signatures.
 - [x] `get_status` MCP tool — same `collectStatus()` data as the CLI command, returned as JSON for Claude
 - [x] Fill in real data in `collectStatus()`: accounts (alias/method/default/canRead), security (master key found, encrypted), activity counts from `activity.log`, pending-scheduled count
 - [x] Finalize `mailman status` tree rendering (accounts / security / mcp registration / activity / scheduled sections) — already handled all sections generically since Phase 0; just needed real data behind it
-- [x] `mailman register` CLI command — prints the `claude mcp add mailman -- npx -y @indianic/mailman` line (doesn't auto-run it)
+- [x] `mailman register` CLI command — prints the `claude mcp add mailman -- npx -y @integratex/mailman` line (doesn't auto-run it)
 - [x] `mailman doctor` — finalize network/SMTP/IMAP reachability checks alongside the Phase 0 keyring/Node-version checks
 - [x] `mailman reset` CLI command — wipes the config dir + removes the keytar master-key entry; requires explicit `--yes`
 - [x] Integration tests against fakes: `nodemailer` JSON transport (SMTP), mocked IMAP-shaped fixtures against the real parsing logic, mocked `fetch` standing in for the Gmail API (mailman uses raw REST via fetch, not the `googleapis` SDK, for Gmail/People calls — same "no real Gmail" testing intent, different mocking boundary) — automatically wired into CI via the existing `npm test` glob
 - [x] Finalize README (install, both auth setups, usage examples, config paths table, read-access scope disclosure)
 - [x] Cross-OS smoke test: macOS, Linux, Windows — config dir resolution, keychain backend, `claude mcp add` registration, one real send + one real read on each (manual, not CI — see docs/PLAN.md Testing & CI strategy) — **wrapped 2026-07-02**: macOS fully verified (incl. a real end-to-end `mailman init` wizard run); **Linux verified via Docker** (see the `docker/` harness, task #94 — surfaced the keytar↔keyring cross-read note); Windows implemented but hardware verification not pursued (accepted as-is). Per-OS support matrix + verification checklist in [docs/CROSS-OS.md](CROSS-OS.md)
-- [x] ~~`npm publish` as `mcp-mailman`~~ — **descoped 2026-07-02** (user decision): distribution is via the IndiaNIC private registry as `@indianic/mailman`; a public `mcp-mailman` release is not needed.
-- [x] Document `claude mcp add mailman -- npx -y @indianic/mailman` as the standard install step
+- [x] ~~`npm publish` as `mcp-mailman`~~ — **descoped 2026-07-02** (user decision): an unscoped `mcp-mailman` release is not needed; a public scoped build has since shipped as `@integratex/mailman` on npmjs.
+- [x] Document `claude mcp add mailman -- npx -y @integratex/mailman` as the standard install step
+
+---
+
+## Post-launch (after the 10 phases)
+
+Additions made after the original plan closed. Each was driven by a real gap
+hit in use rather than by the plan, which is why they sit outside the phases.
+
+### `get_mailbox_overview` — 1.1.x
+- [x] One call returning sent + inbox + attachment metadata, after repeatedly
+      composing `list_recent_emails` (sent) + `list_recent_emails` (inbox) +
+      `read_email`-per-attachment by hand in conversation
+
+### Session reports — 1.2.0
+- [x] `src/sessions/index.ts` — index the host's own transcripts
+      (`~/.claude/projects/**/*.jsonl`, overridable via `MAILMAN_SESSIONS_DIR`),
+      cached on mtime+size so only changed files are re-read
+- [x] `src/sessions/skeleton.ts` — extraction that drops every tool RESULT,
+      then redacts known token shapes and shortens home paths
+- [x] `list_sessions` / `read_session_digest` MCP tools — metadata and skeleton
+      only; neither summarizes
+- [x] `mailman session list` / `session report` — reuses `account remove`'s
+      clack picker for one and `register -i`'s multiselect for many
+- [x] `session-report` message template
+- [x] Verified on a real store: 75 projects, 2,258 sessions, 946 MB. Cold index
+      ~4.4s, cached ~0.2s. A 986 KB session becomes a 19 KB skeleton
+- [x] Verified against three transcripts holding 11 real credential-shaped
+      strings — **zero** reached the skeleton, all having sat in dropped results
+- [ ] The interactive pickers are still unexercised at runtime (needs a TTY);
+      every non-interactive path is covered
+
+### Tool-schema hardening — 1.2.1
+- [x] All 25 schemas declare `additionalProperties: false` and an explicit
+      `required` array; all 34 previously undescribed parameters documented
+- [x] Both fields made **required by `ToolDefinition`**, so `tsc` rejects a new
+      tool that omits them — enforcement moved off review and into the compiler
+- [x] Confirmed no runtime behaviour changes: `index.ts` never validated args
+      against these schemas, so this is purely the contract a model reads
+
+### `doctor` dependencies + `--fix` — 1.2.1
+- [x] A `dependencies` section: `npm`, and on Linux only `libsecret`
+- [x] `--fix` prints the platform install command, distinguishing a missing
+      library from a missing Secret Service daemon — verified against two real
+      containers (`node:20-slim` vs the smoke base image)
+- [x] `installHint` is pure and takes `platform` explicitly, so the Windows and
+      Linux strings are unit-tested from macOS
+
+### Error-code and portability fixes — unreleased
+- [x] `schedule_send` returns `DRAFT_ALREADY_SENT` for a draft that has already
+      gone out, instead of `DRAFT_EXPIRED`. The code was declared and returned
+      by nothing, so a model branching on it had a permanently dead path — and
+      the two mean opposite things: expiry is recoverable by re-drafting,
+      "already sent" means doing that would send a second copy
+- [x] All three `DRAFT_NOT_FOUND` messages now carry a remedy, except
+      `cancel_draft`, where the honest answer is that nothing is pending
+- [x] `chmod` on the config files and the activity log tolerates a filesystem
+      without POSIX modes (Windows, FAT/exFAT, some network mounts). Both files
+      are created with `0o600` directly; the `chmod` is a re-assertion that is
+      allowed to fail rather than take the whole write down
+- [x] `docs/SKILLS.md` lists the error codes `schedule_send` and `cancel_draft`
+      can return, and which are worth branching on separately
+- [x] `docs/CROSS-OS.md` documents the file-permission behaviour, and records
+      that CI covers ubuntu only — so every 🟡 in the matrix has no runtime
+      backstop
+
+### Personalised sending (campaigns) — 1.5.0
+Phase 1 of `docs/CAMPAIGNS.md`, closing GitHub issue #2. Full spec and the list
+of deliberate departures from it are in that document (§9).
+
+- [x] `campaigns.json` — encrypted `content` (templates, `ccFirstOnly`, and the
+      recipient list with vars frozen at draft time), plaintext per-recipient
+      bookkeeping keyed by `seq` so no address sits in the clear and a status
+      write doesn't re-encrypt the whole list
+- [x] `draft_campaign` — renders per recipient, previews, sends nothing
+- [x] `confirm_campaign` — one approval, N sends, paced at `throttlePerMinute`
+      (default 20), bounded by `maxRuntimeSeconds` (default 600)
+- [x] `campaign_status` (detail + list) and `cancel_campaign`
+- [x] **Refuse to draft** on an unresolvable placeholder — nothing is persisted,
+      and the error names every recipient, every token, and all three remedies.
+      `Hi ,` is worse than any group greeting, and draft time is the last moment
+      it costs nothing to stop
+- [x] `{{name}}` / `{{first_name}}` / `{{email}}` + custom `vars`, with
+      `{{token|fallback}}`. Values HTML-escaped for HTML bodies — `Sales &
+      Marketing` and `O'Brien` are real address-book entries
+- [x] Sample selection surfaces the *awkward* rendering (fallback greeting,
+      one-word name), not two flattering ones
+- [x] Idempotency: `sent` only after the transport returns a message id;
+      terminal recipients never re-eligible; re-running resumes rather than
+      restarts; attempts capped at 3 across runs, one attempt per run
+- [x] `ccFirstOnly` rides with the first message that **actually sends** — a
+      failed first message hands it to the next, so leadership gets exactly one
+      copy rather than none
+- [x] Abort threshold (~25%, floor 3) stops a systematically broken run instead
+      of producing N failures
+- [x] Warnings for a group-addressed body, a `ccFirstOnly` address that is also
+      a recipient, and a body where nothing actually personalises
+- [x] `auth rotate-key` / `auth migrate-keystore` re-encrypt `campaigns.json`
+      too — the same class of bug that once left `scheduled.json` behind, and
+      worse here: a half-delivered merge whose remaining recipients can no
+      longer be read is neither resumable nor listable
+- [x] 54 tests across render, dispatch and the tool surface
+- [ ] Real-delivery verification of a multi-recipient merge — the dispatch tests
+      inject the transport, so the loop is covered but a live SMTP send of N
+      personalised messages has not been run
+- [ ] Phases 2–4 of `docs/CAMPAIGNS.md`: per-campaign log, bounce capture,
+      reply-conditional sequencing
+
+### Signatures that render — 1.5.2 / 1.7.0
+- [x] An HTML signature is sanitised and rendered instead of escaped into view;
+      a plain-text one keeps the previous escaping path untouched. The content
+      decides, because people paste what their mail client gave them
+- [x] Layout tags (`table`, `td`, `div`) allowed, with the sanitiser emitting a
+      **balanced tree** — stray closes dropped, unclosed tags closed, crossed
+      tags untangled. Replaces the blanket ban rather than weakening it
+- [x] Signature photos attached inline by Content-ID, so they render with no
+      "load images" prompt. Copied into the config dir, capped at 200 KB
+- [x] `mailman account profile --signature-image / --clear-signature-image` —
+      the feature shipped in 1.7.0 with **no way for a user to enable it**,
+      caught by the docs audit rather than by any test
+- [ ] Gmail lists inline images in its attachment strip regardless of MIME
+      shape. `filename: false` and `multipart/related`-outermost were both built
+      and tested; neither helps. Not a defect, not fixable from the sending side
+
+### Every HTML email carries a text/plain part — 1.6.1 / 1.6.2
+- [x] HTML sends go out as `multipart/alternative`; the HTML part is unchanged
+- [x] Three converter bugs, each found by reading delivered mail and none by the
+      suite: no text part at all, indented source double-spacing list items, and
+      block *opening* tags not ending the preceding line
+- [ ] The suite still only exercises HTML shaped the way it was written by hand.
+      Every one of those three passed a green suite
+
+### Publishing
+- [x] `@integratex/mailman` live on the public npm registry (1.2.1), with
+      matching GitHub releases and the filtered source mirror
+- [ ] OAuth2 real-delivery verification — needs a real Google Cloud OAuth client
+- [ ] Windows verification — Windows containers need a Windows host, so this
+      needs real hardware or a `windows-latest` runner

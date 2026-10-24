@@ -48,9 +48,14 @@ mailman/
 │   │   └── oauth2.ts          Google OAuth2 (XOAUTH2), refresh-token flow
 │   ├── mail/
 │   │   ├── provider.ts           the MailProvider interface (see below)
+│   │   ├── compose.ts            From/Message-ID, signature rendering, HTML→text (see Compose pipeline)
 │   │   ├── gmail-api-client.ts   GmailApiProvider — list/search/read via Gmail API (oauth2 accounts)
 │   │   ├── imap-client.ts        ImapSmtpProvider — list/search/read via IMAP (app-password accounts)
 │   │   └── normalize.ts          maps both backends into one common email shape
+│   ├── campaigns/                personalised merge — see docs/CAMPAIGNS.md
+│   │   ├── render.ts            {{placeholder}} substitution, sample selection
+│   │   ├── store.ts             read/write campaigns.json (encrypted content, plaintext per-recipient state)
+│   │   └── dispatch.ts          the paced send loop: exactly-once, resume-not-restart, abort threshold
 │   ├── scheduler/
 │   │   ├── store.ts             read/write scheduled.json (encrypted, same master key as accounts.json)
 │   │   ├── ticker-install.ts    per-OS idempotent registration (launchd/cron/Task Scheduler)
@@ -58,7 +63,7 @@ mailman/
 │   ├── config/
 │   │   ├── paths.ts           cross-platform global config dir resolution
 │   │   ├── store.ts           read/write accounts.json, contacts.json, settings.json
-│   │   ├── schema.ts          zod schemas for all three files
+│   │   ├── schema.ts          zod schemas for every config file
 │   │   └── keychain.ts        master-key generation/retrieval via keytar (see Security model)
 │   ├── status.ts             collectStatus() — shared data source for `status` CLI + get_status tool
 │   ├── response.ts           toolResponse()/toolError() JSON-in-text helpers (see Output format below)
@@ -346,6 +351,13 @@ Resolution enforces:
 - MIME-type inference for attachment headers
 - Existence/readability check with a clear error back to Claude if a path is
   missing, so it can re-resolve or ask the user
+- `~/` expands to the home directory, and every file is reported by its real
+  path (symlinks and `..` resolved). The preview lists that path, so what the
+  user approves is what gets read.
+- Confinement: a file whose real path is inside `~/.ssh`, `~/.aws`, `~/.gnupg`,
+  mailman's config dir or the master key file's directory is refused with
+  `ATTACHMENT_DENIED`, whatever the input form (T-008 #1). Text the LLM reads
+  can ask it to attach anything; these are the files that must never leave.
 
 `mailman` has no memory of "what we were just working on" — turning a phrase
 like "those docs" into real paths is Claude's responsibility, done from
@@ -355,7 +367,7 @@ ever calls a tool.
 ## Send flow: draft → preview → confirm → send
 
 ```
-User: "mailman, send those docs to kalpesh.gamit@indianic.com"
+User: "mailman, send those docs to you@example.com"
   → Claude resolves "those docs" to real paths from context
   → Claude auto-composes subject + body (since the user didn't dictate exact
     wording) — this is Claude's language generation; mailman has no LLM inside it
@@ -375,6 +387,80 @@ expected/primary path is still Claude always supplying real composed text.
 Drafts expire after a configurable TTL (default 10 minutes — see Settings)
 so a stale confirmation can't fire off an old, possibly-outdated draft, and
 can't double-send if confirmed twice.
+
+## Four send modes, and which store each uses
+
+A message leaves this machine through one of four paths. They differ in what
+the recipient sees and in where the state lives, and confusing them is the
+easiest way to send something embarrassing.
+
+| Mode | Tool | State | Recipient sees |
+|---|---|---|---|
+| **Broadcast** | `draft_email` → `confirm_send` | `drafts.ts`, in-memory, 10-min TTL | one message, everyone in To/Cc/Bcc |
+| **Personalised merge** | `draft_campaign` → `confirm_campaign` | `campaigns.json`, on disk | one message addressed only to them |
+| **Deferred** | `draft_email` → `schedule_send` | `scheduled.json`, on disk | as broadcast, later |
+| **Transactional** | `draft_email` → `confirm_send` | as broadcast | as broadcast |
+
+**Broadcast is not the degraded mode.** For a genuinely collective message —
+an announcement, a policy change — a shared To/Cc is honest and gives everyone
+one reply thread. Personalising it fakes an intimacy the recipient can see
+through. Merge earns its place on outreach and individual nudges, where a
+shared envelope would leak the recipient list and read as bulk. `draft_campaign`
+warns when a body addresses a group; see docs/CAMPAIGNS.md §2.
+
+**Why campaigns get their own store rather than N scheduled entries.** They
+share the scheduler's *pattern* — encrypted content, plaintext bookkeeping, the
+same atomic `updateJsonFile` path — but not its file. Campaign children in
+`scheduled.json` would be visible to the ticker before anyone confirmed them,
+which is a way to send 39 unapproved emails. Recipients are keyed by `seq`, so
+no address sits in the plaintext half.
+
+**Why not `drafts.ts`.** It is an in-memory map with a 10-minute TTL. A
+39-recipient run dying at #20 would leave no record of who had received it, and
+the retry would double-send. Every campaign recipient transitions
+`pending → sent | failed` on disk, marked `sent` only once the transport returns
+a message id — see "Concurrency, resilience & idempotency".
+
+## Compose pipeline — what actually goes on the wire
+
+`mail/compose.ts` sits between a draft and a provider, and every send passes
+through it.
+
+```
+body (caller's HTML or text)
+  └─ appendSignature()      account signature, escaped or sanitised (below)
+       └─ wrapPolished()    optional card shell + IndiaNIC footer (HTML only)
+            ├─ htmlToPlainText()  → the text/plain part
+            └─ the HTML part, byte-for-byte
+```
+
+**Both parts, always.** An HTML send goes out as `multipart/alternative`. Sending
+HTML alone means every client that reads text rather than markup invents its own
+conversion — reply quoting, notification previews, screen readers — and a
+missing text part is a mild spam signal. This was HTML-only until 1.6.1, and it
+showed up in a colleague's reply as a signature quoted without its line breaks.
+
+**The signature is plain text or HTML, decided by content.** A signature
+containing recognisable formatting tags is sanitised through an allowlist;
+anything else is escaped and its newlines become `<br>`. Both readings are
+honoured because people paste the signature their mail client gave them, which
+is markup, and because a plain-text signature containing `<name@example.com>`
+must not vanish into an unknown tag.
+
+**The sanitiser emits a balanced tree.** Layout tags (`table`, `td`, `div`) are
+allowed — a photo beside text is a two-column layout, and in email that means a
+table. The risk that once justified banning them is closed directly instead:
+open tags are tracked, a stray close with no matching open is dropped, anything
+left open at the end is closed, and crossed tags are untangled. Nothing in a
+signature can reach past its own boundary.
+
+**Signature photos travel inside the message.** `signatureImage` on an account
+is attached by Content-ID and referenced as `<img src="cid:mailman-signature">`.
+Linked images are blocked by default in Gmail and Outlook, so the first message
+from a new sender would show a gap. Attached only when the signature actually
+references the cid, so a configured-but-unused photo never rides along. Note
+that Gmail lists inline images in its attachment strip regardless of how the
+message is built — that is client behaviour, not something the sender controls.
 
 ## Scheduled sends — persistence beyond the MCP server's lifetime
 
@@ -430,9 +516,11 @@ conversational action; same exclusion logic as `auth rotate-key`). It reads
 `status: "pending"` through the exact same `MailProvider.send()` path
 `confirm_send` uses, then marks each `sent` or `failed`.
 
-- **Attachments are re-resolved fresh at fire time**, not snapshotted when
-  scheduled — consistent with attachment resolution always being a live
-  path lookup elsewhere in this doc. If a file's moved or deleted between
+- **The file list is snapshotted when scheduled, the files are read at fire
+  time.** schedule_send stores the real paths the preview showed, not the
+  glob or directory, so a pattern cannot match a different set of files by
+  the time the ticker fires. Each path is resolved again at fire time (the
+  confinement check runs again too). If a file's moved or deleted between
   scheduling and firing, the send fails with `ATTACHMENT_NOT_FOUND` rather
   than silently going out without it.
 - **Retries, not silent loss.** A failed dispatch (network blip, expired
@@ -678,3 +766,86 @@ version of this list.
 7. Reading/listing/searching mail (Gmail API for OAuth2 accounts, IMAP for App Password accounts)
 8. Scheduled sends (`scheduled.json`, per-OS ticker install, `schedule_send`/`list_scheduled`/`cancel_scheduled`, `send-scheduled` CLI dispatch)
 9. Polish & publish (README finalized, npm publish, `claude mcp add` docs, cross-OS testing)
+
+---
+
+# Post-plan architecture
+
+Everything above is the original 10-phase design. This section covers design
+decisions made *after* that plan closed, so the document stays an accurate
+picture of how mailman is actually built rather than how it was first drawn.
+
+## Session reports — reading the host's own transcripts
+
+`list_sessions` and `read_session_digest` let a session (or a week of them) be
+turned into an email. The design question was never "how do we summarize" — it
+was "how do we hand a model something small enough to summarize, without
+leaking".
+
+**Nothing here summarizes.** That is the same division of labour the rest of
+the server follows (see the Output format section): mailman extracts, the
+calling Claude session composes. A `summarize_session` tool would need a model
+inside an MCP server that has no model dependency at all.
+
+**Scale forced the shape.** Measured on a real store: 75 project directories,
+2,258 sessions, 946 MB, largest single session 50.9 MB. Two consequences:
+
+- A full re-scan per invocation is too slow, so metadata is cached in the
+  config dir keyed on **mtime + size**; only changed transcripts are re-read.
+  Cold build ~4.4s, cached ~0.2s. Fields are pulled with cheap `includes()`
+  pre-filters before any regex or `JSON.parse` — parsing every line to read one
+  field is the difference between seconds and minutes at this size.
+- A session is far too large to load, so extraction **drops every tool
+  RESULT**. Results are simultaneously the bulk of a transcript's bytes and the
+  place pasted secrets and `.env` contents land. What survives is intent: user
+  prompts, one truncated line per reply, and each tool call's name + target. On
+  a real 986 KB session that is a 51× cut to 19 KB.
+
+**Redaction is a backstop, not the mechanism.** Dropping results is what
+actually protects secrets; the regex pass over surviving text (API keys,
+GitHub/npm/Slack tokens, JWTs, `KEY=value`, private-key blocks) exists for the
+case where someone pasted a credential into a *prompt*. Verified against three
+transcripts containing 11 real credential-shaped strings: zero reached the
+skeleton, all having sat in dropped results.
+
+One redaction rule is worth recording because the obvious version is wrong: the
+`KEY=value` pattern requires an explicit `=` or `:`. An earlier version accepted
+bare whitespace and rewrote ordinary English — *"fix the release script token
+handling"* became *"…token [redacted]"*. Session prompts use "token", "secret"
+and "password" as nouns constantly, so the loose rule corrupted almost every
+digest.
+
+**The CLI half has no model**, so `mailman session report` prints a
+*mechanical* digest — titles, files touched, commits, tool counts — and says so
+in its output rather than implying a summary. Prose only exists on the MCP
+path, where a Claude session is in the loop.
+
+## Tool schemas are a contract, not validation
+
+Nothing validates a tool's arguments against its `inputSchema` before dispatch:
+`index.ts` finds the tool and calls the handler, and each handler runs its own
+zod `safeParse`, which *strips* unknown keys. So the JSON Schema is the only
+place the closed-object contract can be stated at all. Without
+`additionalProperties: false`, a model that invents an argument gets a success
+it should not have and never learns the parameter does not exist.
+
+Both `additionalProperties: false` and an explicit `required` array are
+therefore **required by the `ToolDefinition` type**, so `tsc` rejects a new tool
+that omits them. That deliberately moves enforcement off code review and into
+the compiler; the local eval tier is a backstop, not the gate.
+
+## Two verification tiers beyond `test/`
+
+`npm test` answers *"does this function compute the right value?"*. Two further
+questions needed different tiers, both kept out of the default fast path:
+
+- **Surface rubrics** — is what we hand a model still correct, safe and
+  self-consistent? Offline, static, no network. Covers the draft → confirm gate
+  being real, schema quality, doc claims matching code, and CLI coherence.
+- **Artifact smoke** — does the tarball npm would publish actually install and
+  work on a clean OS? Needs a container and the network, so it sits outside
+  the fast path. Distinct from `docker/test-linux.sh`, which tests the
+  *credential store* (keyring up vs headless) rather than the *package*.
+
+Both live outside version control on the development machine by choice; see
+`docs/CROSS-OS.md` for the committed Linux harness.

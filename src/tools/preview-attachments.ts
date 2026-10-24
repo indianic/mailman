@@ -30,10 +30,15 @@ export const previewAttachmentsTool: Tool = {
     inputSchema: {
       type: 'object',
       properties: {
-        attachments: { type: 'array', items: { type: 'string' } },
+        attachments: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Explicit file paths, glob patterns, or directories — the same input draft_email accepts',
+        },
         recursive: { type: 'boolean', description: 'Expand directories recursively (default: top-level only)' },
       },
       required: ['attachments'],
+      additionalProperties: false,
     },
   },
   handler,

@@ -1,19 +1,37 @@
-import { intro, outro } from '@clack/prompts';
+import { intro, outro, password as passwordPrompt, isCancel } from '@clack/prompts';
 import { section, detail, fail } from './tree.js';
 import { getPackageVersion } from '../version.js';
 import { runStatus } from './status.js';
 import { runDoctor } from './doctor.js';
-import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile } from './account.js';
+import { runInit, runAccountAdd, runAccountList, runAccountRemove, runAccountSetDefault, runAccountProfile, runAccountPassword } from './account.js';
 import { runRotateKey } from './rotate-key.js';
+import { runMigrateKeystore } from './migrate-keystore.js';
 import { runAuthLogin } from './auth-login.js';
 import { runSettingsGet, runSettingsSet } from './settings.js';
 import { runContactsList, runContactsAdd, runContactsRemove } from './contacts.js';
 import { runSendScheduled } from './send-scheduled.js';
 import { runScheduledList } from './scheduled.js';
+import { runSessionList, runSessionReport } from './session.js';
 import { runRegister } from './register.js';
 import { runReset } from './reset.js';
 import { runUpdate } from './update.js';
 import { maybeNotifyUpdate, refreshUpdateCache, REFRESH_COMMAND } from './update-notifier.js';
+import { setPassphrasePrompter } from '../config/keystore/passphrase.js';
+
+/**
+ * The passphrase keystore needs a way to ask a human, and the config layer must
+ * not import a prompt library — it is loaded by the MCP stdio server too, where
+ * there is nobody to ask and where stdout belongs to JSON-RPC. Registering it
+ * here, in the CLI entry point, is what makes the server structurally incapable
+ * of prompting rather than merely checking isTTY first.
+ */
+setPassphrasePrompter(async (message) => {
+  const answer = await passwordPrompt({ message });
+  if (isCancel(answer)) {
+    throw new Error('Cancelled — no passphrase entered, so no key could be unlocked.');
+  }
+  return answer;
+});
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
@@ -28,14 +46,16 @@ interface CommandEntry {
 // phase fills one in.
 const COMMANDS: Record<string, CommandEntry> = {
   init: { handler: runInit, summary: 'First-run wizard: add your first account' },
-  account: { handler: null, summary: 'see `account add` / `account list` / `account profile` / `account remove` / `account set-default`' },
+  account: { handler: null, summary: 'see `account add` / `account list` / `account password` / `account profile` / `account remove` / `account set-default`' },
   'account add': { handler: runAccountAdd, summary: 'Add another account' },
   'account list': { handler: runAccountList, summary: 'Table of configured accounts' },
+  'account password': { handler: runAccountPassword, summary: 'Update an account\'s App Password (pick from a list, verified live)' },
   'account remove': { handler: runAccountRemove, summary: 'Remove an account (--yes to skip confirm)' },
   'account set-default': { handler: runAccountSetDefault, summary: 'Set the default account' },
-  'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / email signature (--name, --signature, --clear-*)' },
+  'account profile': { handler: runAccountProfile, summary: 'Show or change an account\'s From Name / signature / signature photo (--name, --signature, --signature-image, --clear-*)' },
   'auth login': { handler: runAuthLogin, summary: 'OAuth2 consent for an account' },
   'auth rotate-key': { handler: runRotateKey, summary: 'Rotate the master encryption key' },
+  'auth migrate-keystore': { handler: runMigrateKeystore, summary: 'Move the master key to another keystore (--to os-keychain|passphrase|env|file)' },
   contacts: { handler: null, summary: 'see `contacts list` / `contacts add` / `contacts remove`' },
   'contacts list': { handler: runContactsList, summary: 'Print the local address book' },
   'contacts add': { handler: runContactsAdd, summary: 'Add a contact manually' },
@@ -44,10 +64,13 @@ const COMMANDS: Record<string, CommandEntry> = {
   'settings get': { handler: runSettingsGet, summary: 'Print current global settings' },
   'settings set': { handler: runSettingsSet, summary: 'Update one setting' },
   register: { handler: runRegister, summary: 'Register with AI editors (--tools <a,b|all> [--scope], -i, or bare to print the command)' },
-  doctor: { handler: runDoctor, summary: 'Environment pre-flight checks' },
+  doctor: { handler: runDoctor, summary: 'Environment pre-flight checks (--offline to skip logins, --fix for install commands)' },
   scheduled: { handler: null, summary: 'see `scheduled list`' },
   'scheduled list': { handler: runScheduledList, summary: 'List pending/sent/failed scheduled sends' },
   'send-scheduled': { handler: runSendScheduled, summary: "Scheduler ticker's dispatch target (--due)" },
+  session: { handler: null, summary: 'see `session list` / `session report`' },
+  'session list': { handler: runSessionList, summary: 'Find past AI sessions (--project, --since, --search, --all)' },
+  'session report': { handler: runSessionReport, summary: 'Pick sessions and build a digest to email (--out, --json)' },
   status: { handler: runStatus, summary: 'Show configured state as a tree' },
   update: { handler: runUpdate, summary: 'Self-update the global install to the latest version' },
   upgrade: { handler: runUpdate, summary: 'Alias of `update`' },
@@ -100,16 +123,24 @@ function printExamples(): void {
   detail('mailman register --tools claude,cursor    (re)write editor MCP configs without re-adding an account');
   detail("mailman status                            what's configured right now");
   detail('mailman doctor                            environment pre-flight checks');
+  detail('mailman doctor --fix                      print the exact install command for anything missing');
 
   section('from name & email signature');
   detail('mailman account profile                                    show the current From Name + signature');
   detail('mailman account profile --name "Kalpesh Gamit"             what recipients see instead of the bare address');
   detail('mailman account profile --signature "Regards,\\nKalpesh"    appended to every draft (\\n = new line)');
   detail('mailman account profile --clear-signature                  remove it');
+  detail('mailman account profile --signature-image me.png          photo attached inline (cid:mailman-signature)');
 
   section('desktop notifications');
   detail('mailman settings set desktopNotifications false            turn off the "email sent" desktop pop-up (on by default)');
   detail('mailman settings set desktopNotifications true             turn it back on');
+
+  section('session reports — turn past AI sessions into an email');
+  detail('mailman session list                                 recent sessions, grouped by project');
+  detail('mailman session list --project mailman --since 7d    narrow to one project and window');
+  detail('mailman session report                               pick project, then sessions, then digest');
+  detail('mailman session report --out report.md               write the digest to a file');
 
   section('inside your AI tool (Claude Code, Cursor, ...), in plain English');
   detail('"mailman, send those docs to kalpesh@example.com"');
@@ -118,6 +149,7 @@ function printExamples(): void {
   detail('"read the latest email from AWS"');
   detail('"mailman, send this tomorrow at 9am instead of now"');
   detail('"get my contacts"');
+  detail('"summarize my last 3 mailman sessions and email them to kalpesh@example.com"');
 
   section('safety');
   detail('Every send shows a preview first — nothing leaves the machine until you confirm.');

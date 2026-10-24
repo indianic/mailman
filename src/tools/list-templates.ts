@@ -54,6 +54,8 @@ export const listTemplatesTool: Tool = {
         search: { type: 'string', description: 'Free-text match on key/category/prefix/hint' },
         all: { type: 'boolean', description: 'Return the full catalog instead of just the core set' },
       },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

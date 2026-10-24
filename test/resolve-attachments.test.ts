@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
@@ -8,6 +8,18 @@ import { resolveAttachments, MAX_ATTACHMENT_SIZE_BYTES } from '../src/tools/reso
 async function tempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'mailman-attachments-test-'));
 }
+
+// The resolver reads keystore.json to find the key file it must refuse, so
+// point it at a throwaway config dir rather than the real one.
+const savedConfigDir = process.env.MCP_MAILMAN_CONFIG_DIR;
+before(async () => {
+  process.env.MCP_MAILMAN_CONFIG_DIR = await tempDir();
+});
+after(async () => {
+  await fs.rm(process.env.MCP_MAILMAN_CONFIG_DIR!, { recursive: true, force: true });
+  if (savedConfigDir === undefined) delete process.env.MCP_MAILMAN_CONFIG_DIR;
+  else process.env.MCP_MAILMAN_CONFIG_DIR = savedConfigDir;
+});
 
 test('resolveAttachments with no input returns an empty result', async () => {
   const result = await resolveAttachments(undefined);

@@ -18,13 +18,12 @@ export interface Draft {
   subject: string;
   body: string;
   bodyType: 'text' | 'html';
+  // Resolved at draft time and keyed by real path. schedule_send stores these
+  // paths, so a scheduled send attaches exactly what the preview listed.
   attachments: DraftAttachment[];
-  // The original, un-resolved attachment input (paths/globs/dirs) —
-  // kept alongside the already-resolved `attachments` above so
-  // schedule_send can re-resolve fresh at fire time rather than reusing
-  // a stale snapshot (see docs/PLAN.md's "Scheduled sends" section).
-  rawAttachments: string[];
-  recursive?: boolean;
+  /** RFC 5322 threading, carried from draft_email through to the send. */
+  inReplyTo?: string;
+  references?: string[];
   state: DraftState;
   createdAt: string;
   expiresAt: string;
@@ -40,8 +39,8 @@ export interface CreateDraftInput {
   body: string;
   bodyType?: 'text' | 'html';
   attachments?: DraftAttachment[];
-  rawAttachments?: string[];
-  recursive?: boolean;
+  inReplyTo?: string;
+  references?: string[];
   ttlMinutes: number;
 }
 
@@ -65,8 +64,8 @@ export function createDraft(input: CreateDraftInput): Draft {
     body: input.body,
     bodyType: input.bodyType ?? 'text',
     attachments: input.attachments ?? [],
-    rawAttachments: input.rawAttachments ?? [],
-    recursive: input.recursive,
+    inReplyTo: input.inReplyTo,
+    references: input.references,
     state: 'pending',
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + input.ttlMinutes * 60_000).toISOString(),

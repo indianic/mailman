@@ -37,7 +37,11 @@ export const listScheduledTool: Tool = {
     description: 'List pending (and recently resolved) scheduled sends.',
     inputSchema: {
       type: 'object',
-      properties: { account: { type: 'string' } },
+      properties: {
+        account: { type: 'string', description: 'Account alias to filter by; omit to list scheduled sends across all accounts' },
+      },
+      required: [],
+      additionalProperties: false,
     },
   },
   handler,

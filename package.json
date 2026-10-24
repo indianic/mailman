@@ -1,12 +1,10 @@
 {
-  "name": "@indianic/mailman",
-  "version": "1.0.0",
+  "name": "@integratex/mailman",
+  "version": "1.8.0",
   "description": "MCP server for sending and reading email (Gmail via SMTP/IMAP App Password or OAuth2 Gmail API) with attachments, draft/confirm review, multi-account settings, recipient suggestions, and inbox search — usable from any Claude CLI session on macOS, Linux, or Windows.",
   "author": "kalpesh",
   "type": "module",
-  "publishConfig": {
-    "registry": "https://npm.indianic.in/"
-  },
+  "publishConfig": {},
   "bin": {
     "mailman": "bin/mcp-mailman.js",
     "mcp-mailman": "bin/mcp-mailman.js"
@@ -24,6 +22,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
+    "eval": "tsx --test eval/*.eval.ts",
+    "verify": "npm run lint && npm run typecheck && npm run build && npm test && npm run eval",
     "release:indianic": "./scripts/release-indianic"
   },
   "engines": {
