@@ -5,9 +5,10 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { createDraft, type DraftAttachment } from '../drafts.js';
 import { resolveAttachments } from './resolve-attachments.js';
-import { formatFromAddress, appendSignature, resolveSignatureType, wrapPolished } from '../mail/compose.js';
+import { formatFromAddress, appendSignature, resolveSignatureType, wrapEmail } from '../mail/compose.js';
 import { normalizeRecipientFields } from '../mail/recipients.js';
 import { getTemplate, applySubjectPrefix, buildForwardedBody } from '../mail/templates.js';
+import { dispatchDraft } from './confirm-send.js';
 import type { Tool } from './types.js';
 
 const InputSchema = z.object({
@@ -46,7 +47,7 @@ function defaultSubject(attachments: DraftAttachment[]): string {
  * echoed back in full on every draft is pure token overhead — cap it well above
  * any realistic signature + theme shell and say so when it is cut.
  */
-const FINAL_BODY_PREVIEW_LIMIT = 6000;
+const FINAL_BODY_PREVIEW_LIMIT = 10000;
 
 /**
  * Composition mistakes that were previously invisible until a recipient saw
@@ -152,10 +153,11 @@ async function handler(rawArgs: Record<string, unknown>) {
   let body = appendSignature(composed, account.signature, bodyType, account.signatureType);
   const signatureAppended = Boolean(account.signature) && body !== composed;
 
-  // Polished theme — opt-in, HTML only. Wraps the whole body in a clean shell.
+  // Every HTML send goes out as a full, client-safe document; the theme only
+  // decides whether that is the branded card ('polished') or unbranded ('plain').
   const theme = input.theme ?? settings.emailTheme;
   const polished = bodyType === 'html' && theme === 'polished';
-  if (polished) body = wrapPolished(body);
+  if (bodyType === 'html') body = wrapEmail(body, theme);
 
   const warnings = composeWarnings(composed, bodyType, account.signature, account.signatureType);
 
@@ -187,10 +189,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     ttlMinutes: settings.draftTtlMinutes,
   });
 
-  return toolResponse({
-    draftId: draft.draftId,
-    expiresAt: draft.expiresAt,
-    preview: {
+  const preview = {
       from: formatFromAddress(account.email, account.displayName),
       to: draft.to,
       cc: draft.cc,
@@ -215,7 +214,29 @@ async function handler(rawArgs: Record<string, unknown>) {
       // The real path, not just the name — a symlink called report.pdf must not
       // pass for one in the preview the user approves.
       attachments: draft.attachments.map((a) => ({ name: a.name, path: a.path, sizeBytes: a.sizeBytes, mimeType: a.mimeType })),
-    },
+  };
+
+  // settings.autoSend: the user has given standing permission, so there is no
+  // confirm step to wait on — and so no draft left to expire. A failed send
+  // comes back as the error; the draft stays pending, so confirm_send can retry.
+  if (settings.autoSend) {
+    const sent = await dispatchDraft(draft);
+    if (sent.isError) return sent;
+    return toolResponse({
+      sent: true,
+      messageId: draft.result?.messageId,
+      sentAt: draft.result?.sentAt,
+      draftId: draft.draftId,
+      autoSent: true,
+      preview,
+      next_steps: ['Sent without a confirm step because settings.autoSend is on. Tell the user it went out and show them the preview.'],
+    });
+  }
+
+  return toolResponse({
+    draftId: draft.draftId,
+    expiresAt: draft.expiresAt,
+    preview,
     next_steps: [
       warnings.length > 0
         ? 'This draft has warnings — surface them to the user along with the preview before calling confirm_send.'
@@ -228,7 +249,7 @@ export const draftEmailTool: Tool = {
   definition: {
     name: 'draft_email',
     description:
-      'Resolve recipients/attachments/account and return a preview. Does not send — the only tool that sends is confirm_send, and it must only be called after the user has seen this preview and explicitly confirmed.',
+      'Resolve recipients/attachments/account and return a preview. Does not send — the only tool that sends is confirm_send, and it must only be called after the user has seen this preview and explicitly confirmed. Exception: when the user has turned on settings.autoSend (standing permission), this sends immediately and returns sent:true with the preview — no confirm_send call is needed.',
     inputSchema: {
       type: 'object',
       properties: {

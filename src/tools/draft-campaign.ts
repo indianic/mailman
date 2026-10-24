@@ -5,7 +5,7 @@ import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { getSettings } from '../settings.js';
 import { listContacts } from '../contacts.js';
 import { resolveAttachments } from './resolve-attachments.js';
-import { formatFromAddress, appendSignature, wrapPolished } from '../mail/compose.js';
+import { formatFromAddress, appendSignature, wrapEmail } from '../mail/compose.js';
 import { parseRecipientEntries, parseRecipientList } from '../mail/recipients.js';
 import { getTemplate, applySubjectPrefix } from '../mail/templates.js';
 import { createCampaign } from '../campaigns/store.js';
@@ -236,7 +236,7 @@ async function handler(rawArgs: Record<string, unknown>) {
   // per recipient at send time against this composed string, so what the
   // reviewer approves and what leaves the machine are the same object.
   const signed = appendSignature(input.body, account.signature, bodyType, account.signatureType);
-  const bodyTemplate = polished ? wrapPolished(signed) : signed;
+  const bodyTemplate = bodyType === 'html' ? wrapEmail(signed, theme) : signed;
 
   // Plan every recipient before persisting anything, so an unresolvable token
   // means no campaign exists at all rather than a broken one sitting on disk.

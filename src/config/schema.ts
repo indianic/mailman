@@ -94,6 +94,13 @@ export const SettingsFileSchema = z.object({
   // have bccFirstOnly for this. .default(false) so older settings.json files
   // still load.
   autoBccSelf: z.boolean().default(false),
+  // Standing permission to send: draft_email dispatches immediately instead of
+  // returning a draft that waits on confirm_send (and expires after
+  // draftTtlMinutes if nobody approves it). Off by default — the confirm step
+  // is the safety net, and lifting it has to be the user's explicit choice:
+  // `mailman settings set autoSend true`. Campaigns keep their own
+  // confirm_campaign gate regardless; one setting must not unlock a bulk send.
+  autoSend: z.boolean().default(false),
 });
 
 export type Account = z.infer<typeof AccountSchema>;
@@ -111,6 +118,7 @@ export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   desktopNotifications: true,
   emailTheme: 'polished',
   autoBccSelf: false,
+  autoSend: false,
 };
 
 // "google-contacts" is never stored here — it's fetched live from the

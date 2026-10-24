@@ -85,13 +85,14 @@ test('matrix: text body + text signature — appended verbatim', async () => {
   assert.match(mime, /Content-Type: text\/plain/);
 });
 
-test('matrix: html body + text signature — escaped, newlines become <br>', async () => {
+test('matrix: html body + text signature — escaped, rendered as a card', async () => {
   const body = appendSignature('<p>hello</p>', TEXT_SIG, 'html');
-  assert.match(body, /Thanks &amp; Regards,<br>Kalpesh &lt;kg@example\.com&gt;/);
+  assert.match(body, /Thanks &amp; Regards,<\/div><table role="presentation"/);
+  assert.match(body, /Kalpesh &lt;<a href="mailto:kg@example\.com"[^>]*>kg@example\.com<\/a>&gt;/);
 
   const decoded = (await mimeFor(body, 'html')).replace(/=\r?\n/g, '');
   // The address must survive into the delivered HTML as visible text.
-  assert.match(decoded, /&lt;kg@example\.com&gt;/);
+  assert.match(decoded, /&lt;<a [^>]*>kg@example\.com<\/a>&gt;/);
 });
 
 test('matrix: signature cleared — body goes out untouched on both body types', async () => {
@@ -175,10 +176,10 @@ test('draft_email preview shows the final composed body and warns on the broken 
 test('draft_email preview finalBody is capped, and says so', async () => {
   await withAccount(async () => {
     const res = parse(await draftEmailTool.handler({
-      to: ['a@b.com'], subject: 's', body: `<p>${'x'.repeat(9000)}</p>`, bodyType: 'html', theme: 'plain',
+      to: ['a@b.com'], subject: 's', body: `<p>${'x'.repeat(12000)}</p>`, bodyType: 'html', theme: 'plain',
     }));
     assert.equal(res.preview.finalBodyTruncated, true);
-    assert.equal(res.preview.finalBody.length <= 6001, true);
+    assert.equal(res.preview.finalBody.length <= 10001, true);
   });
 });
 

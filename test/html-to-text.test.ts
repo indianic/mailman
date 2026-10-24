@@ -112,7 +112,8 @@ test('htmlToPlainText: a real polished send reads sensibly', () => {
   const out = htmlToPlainText(body);
   assert.match(out, /Hi Yash,/);
   assert.match(out, /The demo is Thursday\./);
-  assert.match(out, /Regards,\nKalpesh/);
+  assert.match(out, /Regards,\n\nKalpesh/);
+  assert.doesNotMatch(out, /\b96\b/, 'the Outlook conditional must not leak its PixelsPerInch');
   // The footer's link survives as something a text reader can use.
   assert.match(out, /mailman\.indianic\.dev/);
   assert.doesNotMatch(out, /<[a-z]/i, 'no markup may survive into the text part');

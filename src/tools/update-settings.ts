@@ -13,6 +13,7 @@ const InputSchema = z.object({
   emailTheme: z.enum(['plain', 'polished']).optional(),
   desktopNotifications: z.boolean().optional(),
   autoBccSelf: z.boolean().optional(),
+  autoSend: z.boolean().optional(),
 });
 
 async function handler(rawArgs: Record<string, unknown>) {
@@ -38,6 +39,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     ...(input.emailTheme !== undefined ? { emailTheme: input.emailTheme } : {}),
     ...(input.desktopNotifications !== undefined ? { desktopNotifications: input.desktopNotifications } : {}),
     ...(input.autoBccSelf !== undefined ? { autoBccSelf: input.autoBccSelf } : {}),
+    ...(input.autoSend !== undefined ? { autoSend: input.autoSend } : {}),
   }));
 
   return toolResponse({
@@ -48,6 +50,7 @@ async function handler(rawArgs: Record<string, unknown>) {
     emailTheme: settings.emailTheme,
     desktopNotifications: settings.desktopNotifications,
     autoBccSelf: settings.autoBccSelf,
+    autoSend: settings.autoSend,
   });
 }
 
@@ -55,7 +58,7 @@ export const updateSettingsTool: Tool = {
   definition: {
     name: 'update_settings',
     description:
-      'Update one or more global settings — default account, draft TTL, the confirm-before-send gate, default body type, HTML theme, desktop notifications. Only the fields you pass change; returns the full updated settings.',
+      'Update one or more global settings — default account, draft TTL, the confirm-before-send gate, default body type, HTML theme, desktop notifications, auto-send. Only the fields you pass change; returns the full updated settings.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -66,6 +69,11 @@ export const updateSettingsTool: Tool = {
         emailTheme: { type: 'string', enum: ['plain', 'polished'], description: 'polished = branded MailMan shell + IndiaNIC footer on HTML emails' },
         desktopNotifications: { type: 'boolean', description: 'Fire a native OS notification after each successful send (default true)' },
         autoBccSelf: { type: 'boolean', description: 'Bcc the sending account on every draft_email send so the sender keeps a copy (default false; skipped when already a recipient; never applies to campaigns)' },
+        autoSend: {
+          type: 'boolean',
+          description:
+            'Standing permission to send: draft_email sends immediately, no confirm_send step and no draft expiry (default false). Set true ONLY when the user explicitly asks to stop being asked before each send. Campaigns are never affected.',
+        },
       },
       required: [],
       additionalProperties: false,

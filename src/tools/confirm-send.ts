@@ -3,7 +3,7 @@ import { toolResponse, toolError } from '../response.js';
 import { ErrorCodes } from '../errors.js';
 import { resolveAccount, AccountResolutionError } from '../accounts.js';
 import { NoMasterKeyError, KeyringUnavailableError } from '../config/keychain.js';
-import { getDraft, markSent } from '../drafts.js';
+import { getDraft, markSent, type Draft } from '../drafts.js';
 import { getProvider } from '../mail/get-provider.js';
 import { signatureInlineImages } from '../mail/compose.js';
 import { OAuth2AuthError, OAuth2RateLimitError } from '../auth/oauth2.js';
@@ -26,46 +26,12 @@ export function confirmationRequired(alwaysConfirm: boolean, confirm: boolean | 
   return alwaysConfirm && confirm !== true;
 }
 
-async function handler(rawArgs: Record<string, unknown>) {
-  const parsed = InputSchema.safeParse(rawArgs);
-  if (!parsed.success) {
-    return toolError('INVALID_INPUT', parsed.error.message);
-  }
-  const { draftId } = parsed.data;
-
-  const draft = getDraft(draftId);
-  if (!draft) {
-    return toolError(
-      ErrorCodes.DRAFT_NOT_FOUND,
-      `No such draft: ${draftId} — drafts are in-memory and expire; call draft_email again to create a new one.`,
-    );
-  }
-
-  // Idempotent replay: a retried confirm_send after an ambiguous prior
-  // response (timeout, dropped connection) returns the original result
-  // instead of attempting to resend.
-  if (draft.state === 'sent' && draft.result) {
-    return toolResponse({ sent: true, messageId: draft.result.messageId, sentAt: draft.result.sentAt });
-  }
-  if (draft.state === 'expired') {
-    return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft has expired — call draft_email again.');
-  }
-  if (draft.state === 'cancelled') {
-    return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft was cancelled — call draft_email again.');
-  }
-
-  // Confirmation gate — enforced here, not left to the caller's discretion.
-  // With alwaysConfirm on (default), the draft is NOT sent unless confirm:true
-  // is passed. Show the user the draft_email preview, get their explicit "yes",
-  // then call confirm_send again with confirm:true.
-  const settings = await getSettings();
-  if (confirmationRequired(settings.alwaysConfirm, parsed.data.confirm)) {
-    return toolError(
-      'CONFIRMATION_REQUIRED',
-      'Not sent. alwaysConfirm is on: show the draft preview to the user, get their explicit approval, then call confirm_send again with confirm:true. (To disable this gate: mailman settings set alwaysConfirm false.)',
-    );
-  }
-
+/**
+ * Send a pending draft and do the post-send bookkeeping. Callers own the
+ * confirmation gate: confirm_send checks it, draft_email only gets here when
+ * settings.autoSend is the user's standing permission.
+ */
+export async function dispatchDraft(draft: Draft) {
   let account;
   try {
     account = await resolveAccount(draft.account);
@@ -108,7 +74,7 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
 
   const sentAt = new Date().toISOString();
-  markSent(draftId, { messageId, sentAt });
+  markSent(draft.draftId, { messageId, sentAt });
 
   // Opt-in native desktop notification (off by default). Fire-and-forget:
   // the mail already went out, so a notification hiccup must never affect
@@ -125,6 +91,49 @@ async function handler(rawArgs: Record<string, unknown>) {
   }
 
   return toolResponse({ sent: true, messageId, sentAt });
+}
+
+async function handler(rawArgs: Record<string, unknown>) {
+  const parsed = InputSchema.safeParse(rawArgs);
+  if (!parsed.success) {
+    return toolError('INVALID_INPUT', parsed.error.message);
+  }
+  const { draftId } = parsed.data;
+
+  const draft = getDraft(draftId);
+  if (!draft) {
+    return toolError(
+      ErrorCodes.DRAFT_NOT_FOUND,
+      `No such draft: ${draftId} — drafts are in-memory and expire; call draft_email again to create a new one.`,
+    );
+  }
+
+  // Idempotent replay: a retried confirm_send after an ambiguous prior
+  // response (timeout, dropped connection) returns the original result
+  // instead of attempting to resend.
+  if (draft.state === 'sent' && draft.result) {
+    return toolResponse({ sent: true, messageId: draft.result.messageId, sentAt: draft.result.sentAt });
+  }
+  if (draft.state === 'expired') {
+    return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft has expired — call draft_email again.');
+  }
+  if (draft.state === 'cancelled') {
+    return toolError(ErrorCodes.DRAFT_EXPIRED, 'This draft was cancelled — call draft_email again.');
+  }
+
+  // Confirmation gate — enforced here, not left to the caller's discretion.
+  // With alwaysConfirm on (default), the draft is NOT sent unless confirm:true
+  // is passed. Show the user the draft_email preview, get their explicit "yes",
+  // then call confirm_send again with confirm:true.
+  const settings = await getSettings();
+  if (!settings.autoSend && confirmationRequired(settings.alwaysConfirm, parsed.data.confirm)) {
+    return toolError(
+      'CONFIRMATION_REQUIRED',
+      'Not sent. alwaysConfirm is on: show the draft preview to the user, get their explicit approval, then call confirm_send again with confirm:true. (To stop being asked at all, the user can grant standing permission: mailman settings set autoSend true.)',
+    );
+  }
+
+  return dispatchDraft(draft);
 }
 
 export const confirmSendTool: Tool = {

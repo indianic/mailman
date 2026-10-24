@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`autoSend` setting — standing permission to send.** Every `draft_email`
+  used to wait on a separate `confirm_send` approval and expired after
+  `draftTtlMinutes` if none came. With `mailman settings set autoSend true`
+  (or `update_settings`), `draft_email` sends immediately and returns
+  `sent: true` with the preview. Off by default. Campaigns still require
+  `confirm_campaign`.
+- **Plain-text signatures render as a signature card.** The name is bold, the
+  second line uses the accent colour, contact lines are muted, a thin accent
+  rule runs down the left, and URLs, email addresses and phone numbers are
+  links. A leading sign-off ("Regards,") stays above the card. The card is
+  table-based for Outlook, and the text part still reads like the typed
+  signature. HTML signatures are unchanged.
+
+### Changed
+
+- **Every HTML email is a complete, responsive document** that works in
+  Gmail, Apple Mail, Outlook desktop and web, Yahoo, and on phones. It has a
+  charset and viewport, table layout, an MSO ghost table that pins Outlook
+  desktop to 600px, a fluid column elsewhere, and mobile padding through a
+  media query. `polished` keeps the branded card, and its accent bar now falls
+  back to a solid colour where gradients are dropped. `plain` is now wrapped
+  too: unbranded, left-aligned, at a 640px reading width.
+
 ### Security
 
 - **Attachments are confined and shown by their real path** (T-008 #1). Text

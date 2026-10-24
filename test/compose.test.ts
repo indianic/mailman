@@ -7,6 +7,9 @@ import {
   buildMessageId,
   mailmanHeaders,
   looksLikeHtmlSignature,
+  htmlToPlainText,
+  wrapPlain,
+  wrapPolished,
 } from '../src/mail/compose.js';
 
 test('formatFromAddress: bare email when no display name is set', () => {
@@ -26,9 +29,14 @@ test('appendSignature: text body joins with a blank line', () => {
   assert.equal(appendSignature('hello', '-- Kalpesh', 'text'), 'hello\n\n-- Kalpesh');
 });
 
-test('appendSignature: html body joins with <br><br>', () => {
-  assert.equal(appendSignature('<p>hello</p>', '-- Kalpesh', 'html'), '<p>hello</p><br><br>-- Kalpesh');
+test('appendSignature: html body joins with <br><br> and a signature card', () => {
+  const out = appendSignature('<p>hello</p>', '-- Kalpesh', 'html');
+  assert.ok(out.startsWith('<p>hello</p><br><br><table role="presentation"'));
+  assert.match(out, /font-weight:700[^>]*>-- Kalpesh<\/span>/);
 });
+
+/** The text a reader sees in the signature part of an html send — markup aside. */
+const sigText = (out: string): string => htmlToPlainText(out.split('<br><br>').slice(1).join('<br><br>'));
 
 /**
  * The signature is a plain-text field — `--signature "Regards,\nKalpesh"` stores
@@ -40,17 +48,15 @@ test('appendSignature: a multi-line signature keeps its line breaks in HTML', ()
   // Whitespace collapses in HTML, so this used to render as one run-on line:
   // "Regards, Kalpesh Gamit IndiaNIC".
   const sig = 'Regards,\nKalpesh Gamit\nIndiaNIC';
-  assert.equal(
-    appendSignature('<p>hi</p>', sig, 'html'),
-    '<p>hi</p><br><br>Regards,<br>Kalpesh Gamit<br>IndiaNIC',
-  );
+  assert.equal(sigText(appendSignature('<p>hi</p>', sig, 'html')), 'Regards,\n\nKalpesh Gamit\nIndiaNIC');
   // Text bodies keep real newlines — nothing to convert there.
   assert.equal(appendSignature('hi', sig, 'text'), `hi\n\n${sig}`);
 });
 
 test('appendSignature: CRLF and CR signatures break the same as LF', () => {
-  const expected = '<p>hi</p><br><br>a<br>b';
-  for (const sig of ['a\nb', 'a\r\nb', 'a\rb']) {
+  const expected = appendSignature('<p>hi</p>', 'a\nb', 'html');
+  assert.equal(sigText(expected), 'a\nb');
+  for (const sig of ['a\r\nb', 'a\rb']) {
     assert.equal(appendSignature('<p>hi</p>', sig, 'html'), expected, JSON.stringify(sig));
   }
 });
@@ -59,14 +65,16 @@ test('appendSignature: markup characters in a signature survive instead of vanis
   // `<name@example.com>` used to disappear completely — the browser read it
   // as an unknown tag. Silent loss of content in every outgoing email.
   const out = appendSignature('<p>hi</p>', 'Alex <name@example.com>', 'html');
-  assert.match(out, /Alex &lt;name@example\.com&gt;/);
+  assert.match(out, /Alex &lt;<a [^>]*>name@example\.com<\/a>&gt;/);
   assert.doesNotMatch(out, /<name@/);
 
   // An ampersand was an invalid HTML entity, not an ampersand.
   assert.match(appendSignature('<p>hi</p>', 'Sales & Marketing', 'html'), /Sales &amp; Marketing/);
 
-  // Escaping happens BEFORE newline conversion, or the <br> would be escaped too.
-  assert.equal(appendSignature('x', 'a & b\nc', 'html'), 'x<br><br>a &amp; b<br>c');
+  // Escaping happens BEFORE any markup is added, or the card itself would be escaped too.
+  const out2 = appendSignature('x', 'a & b\nc', 'html');
+  assert.match(out2, />a &amp; b<\/span>/);
+  assert.doesNotMatch(out2, /&lt;(div|table|br)/);
 });
 
 test('appendSignature: a signature cannot inject markup into the email', () => {
@@ -97,8 +105,8 @@ test('appendSignature: an HTML signature renders instead of showing its tags', (
 test('appendSignature: a plain-text signature is still escaped exactly as before', () => {
   // The regression that matters most: HTML detection must not change the
   // behaviour of the field's documented plain-text form.
-  assert.equal(appendSignature('x', 'a & b\nc', 'html'), 'x<br><br>a &amp; b<br>c');
-  assert.match(appendSignature('<p>hi</p>', 'Alex <name@example.com>', 'html'), /&lt;name@example\.com&gt;/);
+  assert.equal(sigText(appendSignature('x', 'a & b\nc', 'html')), 'a & b\nc');
+  assert.match(appendSignature('<p>hi</p>', 'Alex <name@example.com>', 'html'), /&lt;<a href="mailto:name@example\.com"[^>]*>name@example\.com<\/a>&gt;/);
 });
 
 test('appendSignature: an address in angle brackets is not mistaken for a tag', () => {
@@ -107,7 +115,8 @@ test('appendSignature: an address in angle brackets is not mistaken for a tag', 
   // escaping was introduced to fix.
   for (const sig of ['Kalpesh <sub@indianic.com>', 'Ann <a@indianic.com>', 'Bob <b@indianic.com>']) {
     const out = appendSignature('<p>hi</p>', sig, 'html');
-    assert.match(out, /&lt;(sub|a|b)@indianic\.com&gt;/, sig);
+    assert.match(out, /&lt;<a href="mailto:(sub|a|b)@indianic\.com"[^>]*>\1@indianic\.com<\/a>&gt;/, sig);
+    assert.equal(sigText(out), sig);
   }
 });
 
@@ -206,4 +215,48 @@ test('buildMessageId: unique per call', () => {
 
 test('mailmanHeaders: brands X-Mailer', () => {
   assert.deepEqual(mailmanHeaders(), { 'X-Mailer': 'mcp-mailman' });
+});
+
+test('signature card: name, role, contacts — with tappable links and a clean text part', () => {
+  const sig = 'Regards,\nSandeep Mundra\nIndiaNIC Infotech Limited | www.indianic.com\n+91 999810 65555 | +1 408 940 6479\nmail: sm@indianic.com';
+  const out = appendSignature('<p>hi</p>', sig, 'html');
+  assert.match(out, /font-weight:700[^>]*>Sandeep Mundra<\/span>/, 'the name leads, bold');
+  assert.match(out, /border-left:3px solid/, 'behind an accent rule');
+  assert.match(out, /<a href="https:\/\/www\.indianic\.com"[^>]*>www\.indianic\.com<\/a>/);
+  assert.match(out, /<a href="tel:\+9199981065555"[^>]*>\+91 999810 65555<\/a>/);
+  assert.match(out, /<a href="tel:\+14089406479"/);
+  assert.match(out, /<a href="mailto:sm@indianic\.com"/);
+  // The sign-off is not part of the card.
+  assert.match(out, /<div style="margin:0 0 12px">Regards,<\/div><table/);
+  assert.equal(
+    sigText(out),
+    'Regards,\n\nSandeep Mundra\nIndiaNIC Infotech Limited | www.indianic.com\n+91 999810 65555 | +1 408 940 6479\nmail: sm@indianic.com',
+    'the text part reads like the signature that was typed',
+  );
+});
+
+test('signature card: a date range or short number is not made a phone link', () => {
+  const out = appendSignature('x', 'Kalpesh\nSince 2019-2024\nExt 4521', 'html');
+  assert.doesNotMatch(out, /tel:/);
+});
+
+test('signature card: a bare -- divider is dropped, an empty signature adds nothing visible', () => {
+  assert.doesNotMatch(appendSignature('x', '--\nKalpesh', 'html'), />--</);
+});
+
+for (const [name, wrap] of [['wrapPlain', wrapPlain], ['wrapPolished', wrapPolished]] as const) {
+  test(`${name}: a full, client-safe responsive document`, () => {
+    const out = wrap('<p>hi</p>');
+    assert.ok(out.startsWith('<!DOCTYPE html>'));
+    assert.match(out, /<meta name="viewport" content="width=device-width,initial-scale=1">/);
+    assert.match(out, /<!--\[if mso\]><table role="presentation" width="\d+"/, 'Outlook gets a fixed-width ghost table');
+    assert.match(out, /@media screen and \(max-width:620px\)/);
+    assert.ok(out.includes('<p>hi</p>'));
+    assert.doesNotMatch(out, /<div style="display:flex/, 'no layout Outlook cannot render');
+    assert.equal(htmlToPlainText(out).split('\n')[0], 'hi', 'boilerplate never reaches the text part');
+  });
+}
+
+test('wrapPlain carries no branding', () => {
+  assert.doesNotMatch(wrapPlain('<p>hi</p>'), /IndiaNIC|MailMan/);
 });

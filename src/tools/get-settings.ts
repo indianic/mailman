@@ -12,6 +12,7 @@ async function handler() {
     desktopNotifications: settings.desktopNotifications,
     emailTheme: settings.emailTheme,
     autoBccSelf: settings.autoBccSelf,
+    autoSend: settings.autoSend,
   });
 }
 
@@ -19,7 +20,7 @@ export const getSettingsTool: Tool = {
   definition: {
     name: 'get_settings',
     description:
-      'Return current global settings — defaultAccount, draftTtlMinutes, alwaysConfirm, defaultBodyType, emailTheme, desktopNotifications and autoBccSelf. Read this before assuming a default; change them with update_settings.',
+      'Return current global settings — defaultAccount, draftTtlMinutes, alwaysConfirm, defaultBodyType, emailTheme, desktopNotifications, autoBccSelf and autoSend. Read this before assuming a default; change them with update_settings.',
     inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false },
   },
   handler,

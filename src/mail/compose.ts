@@ -83,6 +83,9 @@ export function htmlToPlainText(html: string): string {
   // Non-content elements go entirely, contents included — otherwise CSS from
   // the polished shell would be pasted into the readable text.
   text = text.replace(/<(script|style|head|title)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  // Comments too — the shell's Outlook conditionals (`<!--[if mso]>…<![endif]-->`)
+  // carry ghost-table markup and an <o:PixelsPerInch>96 that would leak as "96".
+  text = text.replace(/<!--[\s\S]*?-->/g, '');
 
   // Source formatting is not content. A body written as
   //
@@ -106,7 +109,11 @@ export function htmlToPlainText(html: string): string {
     (_m, _q, href: string, label: string) => {
       const clean = label.replace(/<[^>]+>/g, '').trim();
       if (!clean) return href;
-      return clean === href ? href : `${clean} (${href})`;
+      // The signature card links "www.indianic.com" to https://www.indianic.com
+      // and "+91 999810 65555" to tel:+9199981065555 — the label already IS the
+      // destination, so repeating it in parentheses is noise.
+      const bare = (v: string): string => v.replace(/^(?:https?:\/\/|mailto:|tel:)/i, '').replace(/[\s()./-]/g, '');
+      return clean === href || bare(clean) === bare(href) ? clean : `${clean} (${href})`;
     },
   );
 
@@ -240,9 +247,82 @@ export function appendSignature(
   return `${body}<br><br>${textSignatureAsHtml(signature)}`;
 }
 
-/** Normalise CRLF/CR first so a signature typed on Windows breaks identically. */
+const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+/** Brand accent shared by the signature card and the polished shell. */
+const ACCENT = '#6366f1';
+
+/** "Regards," / "Thanks & Regards," / "Best" — the line that leads INTO a signature, not part of the card. */
+const SIGN_OFF = /^(?:(?:many |warm |kind |best )?(?:thanks|thank you|regards|cheers|sincerely|best|warmly|yours)\b.*|.*,)$/i;
+
+/**
+ * URLs, email addresses and phone numbers in one pass, so a match can never be
+ * re-linked inside an anchor an earlier pass made. Runs on ESCAPED text, which
+ * is why `&lt;kg@example.com&gt;` still links only the address.
+ */
+const LINKABLE = /((?:https?:\/\/|www\.)[^\s<|]*[^\s<|.,;:)])|([\w.+-]+@[\w-]+(?:\.[\w-]+)+)|(\+?\d[\d ().-]{6,}\d)/g;
+
+const LINK_STYLE = `color:${ACCENT};text-decoration:none`;
+
+function linkifyEscaped(line: string): string {
+  return line.replace(LINKABLE, (whole, url: string | undefined, email: string | undefined, phone: string | undefined) => {
+    if (url) {
+      const href = url.startsWith('www.') ? `https://${url}` : url;
+      return `<a href="${href}" style="${LINK_STYLE}">${url}</a>`;
+    }
+    if (email) return `<a href="mailto:${email}" style="${LINK_STYLE}">${email}</a>`;
+    // A date range or an invoice number is not a phone: require an
+    // international prefix or a full ten digits before calling it one.
+    const digits = (phone ?? '').replace(/\D/g, '');
+    if (!phone || (!phone.startsWith('+') && digits.length < 10)) return whole;
+    return `<a href="tel:${phone.startsWith('+') ? '+' : ''}${digits}" style="color:inherit;text-decoration:none">${phone}</a>`;
+  });
+}
+
+/**
+ * A PLAIN TEXT signature rendered as a signature card: the name bold, the
+ * second line (role or company) in the accent colour, contact lines smaller and
+ * muted, all behind a thin accent rule, with URLs/emails/phones made tappable.
+ * A leading sign-off ("Regards,") sits above the card as ordinary text.
+ *
+ * Every line is escaped BEFORE any markup is added — the guarantees the plain
+ * `<br>` rendering had still hold: `<name@example.com>` cannot vanish, `&` is
+ * never a broken entity, nothing can close the shell. A table rather than
+ * divs-with-flex because Outlook's Word engine lays out nothing else reliably;
+ * styles are inline because Gmail drops <style> on many surfaces.
+ */
 function textSignatureAsHtml(signature: string): string {
-  return escapeHtml(signature.replace(/\r\n?/g, '\n')).replace(/\n/g, '<br>');
+  // Normalise CRLF/CR first so a signature typed on Windows breaks identically.
+  const lines = signature
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((l) => l.trim())
+    // A bare "--"/"---" rule is the plain-text divider; the card's accent rule replaces it.
+    .filter((l) => l && !/^-{2,}$/.test(l));
+  if (lines.length === 0) return '';
+
+  const signOff: string[] = [];
+  while (lines.length > 1 && SIGN_OFF.test(lines[0])) signOff.push(lines.shift()!);
+
+  const render = (line: string): string =>
+    linkifyEscaped(escapeHtml(line)).replace(/ \| /g, '<span style="color:#d1d5db">&nbsp;&nbsp;|&nbsp;&nbsp;</span>');
+
+  // Spans joined by <br>, not one div per line: the text part is derived from
+  // this markup, and a div per line would double-space the signature there.
+  const [name, second, ...rest] = lines;
+  const rows = [
+    `<span style="font-size:16px;line-height:24px;font-weight:700;color:#111827">${render(name)}</span>`,
+    ...(second ? [`<span style="font-size:13px;line-height:20px;font-weight:600;color:${ACCENT}">${render(second)}</span>`] : []),
+    ...rest.map((l) => `<span style="font-size:13px;line-height:20px;color:#4b5563">${render(l)}</span>`),
+  ];
+
+  return [
+    ...signOff.map((l) => `<div style="margin:0 0 12px">${render(l)}</div>`),
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:${FONT_STACK}">`,
+    `<tr><td style="border-left:3px solid ${ACCENT};padding:2px 0 2px 14px;font-size:13px;line-height:20px">`,
+    rows.join('<br>'),
+    '</td></tr></table>',
+  ].join('');
 }
 
 /**
@@ -428,30 +508,104 @@ export function sanitizeSignatureHtml(signature: string): string {
 }
 
 /**
+ * The document every HTML send goes out in, so it renders the same in Gmail,
+ * Apple Mail, Outlook (desktop = Word engine, plus web), Yahoo and phones:
+ *
+ *  - a real document with charset + viewport, so phones don't zoom out to a
+ *    desktop-width page and iOS doesn't reflow it (x-apple-disable-message-reformatting);
+ *  - tables, not divs, for layout — the one construct Outlook desktop honours —
+ *    with an MSO "ghost table" pinning 600px there, since it ignores max-width;
+ *  - fluid width:100% + max-width elsewhere, so the column shrinks on a phone
+ *    and the media query only has to tighten padding;
+ *  - every style that matters inline; the <style> block is enhancement only
+ *    (paragraph rhythm, image scaling, mobile padding) for clients that keep it.
+ */
+function emailDocument(inner: string, opts: { background: string; align: 'left' | 'center'; maxWidth: number }): string {
+  const { background, align, maxWidth } = opts;
+  return [
+    '<!DOCTYPE html>',
+    '<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">',
+    '<head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    '<meta http-equiv="X-UA-Compatible" content="IE=edge">',
+    '<meta name="x-apple-disable-message-reformatting">',
+    '<meta name="format-detection" content="telephone=no,address=no,email=no,date=no">',
+    '<meta name="color-scheme" content="light">',
+    '<meta name="supported-color-schemes" content="light">',
+    '<title></title>',
+    '<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->',
+    '<style>',
+    'body{margin:0!important;padding:0!important;width:100%!important;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}',
+    'table,td{mso-table-lspace:0pt;mso-table-rspace:0pt}',
+    'img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;max-width:100%;height:auto}',
+    `.mm-body p{margin:0 0 16px}.mm-body ul,.mm-body ol{margin:0 0 16px;padding-left:24px}.mm-body li{margin:0 0 6px}`,
+    `.mm-body a{color:${ACCENT}}.mm-body h1,.mm-body h2,.mm-body h3{margin:0 0 12px;line-height:1.3;color:#111827}`,
+    '@media screen and (max-width:620px){.mm-pad{padding:20px 16px!important}.mm-card{border-radius:0!important;border-left:0!important;border-right:0!important}}',
+    '</style>',
+    '</head>',
+    `<body style="margin:0;padding:0;background-color:${background}">`,
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background-color:${background}" bgcolor="${background}">`,
+    `<tr><td align="${align}" style="padding:0">`,
+    `<!--[if mso]><table role="presentation" width="${maxWidth}" align="${align}" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->`,
+    inner,
+    '<!--[if mso]></td></tr></table><![endif]-->',
+    '</td></tr></table>',
+    '</body>',
+    '</html>',
+  ].join('');
+}
+
+/**
+ * The "plain" theme: no branding, no card — it should read like a person wrote
+ * it — but still the responsive, client-safe document above, left-aligned the
+ * way personal mail is, at a comfortable reading width.
+ */
+export function wrapPlain(html: string): string {
+  return emailDocument(
+    [
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;max-width:640px">',
+      `<tr><td class="mm-body" style="padding:8px 4px;font-family:${FONT_STACK};font-size:15px;line-height:1.6;color:#1f2937">`,
+      html,
+      '</td></tr></table>',
+    ].join(''),
+    { background: '#ffffff', align: 'left', maxWidth: 640 },
+  );
+}
+
+/**
  * Wrap an HTML body (body + signature, since appendSignature runs first) in the
  * branded MailMan shell: a brand accent bar, a readable ~600px card, and an
  * always-present IndiaNIC copyright footer. Because the signature is inside the
  * `html` passed here, it renders WITHIN the card — never dangling outside it.
  * Opt-in via settings.emailTheme / draft_email's `theme`; never touches text sends.
+ *
+ * The accent bar is a td with a solid bgcolor and the gradient layered on top:
+ * Outlook drops gradients, and a missing bar beats a broken one.
  */
-const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-
 export function wrapPolished(html: string): string {
   const year = new Date().getFullYear();
-  return [
-    '<div style="margin:0;padding:0;background:#f6f7f9">',
-    `<div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;font-family:${FONT_STACK}">`,
-    // Brand accent bar (the indigo→fuchsia identity), kept subtle for routine mail.
-    '<div style="height:4px;background:linear-gradient(90deg,#6366f1,#a21caf,#d946ef)"></div>',
-    `<div style="padding:28px 24px;font-size:15px;line-height:1.6;color:#1f2937">`,
-    html,
-    '</div>',
-    // Always-on IndiaNIC footer / copyright.
-    '<div style="border-top:1px solid #eef2f7;padding:16px 24px;font-size:12px;color:#9ca3af;text-align:center">',
-    `© ${year} IndiaNIC Infotech Ltd. · <a href="https://mailman.indianic.dev" style="color:#6366f1;text-decoration:none">mailman.indianic.dev</a>`,
-    '<br>Sent with MailMan',
-    '</div>',
-    '</div>',
-    '</div>',
-  ].join('');
+  return emailDocument(
+    [
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;max-width:600px;margin:0 auto">',
+      '<tr><td style="padding:24px 0" class="mm-outer">',
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mm-card" style="border-collapse:separate;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden" bgcolor="#ffffff">`,
+      `<tr><td height="4" bgcolor="${ACCENT}" style="height:4px;line-height:4px;font-size:0;background-color:${ACCENT};background-image:linear-gradient(90deg,#6366f1,#a21caf,#d946ef)">&nbsp;</td></tr>`,
+      `<tr><td class="mm-pad mm-body" style="padding:32px 32px 28px;font-family:${FONT_STACK};font-size:15px;line-height:1.6;color:#1f2937">`,
+      html,
+      '</td></tr>',
+      `<tr><td class="mm-pad" style="border-top:1px solid #eef2f7;padding:16px 32px;font-family:${FONT_STACK};font-size:12px;line-height:18px;color:#9ca3af;text-align:center">`,
+      `© ${year} IndiaNIC Infotech Ltd. · <a href="https://mailman.indianic.dev" style="color:${ACCENT};text-decoration:none">mailman.indianic.dev</a>`,
+      '<br>Sent with MailMan',
+      '</td></tr>',
+      '</table>',
+      '</td></tr></table>',
+    ].join(''),
+    { background: '#f6f7f9', align: 'center', maxWidth: 600 },
+  );
+}
+
+/** The shell for a theme — the one place draft_email and draft_campaign pick it. */
+export function wrapEmail(html: string, theme: 'plain' | 'polished'): string {
+  return theme === 'polished' ? wrapPolished(html) : wrapPlain(html);
 }

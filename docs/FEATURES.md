@@ -292,7 +292,7 @@ flowchart TD
 | `list_contacts` / `add_contact` / `remove_contact` | Address book |
 | `preview_attachments` | What files a path/glob/dir would attach |
 | `list_accounts` / `configure_account` / `update_account_profile` / `remove_account` | Account management |
-| `get_settings` / `update_settings` | Global settings (incl. `autoBccSelf`) |
+| `get_settings` / `update_settings` | Global settings (incl. `autoBccSelf`, `autoSend`) |
 | `get_status` | Configured state (accounts, security, activity) |
 
 ### Signatures
@@ -342,7 +342,7 @@ message does not read as HTML-only to a spam filter.
 | `mailman account add/list/remove/set-default/profile` | Manage accounts, From Name, signature & signature photo |
 | `mailman auth login` / `auth rotate-key` | OAuth2 consent / rotate encryption key |
 | `mailman contacts list/add/remove` | Address book |
-| `mailman settings get/set` | View / change settings (incl. `desktopNotifications`, `autoBccSelf`) |
+| `mailman settings get/set` | View / change settings (incl. `desktopNotifications`, `autoBccSelf`, `autoSend`) |
 | `mailman register` | Register with AI editors |
 | `mailman doctor` | Environment pre-flight checks |
 | `mailman scheduled list` | Pending/sent/failed scheduled sends |
